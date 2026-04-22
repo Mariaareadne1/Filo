@@ -150,10 +150,6 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.safe}>
-      {/* Background orbs */}
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
-
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Feed</Text>
@@ -203,18 +199,6 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute',
-    width: 320, height: 320, borderRadius: 160,
-    backgroundColor: 'rgba(230,57,70,0.15)',
-    top: -80, right: -80,
-  },
-  orbBlue: {
-    position: 'absolute',
-    width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(67,97,238,0.10)',
-    bottom: 100, left: -80,
-  },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
