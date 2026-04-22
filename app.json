@@ -13,7 +13,13 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Filo uses your location to center the map near you.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Filo uses your location to center the map near you.",
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "bundleIdentifier": "com.anonymous.Filo"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,10 +27,27 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "scheme": "filo",
+    "plugins": [
+      "expo-router",
+      "expo-location",
+      "expo-notifications",
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1IjoibWFyaWFhcmVhZG5lMSIsImEiOiJjbW5xemlqdnUwY3V1MnBtdm9haWc4N3EwIn0.cUL68aH6EgYv5lwEYYVaDw"
+        }
+      ]
+    ]
   }
 }

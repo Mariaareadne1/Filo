@@ -1,18 +1,36 @@
 {
   "name": "filo",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.8",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@rnmapbox/maps": "^10.3.0",
+    "@supabase/supabase-js": "^2.102.1",
     "expo": "~54.0.33",
+    "expo-constants": "~18.0.13",
+    "expo-file-system": "~19.0.21",
+    "expo-image-picker": "~17.0.10",
+    "expo-linking": "~8.0.11",
+    "expo-location": "^55.1.7",
+    "expo-notifications": "~0.32.16",
+    "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
+    "posthog-react-native": "^3.3.5",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-draggable-flatlist": "^4.0.3",
+    "react-native-gesture-handler": "^2.31.0",
+    "react-native-reanimated": "^4.3.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-url-polyfill": "^3.0.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
