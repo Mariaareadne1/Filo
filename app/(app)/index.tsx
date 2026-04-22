@@ -4,9 +4,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
+  Image,
 } from 'react-native';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
 import * as Location from 'expo-location';
@@ -15,17 +15,61 @@ import { usePins, MapMode } from '../../hooks/usePins';
 import { MapPin, CATEGORY_COLORS } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import { useRouter, useFocusEffect } from 'expo-router';
-
+import { COLORS } from '../../constants/theme';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 
-const MORNINGSIDE = [-73.9626, 40.8075]; // [lng, lat] for Mapbox
+const MORNINGSIDE = [-73.9626, 40.8075];
 
-const MODES: { key: MapMode; label: string; trackAs: string }[] = [
-  { key: 'my',     label: 'MY MAP',   trackAs: 'my_map'    },
-  { key: 'friends', label: 'FRIENDS', trackAs: 'friends_map' },
-  { key: 'campus', label: 'COLUMBIA', trackAs: 'campus'    },
+const MODES: { key: MapMode; label: string }[] = [
+  { key: 'my',      label: 'MY MAP'   },
+  { key: 'friends', label: 'FRIENDS'  },
+  { key: 'campus',  label: 'COLUMBIA' },
 ];
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
+};
+
+function PhotoPin({ pin, color, selected }: { pin: MapPin; color: string; selected: boolean }) {
+  const size = selected ? 58 : 48;
+  const borderWidth = selected ? 3 : 2.5;
+  const shadow = {
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: selected ? 0.7 : 0.45,
+    shadowRadius: selected ? 6 : 4,
+    elevation: selected ? 8 : 5,
+  };
+
+  if (pin.photo_url) {
+    return (
+      <View style={[{
+        width: size, height: size, borderRadius: size / 2,
+        borderWidth, borderColor: color, overflow: 'hidden',
+      }, shadow]}>
+        <Image source={{ uri: pin.photo_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[{
+      width: size, height: size, borderRadius: size / 2,
+      borderWidth, borderColor: color,
+      backgroundColor: color + '2A',
+      alignItems: 'center', justifyContent: 'center',
+    }, shadow]}>
+      <Text style={{ fontSize: selected ? 22 : 18 }}>{CATEGORY_EMOJI[pin.category] ?? '📍'}</Text>
+    </View>
+  );
+}
+
+const EMPTY_MESSAGES: Record<MapMode, string> = {
+  my: 'Tap + to pin your first place.',
+  friends: 'Follow people to see their pins.\nStart with the Columbia directory.',
+  campus: 'Be the first to pin something near campus.',
+};
 
 export default function MapScreen() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -37,21 +81,16 @@ export default function MapScreen() {
 
   const { pins, loading, error, refetch } = usePins(userId, mode);
 
-  // Get auth user
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id ?? null);
     });
   }, []);
 
-  // Refetch pins whenever the map comes back into focus (after pin creation)
-  useFocusEffect(
-    useCallback(() => {
-      if (userId) refetch();
-    }, [userId, mode])
-  );
+  useFocusEffect(useCallback(() => {
+    if (userId) refetch();
+  }, [userId, mode]));
 
-  // Request location permission
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -61,37 +100,22 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
       <MapboxGL.MapView
         style={StyleSheet.absoluteFill}
-        styleURL={MapboxGL.StyleURL.Street}
+        styleURL={MapboxGL.StyleURL.Dark}
         logoEnabled={false}
         attributionEnabled={false}
         compassEnabled
       >
         <MapboxGL.Camera
-          defaultSettings={{
-            centerCoordinate: MORNINGSIDE,
-            zoomLevel: 14,
-          }}
+          defaultSettings={{ centerCoordinate: MORNINGSIDE, zoomLevel: 14 }}
         />
-
-        {/* User location */}
-        {locationGranted && (
-          <MapboxGL.UserLocation visible animated />
-        )}
-
-        {/* Pin markers */}
+        {locationGranted && <MapboxGL.UserLocation visible animated />}
         {pins.map((pin) => (
-          <MapboxGL.MarkerView
-            key={pin.pin_id}
-            coordinate={[pin.lng, pin.lat]}
-          >
-            <TouchableOpacity
-              onPress={() => setSelectedPin(pin)}
-              activeOpacity={0.85}
-            >
-              <PinDot
+          <MapboxGL.MarkerView key={pin.pin_id} coordinate={[pin.lng, pin.lat]}>
+            <TouchableOpacity onPress={() => setSelectedPin(pin)} activeOpacity={0.85}>
+              <PhotoPin
+                pin={pin}
                 color={CATEGORY_COLORS[pin.category] ?? '#888'}
                 selected={selectedPin?.pin_id === pin.pin_id}
               />
@@ -103,13 +127,11 @@ export default function MapScreen() {
       {/* Top toggle */}
       <SafeAreaView style={styles.topBar} pointerEvents="box-none">
         <View style={styles.toggleContainer}>
-          {MODES.map(({ key, label, trackAs }) => (
+          {MODES.map(({ key, label }) => (
             <TouchableOpacity
               key={key}
               style={[styles.toggleBtn, mode === key && styles.toggleBtnActive]}
-              onPress={() => {
-                setMode(key);
-              }}
+              onPress={() => setMode(key)}
             >
               <Text style={[styles.toggleText, mode === key && styles.toggleTextActive]}>
                 {label}
@@ -119,28 +141,22 @@ export default function MapScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Loading overlay */}
       {loading && (
         <View style={styles.loadingOverlay} pointerEvents="none">
-          <ActivityIndicator color="#E63946" size="small" />
+          <ActivityIndicator color={COLORS.primary} size="small" />
         </View>
       )}
-
-      {/* Error toast */}
       {error && !loading && (
         <View style={styles.errorToast} pointerEvents="none">
           <Text style={styles.errorToastText}>{error}</Text>
         </View>
       )}
-
-      {/* Empty state */}
       {!loading && !error && pins.length === 0 && (
         <View style={styles.emptyState} pointerEvents="none">
           <Text style={styles.emptyText}>{EMPTY_MESSAGES[mode]}</Text>
         </View>
       )}
 
-      {/* + FAB */}
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => router.push('/pin/search')}
@@ -149,119 +165,75 @@ export default function MapScreen() {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
-      {/* Pin detail sheet */}
       <PinDetailSheet pin={selectedPin} onClose={() => setSelectedPin(null)} />
     </View>
   );
 }
 
-function PinDot({ color, selected }: { color: string; selected: boolean }) {
-  return (
-    <View
-      style={[
-        styles.dot,
-        { borderColor: color, width: selected ? 28 : 22, height: selected ? 28 : 22, borderRadius: selected ? 14 : 11 },
-      ]}
-    >
-      <View style={[styles.dotInner, { backgroundColor: color, width: selected ? 12 : 9, height: selected ? 12 : 9, borderRadius: selected ? 6 : 5 }]} />
-    </View>
-  );
-}
-
-const EMPTY_MESSAGES: Record<MapMode, string> = {
-  my: 'Tap + to pin your first place.',
-  friends: 'Follow people to see their pins.\nStart with the Columbia directory.',
-  campus: 'Be the first to pin something near campus.',
-};
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingTop: 8,
+    position: 'absolute', top: 0, left: 0, right: 0,
+    alignItems: 'center', paddingTop: 8,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 3,
+    backgroundColor: 'rgba(245,240,235,0.96)',
+    borderRadius: 22,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(26,26,26,0.12)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   toggleBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 17,
+    borderRadius: 18,
   },
-  toggleBtnActive: { backgroundColor: '#E63946' },
-  toggleText: { fontSize: 12, fontWeight: '700', color: '#666', letterSpacing: 0.5 },
-  toggleTextActive: { color: '#fff' },
+  toggleBtnActive: { backgroundColor: COLORS.primary },
+  toggleText: {
+    fontSize: 12, fontWeight: '700',
+    color: 'rgba(26,26,26,0.45)',
+    letterSpacing: 0.6,
+  },
+  toggleTextActive: { color: COLORS.textPrimary },
   loadingOverlay: {
-    position: 'absolute',
-    top: '50%',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 20,
-    padding: 12,
+    position: 'absolute', top: '50%', alignSelf: 'center',
+    backgroundColor: 'rgba(245,240,235,0.96)',
+    borderRadius: 20, padding: 12,
+    borderWidth: 1, borderColor: 'rgba(26,26,26,0.06)',
   },
   errorToast: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
-    backgroundColor: '#333',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    position: 'absolute', bottom: 100, alignSelf: 'center',
+    backgroundColor: 'rgba(245,240,235,0.97)',
+    borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10,
+    borderWidth: 1, borderColor: 'rgba(230,57,70,0.4)',
   },
-  errorToastText: { color: '#fff', fontSize: 13 },
+  errorToastText: { color: COLORS.textPrimary, fontSize: 13 },
   emptyState: {
-    position: 'absolute',
-    bottom: 120,
-    left: 32,
-    right: 32,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    position: 'absolute', bottom: 120, left: 32, right: 32,
+    backgroundColor: 'rgba(245,240,235,0.96)',
+    borderRadius: 16, padding: 20, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(26,26,26,0.06)',
   },
-  emptyText: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 20 },
+  emptyText: {
+    fontSize: 14, color: 'rgba(26,26,26,0.65)',
+    textAlign: 'center', lineHeight: 20,
+  },
   fab: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#E63946',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#E63946',
+    position: 'absolute', alignSelf: 'center',
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 10,
   },
-  fabText: { fontSize: 28, color: '#fff', fontWeight: '300', lineHeight: 32 },
-  dot: {
-    borderWidth: 2.5,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  dotInner: {},
+  fabText: { fontSize: 28, color: COLORS.textPrimary, fontWeight: '300', lineHeight: 32 },
 });

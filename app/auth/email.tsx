@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
 
 const ALLOWED_DOMAINS = ['columbia.edu', 'barnard.edu'];
 
@@ -29,115 +30,140 @@ export default function EmailScreen() {
   async function handleContinue() {
     setError('');
     const trimmed = email.trim().toLowerCase();
-
-    if (!trimmed) {
-      setError('Please enter your email address.');
-      return;
-    }
-
+    if (!trimmed) { setError('Please enter your email address.'); return; }
     if (!isValidCampusEmail(trimmed)) {
       setError('You must sign up with a @columbia.edu or @barnard.edu email.');
       return;
     }
-
     setLoading(true);
-    // Omitting emailRedirectTo is what tells Supabase to send a 6-digit OTP
-    // code rather than a magic link URL. The dashboard email template must use
-    // {{ .Token }} (not {{ .ConfirmationURL }}) for this to show a code.
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { shouldCreateUser: true },
     });
     setLoading(false);
-
-    if (otpError) {
-      setError(otpError.message);
-      return;
-    }
-
+    if (otpError) { setError(otpError.message); return; }
     router.push({ pathname: '/auth/otp', params: { email: trimmed } });
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.header}>
-          <Text style={styles.logo}>Filo</Text>
-          <Text style={styles.tagline}>The map your friends would draw.</Text>
-        </View>
+    <View style={styles.safe}>
+      {/* Orbs */}
+      <View style={styles.orbRed} pointerEvents="none" />
+      <View style={styles.orbBlue} pointerEvents="none" />
+      {/* Red thread */}
+      <View style={styles.thread1} pointerEvents="none" />
+      <View style={styles.thread2} pointerEvents="none" />
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Enter your Columbia or Barnard email</Text>
-          <TextInput
-            style={[styles.input, error ? styles.inputError : null]}
-            placeholder="you@columbia.edu"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={(t) => {
-              setEmail(t);
-              setError('');
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            onSubmitEditing={handleContinue}
-            returnKeyType="done"
-          />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* Brand */}
+          <View style={styles.brand}>
+            <View style={styles.logoRing}>
+              <Text style={styles.logoPin}>◉</Text>
+            </View>
+            <Text style={styles.logoWord}>Filo</Text>
+            <Text style={styles.tagline}>The map your friends would draw.</Text>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleContinue}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Continue</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+          {/* Form */}
+          <View style={[styles.formCard, GLASS]}>
+            <Text style={styles.label}>Columbia or Barnard email</Text>
+            <TextInput
+              style={[styles.input, error ? styles.inputError : null]}
+              placeholder="you@columbia.edu"
+              placeholderTextColor="rgba(26,26,26,0.35)"
+              value={email}
+              onChangeText={(t) => { setEmail(t); setError(''); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              onSubmitEditing={handleContinue}
+              returnKeyType="done"
+            />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Text style={styles.fine}>
-          Filo is currently invite-only for Columbia and Barnard students.
-        </Text>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleContinue}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Continue →</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.fine}>
+            Filo is invite-only for Columbia and Barnard students.
+          </Text>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  header: { marginBottom: 48, alignItems: 'center' },
-  logo: { fontSize: 42, fontWeight: '800', color: '#E63946', letterSpacing: -1 },
-  tagline: { fontSize: 15, color: '#666', marginTop: 6 },
-  form: { gap: 12 },
-  label: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 4 },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111',
-    backgroundColor: '#fafafa',
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  orbRed: {
+    position: 'absolute', width: 360, height: 360, borderRadius: 180,
+    backgroundColor: 'rgba(230,57,70,0.18)', top: -100, right: -80,
   },
-  inputError: { borderColor: '#E63946' },
-  errorText: { fontSize: 13, color: '#E63946', marginTop: -4 },
+  orbBlue: {
+    position: 'absolute', width: 300, height: 300, borderRadius: 150,
+    backgroundColor: 'rgba(67,97,238,0.12)', bottom: -60, left: -80,
+  },
+  thread1: {
+    position: 'absolute', width: 200, height: 80, borderRadius: 80,
+    borderTopWidth: 1.5, borderColor: 'rgba(230,57,70,0.3)',
+    borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
+    bottom: 160, right: 0,
+  },
+  thread2: {
+    position: 'absolute', width: 140, height: 60, borderRadius: 60,
+    borderBottomWidth: 1.5, borderColor: 'rgba(67,97,238,0.25)',
+    borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
+    top: 120, left: 0,
+  },
+  container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 32 },
+  brand: { alignItems: 'center', gap: 10 },
+  logoRing: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 2, borderColor: COLORS.primary + '55',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.primary + '15',
+  },
+  logoPin: { fontSize: 28, color: COLORS.primary },
+  logoWord: {
+    fontSize: 44, fontWeight: '900', color: COLORS.textPrimary,
+    letterSpacing: -1.5,
+  },
+  tagline: { fontSize: 15, color: COLORS.textSecondary },
+
+  formCard: { padding: 24, gap: 14 },
+  label: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 2 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(26,26,26,0.15)',
+    borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 15,
+    fontSize: 16, color: COLORS.textPrimary,
+  },
+  inputError: { borderColor: COLORS.primary },
+  errorText: { fontSize: 13, color: COLORS.primary, marginTop: -6 },
   button: {
-    backgroundColor: '#E63946',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginTop: 4,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  fine: { fontSize: 12, color: '#aaa', textAlign: 'center', marginTop: 32 },
+  buttonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+
+  fine: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
 });

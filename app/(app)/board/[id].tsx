@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
-  shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  shareBtnText: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 13 },
 
   statsRow: {
     flexDirection: 'row',

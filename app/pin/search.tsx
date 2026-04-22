@@ -14,13 +14,10 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchPlaces, PlaceResult } from '../../lib/places';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../../types';
+import { COLORS, GLASS_SM } from '../../constants/theme';
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️',
-  bar: '🍸',
-  beauty: '✂️',
-  experience: '🎯',
-  retail: '🛍️',
+  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
 };
 
 export default function PinSearchScreen() {
@@ -30,28 +27,21 @@ export default function PinSearchScreen() {
   const [error, setError] = useState('');
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   function handleQueryChange(text: string) {
     setQuery(text);
     setError('');
     clearTimeout(debounceRef.current);
-
-    if (!text.trim()) {
-      setResults([]);
-      return;
-    }
-
+    if (!text.trim()) { setResults([]); return; }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
         const places = await searchPlaces(text);
         setResults(places);
-      } catch (e: any) {
+      } catch {
         setError('Search failed. Check your connection and try again.');
       } finally {
         setLoading(false);
@@ -75,131 +65,141 @@ export default function PinSearchScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.searchRow}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Search for a place…"
-              placeholderTextColor="#999"
-              value={query}
-              onChangeText={handleQueryChange}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            {loading && <ActivityIndicator style={styles.spinner} color="#E63946" size="small" />}
+    <View style={styles.safe}>
+      <View style={styles.orbRed} pointerEvents="none" />
+      <View style={styles.orbBlue} pointerEvents="none" />
+
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.searchRow}>
+              <Text style={styles.searchIcon}>⊕</Text>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="Search for a place…"
+                placeholderTextColor="rgba(26,26,26,0.35)"
+                value={query}
+                onChangeText={handleQueryChange}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {loading && <ActivityIndicator style={styles.spinner} color={COLORS.primary} size="small" />}
+            </View>
+            <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
 
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+          {error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
 
-        {/* Results */}
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.place_id}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={
-            !loading && query.length > 1 ? (
-              <Text style={styles.emptyText}>No results. Try a different search.</Text>
-            ) : null
-          }
-          renderItem={({ item }) => {
-            const color = CATEGORY_COLORS[item.category as keyof typeof CATEGORY_COLORS] ?? '#888';
-            const emoji = CATEGORY_EMOJI[item.category] ?? '📍';
-            const label = CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] ?? item.category;
-            return (
-              <TouchableOpacity style={styles.resultRow} onPress={() => selectPlace(item)} activeOpacity={0.7}>
-                <View style={[styles.categoryIcon, { backgroundColor: color + '18' }]}>
-                  <Text style={styles.emoji}>{emoji}</Text>
-                </View>
-                <View style={styles.resultText}>
-                  <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.placeAddress} numberOfLines={1}>{item.address}</Text>
-                  <View style={[styles.catBadge, { borderColor: color }]}>
-                    <Text style={[styles.catBadgeText, { color }]}>{label}</Text>
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.place_id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              !loading && query.length > 1 ? (
+                <Text style={styles.emptyText}>No results. Try a different search.</Text>
+              ) : null
+            }
+            renderItem={({ item }) => {
+              const color = CATEGORY_COLORS[item.category as keyof typeof CATEGORY_COLORS] ?? '#888';
+              const emoji = CATEGORY_EMOJI[item.category] ?? '📍';
+              const label = CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] ?? item.category;
+              return (
+                <TouchableOpacity
+                  style={[styles.resultRow, GLASS_SM]}
+                  onPress={() => selectPlace(item)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.categoryIcon, { backgroundColor: color + '22' }]}>
+                    <Text style={styles.emoji}>{emoji}</Text>
                   </View>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+                  <View style={styles.resultText}>
+                    <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.placeAddress} numberOfLines={1}>{item.address}</Text>
+                    <View style={[styles.catBadge, { borderColor: color + '55', backgroundColor: color + '15' }]}>
+                      <Text style={[styles.catBadgeText, { color }]}>{label}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  orbRed: {
+    position: 'absolute', width: 240, height: 240, borderRadius: 120,
+    backgroundColor: 'rgba(230,57,70,0.13)', top: -40, right: -60,
+  },
+  orbBlue: {
+    position: 'absolute', width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(67,97,238,0.09)', bottom: 80, left: -60,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'rgba(26,26,26,0.08)',
     gap: 10,
   },
   searchRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f4f4f4',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(26,26,26,0.12)',
+    paddingHorizontal: 12,
   },
+  searchIcon: { fontSize: 16, color: COLORS.textMuted, marginRight: 6 },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#111',
-    paddingVertical: 12,
+    color: COLORS.textPrimary,
+    paddingVertical: 13,
   },
   spinner: { marginLeft: 8 },
   cancelBtn: { paddingHorizontal: 4 },
-  cancelText: { fontSize: 15, color: '#E63946', fontWeight: '600' },
-  errorText: { fontSize: 13, color: '#E63946', marginHorizontal: 20, marginTop: 10 },
-  list: { paddingTop: 8 },
+  cancelText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
+  errorText: { fontSize: 13, color: COLORS.primary, marginHorizontal: 20, marginTop: 10 },
+  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40, gap: 8 },
+
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    gap: 14,
+    gap: 12,
   },
   categoryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 46, height: 46, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
   },
   emoji: { fontSize: 20 },
   resultText: { flex: 1, gap: 3 },
-  placeName: { fontSize: 15, fontWeight: '700', color: '#111' },
-  placeAddress: { fontSize: 12, color: '#888' },
+  placeName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  placeAddress: { fontSize: 12, color: COLORS.textSecondary },
   catBadge: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginTop: 2,
+    alignSelf: 'flex-start', borderWidth: 1,
+    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2,
   },
-  catBadgeText: { fontSize: 11, fontWeight: '600' },
-  chevron: { fontSize: 20, color: '#ccc' },
-  separator: { height: 1, backgroundColor: '#f5f5f5', marginLeft: 78 },
-  emptyText: { fontSize: 14, color: '#aaa', textAlign: 'center', marginTop: 40 },
+  catBadgeText: { fontSize: 10, fontWeight: '600' },
+  chevron: { fontSize: 20, color: 'rgba(26,26,26,0.18)' },
+  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 48 },
 });

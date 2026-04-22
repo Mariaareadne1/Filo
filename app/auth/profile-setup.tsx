@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
+import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
+
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
 export default function ProfileSetupScreen() {
@@ -31,22 +33,14 @@ export default function ProfileSetupScreen() {
   const checkUsername = useCallback(async (value: string) => {
     const lower = value.trim().toLowerCase();
     if (!lower) { setUsernameStatus('idle'); return; }
-
     if (!USERNAME_REGEX.test(lower)) {
       setUsernameStatus('invalid');
       setUsernameError('3–20 chars: lowercase letters, numbers, underscores only.');
       return;
     }
-
     setUsernameStatus('checking');
     setUsernameError('');
-
-    const { data } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', lower)
-      .single();
-
+    const { data } = await supabase.from('users').select('id').eq('username', lower).single();
     if (data) {
       setUsernameStatus('taken');
       setUsernameError('That username is already taken.');
@@ -78,9 +72,7 @@ export default function ProfileSetupScreen() {
       aspect: [1, 1],
       quality: 0.7,
     });
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setAvatarUri(result.assets[0].uri);
   }
 
   async function uploadAvatar(userId: string): Promise<string | null> {
@@ -104,26 +96,23 @@ export default function ProfileSetupScreen() {
   async function handleFinish() {
     setDisplayNameError('');
     let valid = true;
-
     const trimmedDisplay = displayName.trim();
-    if (!trimmedDisplay) {
-      setDisplayNameError('Please enter a display name.');
-      valid = false;
-    }
-
+    if (!trimmedDisplay) { setDisplayNameError('Please enter a display name.'); valid = false; }
     if (!USERNAME_REGEX.test(username)) {
       setUsernameStatus('invalid');
       setUsernameError('3–20 chars: lowercase letters, numbers, underscores only.');
       valid = false;
     }
-
     if (usernameStatus === 'taken' || usernameStatus === 'invalid') valid = false;
     if (!valid) return;
 
     setLoading(true);
-
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) { setLoading(false); Alert.alert('Error', 'Could not retrieve your email. Please sign in again.'); return; }
+    if (!user?.email) {
+      setLoading(false);
+      Alert.alert('Error', 'Could not retrieve your email. Please sign in again.');
+      return;
+    }
 
     const avatarUrl = await uploadAvatar(user.id);
 
@@ -134,6 +123,7 @@ export default function ProfileSetupScreen() {
       display_name: trimmedDisplay,
       avatar_url: avatarUrl,
       campus: 'columbia',
+      onboarding_complete: false,
       is_verified: true,
     });
 
@@ -163,151 +153,174 @@ export default function ProfileSetupScreen() {
     !loading;
 
   const usernameIndicator =
-    usernameStatus === 'checking' ? '...' :
+    usernameStatus === 'checking' ? '…' :
     usernameStatus === 'available' ? '✓' :
-    usernameStatus === 'taken' ? '✗' :
-    usernameStatus === 'invalid' ? '✗' : '';
+    (usernameStatus === 'taken' || usernameStatus === 'invalid') ? '✕' : '';
 
   const usernameIndicatorColor =
-    usernameStatus === 'available' ? '#22c55e' : '#E63946';
+    usernameStatus === 'available' ? '#22c55e' : COLORS.primary;
+
+  const initials = displayName.trim().split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.title}>Set up your profile</Text>
-          <Text style={styles.subtitle}>This is how other Columbia students will find you.</Text>
+    <View style={styles.safe}>
+      <View style={styles.orbRed} pointerEvents="none" />
+      <View style={styles.orbBlue} pointerEvents="none" />
 
-          {/* Avatar */}
-          <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarPlaceholderText}>+</Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.title}>Set up your profile</Text>
+            <Text style={styles.subtitle}>How other Columbia students will find you.</Text>
+
+            {/* Avatar */}
+            <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar} activeOpacity={0.8}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  {initials ? (
+                    <Text style={styles.avatarInitials}>{initials}</Text>
+                  ) : (
+                    <Text style={styles.avatarPlaceholderText}>+</Text>
+                  )}
+                </View>
+              )}
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditIcon}>✎</Text>
               </View>
-            )}
-            <Text style={styles.avatarLabel}>
-              {avatarUri ? 'Change photo' : 'Add photo (optional)'}
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.avatarLabel}>
+                {avatarUri ? 'Change photo' : 'Add photo'}
+              </Text>
+            </TouchableOpacity>
 
-          {/* Display name */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Display name</Text>
-            <TextInput
-              style={[styles.input, displayNameError ? styles.inputError : null]}
-              placeholder="Your name"
-              placeholderTextColor="#999"
-              value={displayName}
-              onChangeText={(t) => { setDisplayName(t); setDisplayNameError(''); }}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-            {displayNameError ? <Text style={styles.errorText}>{displayNameError}</Text> : null}
-          </View>
-
-          {/* Username */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Username</Text>
-            <View style={styles.usernameRow}>
+            {/* Display name */}
+            <View style={[styles.fieldCard, GLASS_SM]}>
+              <Text style={styles.label}>Display name</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.usernameInput,
-                  (usernameStatus === 'taken' || usernameStatus === 'invalid') ? styles.inputError : null,
-                  usernameStatus === 'available' ? styles.inputValid : null,
-                ]}
-                placeholder="lowercase_only"
-                placeholderTextColor="#999"
-                value={username}
-                onChangeText={handleUsernameChange}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
+                style={[styles.input, displayNameError ? styles.inputError : null]}
+                placeholder="Your name"
+                placeholderTextColor="rgba(26,26,26,0.35)"
+                value={displayName}
+                onChangeText={(t) => { setDisplayName(t); setDisplayNameError(''); }}
+                autoCapitalize="words"
+                returnKeyType="next"
               />
-              {usernameStatus !== 'idle' && (
-                <Text style={[styles.usernameIndicator, { color: usernameIndicatorColor }]}>
-                  {usernameIndicator}
-                </Text>
+              {displayNameError ? <Text style={styles.errorText}>{displayNameError}</Text> : null}
+            </View>
+
+            {/* Username */}
+            <View style={[styles.fieldCard, GLASS_SM]}>
+              <Text style={styles.label}>Username</Text>
+              <View style={styles.usernameRow}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.usernameInput,
+                    (usernameStatus === 'taken' || usernameStatus === 'invalid') ? styles.inputError : null,
+                    usernameStatus === 'available' ? styles.inputValid : null,
+                  ]}
+                  placeholder="lowercase_only"
+                  placeholderTextColor="rgba(26,26,26,0.35)"
+                  value={username}
+                  onChangeText={handleUsernameChange}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                />
+                {usernameStatus !== 'idle' && (
+                  <Text style={[styles.usernameIndicator, { color: usernameIndicatorColor }]}>
+                    {usernameIndicator}
+                  </Text>
+                )}
+              </View>
+              {usernameError ? (
+                <Text style={styles.errorText}>{usernameError}</Text>
+              ) : (
+                <Text style={styles.hint}>Letters, numbers, underscores · 3–20 chars</Text>
               )}
             </View>
-            {usernameError ? (
-              <Text style={styles.errorText}>{usernameError}</Text>
-            ) : (
-              <Text style={styles.hint}>Letters, numbers, underscores · 3–20 chars</Text>
-            )}
-          </View>
 
-          <TouchableOpacity
-            style={[styles.button, !canSubmit && styles.buttonDisabled]}
-            onPress={handleFinish}
-            disabled={!canSubmit}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Create my profile</Text>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={[styles.button, !canSubmit && styles.buttonDisabled]}
+              onPress={handleFinish}
+              disabled={!canSubmit}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Create my profile →</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
-  container: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, gap: 24 },
-  title: { fontSize: 26, fontWeight: '800', color: '#111' },
-  subtitle: { fontSize: 15, color: '#666', marginTop: -16 },
-  avatarContainer: { alignItems: 'center', gap: 10 },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  orbRed: {
+    position: 'absolute', width: 300, height: 300, borderRadius: 150,
+    backgroundColor: 'rgba(230,57,70,0.15)', top: -60, right: -60,
+  },
+  orbBlue: {
+    position: 'absolute', width: 260, height: 260, borderRadius: 130,
+    backgroundColor: 'rgba(67,97,238,0.10)', bottom: 60, left: -70,
+  },
+  container: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, gap: 20 },
+  title: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: -12 },
+
+  avatarContainer: { alignItems: 'center', gap: 10, position: 'relative', paddingVertical: 4 },
   avatar: { width: 88, height: 88, borderRadius: 44 },
   avatarPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1.5,
-    borderColor: '#ddd',
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: 'rgba(230,57,70,0.15)',
+    borderWidth: 1.5, borderColor: COLORS.primary + '44',
     borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  avatarPlaceholderText: { fontSize: 28, color: '#aaa' },
-  avatarLabel: { fontSize: 13, color: '#E63946', fontWeight: '600' },
-  field: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '600', color: '#111' },
+  avatarInitials: { fontSize: 28, fontWeight: '700', color: COLORS.primary },
+  avatarPlaceholderText: { fontSize: 28, color: COLORS.primary },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 32, right: '31%',
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarEditIcon: { fontSize: 12, color: COLORS.textPrimary },
+  avatarLabel: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+
+  fieldCard: { padding: 16, gap: 8 },
+  label: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: 0.2 },
   input: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderWidth: 1.5,
-    borderColor: '#ddd',
+    borderColor: 'rgba(26,26,26,0.15)',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111',
-    backgroundColor: '#fafafa',
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 16, color: COLORS.textPrimary,
   },
-  inputError: { borderColor: '#E63946' },
+  inputError: { borderColor: COLORS.primary },
   inputValid: { borderColor: '#22c55e' },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   usernameInput: { flex: 1 },
   usernameIndicator: { fontSize: 20, fontWeight: '700', width: 24, textAlign: 'center' },
-  errorText: { fontSize: 13, color: '#E63946' },
-  hint: { fontSize: 12, color: '#aaa' },
+  errorText: { fontSize: 13, color: COLORS.primary },
+  hint: { fontSize: 12, color: COLORS.textMuted },
+
   button: {
-    backgroundColor: '#E63946',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14, paddingVertical: 17,
+    alignItems: 'center', marginTop: 8,
   },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 });

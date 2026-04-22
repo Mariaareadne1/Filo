@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useOnboarding } from '../../contexts/onboarding';
+import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
 
 interface DirectoryUser {
   id: string;
@@ -30,11 +31,9 @@ export default function FindFriendsScreen() {
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  // Local set of user IDs the viewer has followed during this session
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // Slide-up entrance animation for the list
   const slideAnim = useRef(new Animated.Value(40)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -44,7 +43,6 @@ export default function FindFriendsScreen() {
       if (!user) return;
       setCurrentUserId(user.id);
 
-      // Fetch campus users + existing follows in parallel
       const [usersRes, followsRes] = await Promise.all([
         supabase
           .from('users')
@@ -60,23 +58,18 @@ export default function FindFriendsScreen() {
 
       if (usersRes.data) {
         const mapped: DirectoryUser[] = usersRes.data.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          display_name: u.display_name,
-          avatar_url: u.avatar_url,
+          id: u.id, username: u.username,
+          display_name: u.display_name, avatar_url: u.avatar_url,
           pin_count: u.pins?.[0]?.count ?? 0,
         }));
         mapped.sort((a, b) => b.pin_count - a.pin_count);
         setUsers(mapped);
       }
-
       if (followsRes.data) {
         setFollowedIds(new Set(followsRes.data.map((f: any) => f.following_id)));
       }
-
       setLoading(false);
 
-      // Animate content in
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 180 }),
         Animated.timing(fadeAnim,  { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -84,49 +77,25 @@ export default function FindFriendsScreen() {
     })();
   }, []);
 
-  const toggleFollow = useCallback(async (targetId: string, targetIsPrivate: boolean = false) => {
+  const toggleFollow = useCallback(async (targetId: string) => {
     if (!currentUserId || togglingId) return;
     setTogglingId(targetId);
-
-    const isCurrentlyFollowing = followedIds.has(targetId);
-
-    if (isCurrentlyFollowing) {
-      await supabase
-        .from('follows')
-        .delete()
-        .eq('follower_id', currentUserId)
-        .eq('following_id', targetId);
-      setFollowedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(targetId);
-        return next;
-      });
+    const isFollowing = followedIds.has(targetId);
+    if (isFollowing) {
+      await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', targetId);
+      setFollowedIds((prev) => { const next = new Set(prev); next.delete(targetId); return next; });
     } else {
-      await supabase.from('follows').insert({
-        follower_id: currentUserId,
-        following_id: targetId,
-        status: 'active',
-      });
+      await supabase.from('follows').insert({ follower_id: currentUserId, following_id: targetId, status: 'active' });
       setFollowedIds((prev) => new Set(prev).add(targetId));
-
-      // Fire push notification
-      await supabase.rpc('notify_new_follow', {
-        p_follower_id: currentUserId,
-        p_following_id: targetId,
-      });
+      await supabase.rpc('notify_new_follow', { p_follower_id: currentUserId, p_following_id: targetId });
     }
-
     setTogglingId(null);
   }, [currentUserId, followedIds, togglingId]);
 
   async function handleDone() {
     if (!currentUserId || saving) return;
     setSaving(true);
-    await supabase
-      .from('users')
-      .update({ onboarding_complete: true })
-      .eq('id', currentUserId);
-    // Update in-memory state so the route guard doesn't redirect back
+    await supabase.from('users').update({ onboarding_complete: true }).eq('id', currentUserId);
     setOnboardingComplete(true);
     router.replace('/(app)');
   }
@@ -136,19 +105,17 @@ export default function FindFriendsScreen() {
   const renderItem = useCallback(({ item }: { item: DirectoryUser }) => {
     const isFollowing = followedIds.has(item.id);
     const isToggling  = togglingId === item.id;
-    const initials    = item.display_name
-      .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+    const initials    = item.display_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
     return (
-      <View style={styles.row}>
+      <View style={[styles.row, GLASS_SM]}>
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
+          <View style={[styles.avatarFallback, { backgroundColor: COLORS.primary + '22' }]}>
+            <Text style={[styles.avatarInitials, { color: COLORS.primary }]}>{initials}</Text>
           </View>
         )}
-
         <View style={styles.info}>
           <Text style={styles.displayName} numberOfLines={1}>{item.display_name}</Text>
           <Text style={styles.username}>@{item.username}</Text>
@@ -156,7 +123,6 @@ export default function FindFriendsScreen() {
             <Text style={styles.pinCount}>{item.pin_count} pin{item.pin_count !== 1 ? 's' : ''}</Text>
           )}
         </View>
-
         <TouchableOpacity
           style={[styles.followBtn, isFollowing && styles.followingBtn]}
           onPress={() => toggleFollow(item.id)}
@@ -164,7 +130,7 @@ export default function FindFriendsScreen() {
           activeOpacity={0.75}
         >
           {isToggling ? (
-            <ActivityIndicator size="small" color={isFollowing ? '#888' : '#fff'} />
+            <ActivityIndicator size="small" color={isFollowing ? COLORS.textSecondary : '#fff'} />
           ) : (
             <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
               {isFollowing ? 'Following' : 'Follow'}
@@ -176,151 +142,143 @@ export default function FindFriendsScreen() {
   }, [followedIds, togglingId, toggleFollow]);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.stepRow}>
-          <View style={styles.stepDot} />
-          <View style={styles.stepDot} />
-          <View style={[styles.stepDot, styles.stepDotActive]} />
-        </View>
-        <Text style={styles.headline}>Find people to follow.</Text>
-        <Text style={styles.subtext}>Their pins show up on your map.</Text>
+    <View style={styles.safe}>
+      <View style={styles.orbRed} pointerEvents="none" />
+      <View style={styles.orbBlue} pointerEvents="none" />
 
-        {followCount > 0 && (
-          <View style={styles.followCountBadge}>
-            <Text style={styles.followCountText}>
-              {followCount} {followCount === 1 ? 'person' : 'people'} followed
-            </Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.stepRow}>
+            <View style={styles.stepDot} />
+            <View style={styles.stepDot} />
+            <View style={[styles.stepDot, styles.stepDotActive]} />
           </View>
-        )}
-      </View>
-
-      {/* User list */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#E63946" size="large" />
-        </View>
-      ) : (
-        <Animated.View style={[styles.listWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <FlatList
-            data={users}
-            keyExtractor={(u) => u.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🎓</Text>
-                <Text style={styles.emptyText}>No other Columbia students yet.</Text>
-              </View>
-            }
-          />
-        </Animated.View>
-      )}
-
-      {/* Done button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.doneBtn, saving && styles.doneBtnDisabled]}
-          onPress={handleDone}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.doneBtnText}>Done — take me to my map</Text>
+          <Text style={styles.headline}>Find people to follow.</Text>
+          <Text style={styles.subtext}>Their pins show up on your map.</Text>
+          {followCount > 0 && (
+            <View style={styles.followCountBadge}>
+              <Text style={styles.followCountText}>
+                {followCount} {followCount === 1 ? 'person' : 'people'} followed
+              </Text>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={COLORS.primary} size="large" />
+          </View>
+        ) : (
+          <Animated.View style={[styles.listWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <FlatList
+              data={users}
+              keyExtractor={(u) => u.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyRing} />
+                  <Text style={styles.emptyText}>No other Columbia students yet.</Text>
+                </View>
+              }
+            />
+          </Animated.View>
+        )}
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.doneBtn, saving && styles.doneBtnDisabled]}
+            onPress={handleDone}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.doneBtnText}>Done — take me to my map</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  orbRed: {
+    position: 'absolute', width: 300, height: 300, borderRadius: 150,
+    backgroundColor: 'rgba(230,57,70,0.14)', top: -60, right: -60,
+  },
+  orbBlue: {
+    position: 'absolute', width: 260, height: 260, borderRadius: 130,
+    backgroundColor: 'rgba(67,97,238,0.09)', bottom: 80, left: -70,
+  },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 18,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(26,26,26,0.08)',
     gap: 6,
   },
   stepRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ddd' },
-  stepDotActive: { backgroundColor: '#E63946', width: 18 },
-
-  headline: { fontSize: 26, fontWeight: '800', color: '#111', letterSpacing: -0.3 },
-  subtext:  { fontSize: 15, color: '#888' },
-
+  stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(26,26,26,0.18)' },
+  stepDotActive: { backgroundColor: COLORS.primary, width: 20, borderRadius: 3 },
+  headline: { fontSize: 26, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
+  subtext:  { fontSize: 15, color: COLORS.textSecondary },
   followCountBadge: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    backgroundColor: '#fef2f2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    alignSelf: 'flex-start', marginTop: 6,
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: COLORS.primary + '44',
   },
-  followCountText: { fontSize: 12, fontWeight: '700', color: '#E63946' },
+  followCountText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   listWrap: { flex: 1 },
-  list: { paddingBottom: 16 },
-  separator: { height: 1, backgroundColor: '#f5f5f5', marginLeft: 78 },
+  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, gap: 8 },
 
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    gap: 14,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 14, gap: 12,
   },
   avatar: { width: 46, height: 46, borderRadius: 23 },
-  avatarFallback: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarInitials: { fontSize: 16, fontWeight: '700', color: '#666' },
-
+  avatarFallback: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontSize: 16, fontWeight: '700' },
   info: { flex: 1, gap: 1 },
-  displayName: { fontSize: 15, fontWeight: '700', color: '#111' },
-  username:    { fontSize: 12, color: '#888' },
-  pinCount:    { fontSize: 11, color: '#aaa', marginTop: 1 },
+  displayName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  username:    { fontSize: 12, color: COLORS.textSecondary },
+  pinCount:    { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
 
   followBtn: {
-    backgroundColor: '#E63946',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minWidth: 84,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8,
+    minWidth: 84, alignItems: 'center', justifyContent: 'center',
   },
-  followingBtn: { backgroundColor: '#f0f0f0' },
-  followBtnText:    { fontSize: 13, fontWeight: '700', color: '#fff' },
-  followingBtnText: { color: '#555' },
+  followingBtn: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1, borderColor: 'rgba(26,26,26,0.15)',
+  },
+  followBtnText:    { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  followingBtnText: { color: COLORS.textSecondary },
 
   footer: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24,
+    borderTopWidth: 1, borderTopColor: 'rgba(26,26,26,0.08)',
   },
   doneBtn: {
-    backgroundColor: '#E63946',
-    borderRadius: 14,
-    paddingVertical: 17,
-    alignItems: 'center',
+    backgroundColor: COLORS.primary, borderRadius: 14,
+    paddingVertical: 17, alignItems: 'center',
   },
   doneBtnDisabled: { opacity: 0.6 },
-  doneBtnText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  doneBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: 0.2 },
 
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { fontSize: 14, color: '#aaa' },
+  emptyRing: {
+    width: 50, height: 50, borderRadius: 25,
+    borderWidth: 1.5, borderColor: COLORS.primary + '40',
+    marginBottom: 4,
+  },
+  emptyText: { fontSize: 14, color: COLORS.textSecondary },
 });

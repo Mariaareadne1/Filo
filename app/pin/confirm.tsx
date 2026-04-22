@@ -14,35 +14,57 @@ import {
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../../types';
+import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
 
 const MAX_IMPRESSION = 150;
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️',
-  bar: '🍸',
-  beauty: '✂️',
-  experience: '🎯',
-  retail: '🛍️',
+  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
 };
 
 type PinStatus = 'visited' | 'want_to_go';
 
+type UIStatus = 'want_to_go' | 'been' | 'going_again';
+
+const STATUS_OPTIONS: { key: UIStatus; label: string; icon: string; pinStatus: PinStatus; unlockRating: boolean }[] = [
+  { key: 'want_to_go', label: 'Want to go',   icon: '♡', pinStatus: 'want_to_go', unlockRating: false },
+  { key: 'been',       label: 'Been',          icon: '✓', pinStatus: 'visited',    unlockRating: true  },
+  { key: 'going_again',label: 'Going again',   icon: '↺', pinStatus: 'visited',    unlockRating: true  },
+];
+
+function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <View style={styles.starRow}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <TouchableOpacity key={i} onPress={() => onChange(i + 1)} activeOpacity={0.7}>
+          <Text style={[styles.star, i < value ? styles.starFilled : styles.starEmpty]}>
+            {i < value ? '★' : '☆'}
+          </Text>
+        </TouchableOpacity>
+      ))}
+      {value > 0 && (
+        <TouchableOpacity onPress={() => onChange(0)} style={styles.clearStars}>
+          <Text style={styles.clearStarsText}>Clear</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 export default function PinConfirmScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    place_id: string;
-    name: string;
-    address: string;
-    category: string;
-    lat: string;
-    lng: string;
-    photo_url: string;
+    place_id: string; name: string; address: string;
+    category: string; lat: string; lng: string; photo_url: string;
   }>();
 
-  const [status, setStatus] = useState<PinStatus | null>(null);
+  const [uiStatus, setUiStatus] = useState<UIStatus | null>(null);
   const [impression, setImpression] = useState('');
+  const [rating, setRating] = useState(0);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const color = CATEGORY_COLORS[params.category as keyof typeof CATEGORY_COLORS] ?? '#888';
@@ -50,19 +72,37 @@ export default function PinConfirmScreen() {
   const emoji = CATEGORY_EMOJI[params.category] ?? '📍';
   const charsLeft = MAX_IMPRESSION - impression.length;
 
+  const selectedOption = STATUS_OPTIONS.find((o) => o.key === uiStatus) ?? null;
+  const pinStatus = selectedOption?.pinStatus ?? null;
+  const showRating = selectedOption?.unlockRating ?? false;
+
   function fmtErr(label: string, err: any): string {
     return `${label}\ncode: ${err?.code ?? '—'}\nmessage: ${err?.message ?? '—'}\ndetails: ${err?.details ?? '—'}\nhint: ${err?.hint ?? '—'}`;
   }
 
+  async function pickPhoto() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to add a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  }
+
   async function handlePin() {
-    if (!status) return;
+    if (!pinStatus) return;
     setSaving(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // 1. Upsert the place
       const placePayload = {
         google_place_id: params.place_id,
         name: params.name,
@@ -72,7 +112,6 @@ export default function PinConfirmScreen() {
         lng: parseFloat(params.lng),
         photo_url: params.photo_url || null,
       };
-      console.log('[pin/confirm] upserting place:', JSON.stringify(placePayload));
 
       const { data: place, error: placeErr } = await supabase
         .from('places')
@@ -81,13 +120,10 @@ export default function PinConfirmScreen() {
         .single();
 
       if (placeErr) {
-        console.error('[pin/confirm] place upsert error:', JSON.stringify(placeErr));
         Alert.alert('Place upsert failed', fmtErr('places.upsert', placeErr));
         return;
       }
-      console.log('[pin/confirm] place id:', place.id);
 
-      // 2. Check if pin already exists for this user + place
       const { data: existing } = await supabase
         .from('pins')
         .select('id')
@@ -98,52 +134,35 @@ export default function PinConfirmScreen() {
       const pinPayload = {
         user_id: user.id,
         place_id: place.id,
-        status,
+        status: pinStatus,
         impression: impression.trim() || null,
         is_public: true,
         updated_at: new Date().toISOString(),
       };
-      console.log('[pin/confirm] pin payload:', JSON.stringify(pinPayload), 'existing:', existing?.id ?? null);
 
       let pinId: string;
 
       if (existing) {
-        const { error: updateErr } = await supabase
-          .from('pins')
-          .update(pinPayload)
-          .eq('id', existing.id);
+        const { error: updateErr } = await supabase.from('pins').update(pinPayload).eq('id', existing.id);
         if (updateErr) {
-          console.error('[pin/confirm] pin update error:', JSON.stringify(updateErr));
           Alert.alert('Pin update failed', fmtErr('pins.update', updateErr));
           return;
         }
         pinId = existing.id;
       } else {
-        const { data: newPin, error: insertErr } = await supabase
-          .from('pins')
-          .insert(pinPayload)
-          .select('id')
-          .single();
+        const { data: newPin, error: insertErr } = await supabase.from('pins').insert(pinPayload).select('id').single();
         if (insertErr) {
-          console.error('[pin/confirm] pin insert error:', JSON.stringify(insertErr));
           Alert.alert('Pin insert failed', fmtErr('pins.insert', insertErr));
           return;
         }
         pinId = newPin.id;
       }
 
-      console.log('[pin/confirm] pin saved, id:', pinId);
-
       router.replace({
         pathname: '/pin/add-to-board',
-        params: {
-          pin_id: pinId,
-          place_name: params.name,
-          is_update: existing ? 'true' : 'false',
-        },
+        params: { pin_id: pinId, place_name: params.name, is_update: existing ? 'true' : 'false' },
       });
     } catch (e: any) {
-      console.error('[pin/confirm] unexpected error:', e);
       Alert.alert('Error', e.message ?? 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
@@ -151,200 +170,229 @@ export default function PinConfirmScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          {/* Back */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Search</Text>
-          </TouchableOpacity>
+    <View style={styles.safe}>
+      <View style={styles.orbRed} pointerEvents="none" />
+      <View style={styles.orbBlue} pointerEvents="none" />
 
-          {/* Place card */}
-          <View style={styles.placeCard}>
-            {params.photo_url ? (
-              <Image source={{ uri: params.photo_url }} style={styles.placePhoto} />
-            ) : (
-              <View style={[styles.photoPlaceholder, { backgroundColor: color + '22' }]}>
-                <Text style={styles.photoEmoji}>{emoji}</Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Text style={styles.backText}>← Search</Text>
+            </TouchableOpacity>
+
+            {/* Place card */}
+            <View style={[styles.placeCard, GLASS]}>
+              {params.photo_url ? (
+                <Image source={{ uri: params.photo_url }} style={styles.placePhoto} />
+              ) : (
+                <View style={[styles.photoPlaceholder, { backgroundColor: color + '18' }]}>
+                  <Text style={styles.photoEmoji}>{emoji}</Text>
+                </View>
+              )}
+              <View style={styles.placeInfo}>
+                <View style={[styles.catBadge, { borderColor: color + '55', backgroundColor: color + '18' }]}>
+                  <Text style={[styles.catBadgeText, { color }]}>{emoji}  {label}</Text>
+                </View>
+                <Text style={styles.placeName}>{params.name}</Text>
+                <Text style={styles.placeAddress}>{params.address}</Text>
               </View>
-            )}
-            <View style={styles.placeInfo}>
-              <View style={[styles.catBadge, { borderColor: color, backgroundColor: color + '12' }]}>
-                <Text style={[styles.catBadgeText, { color }]}>{emoji} {label}</Text>
-              </View>
-              <Text style={styles.placeName}>{params.name}</Text>
-              <Text style={styles.placeAddress}>{params.address}</Text>
             </View>
-          </View>
 
-          {/* Status buttons */}
-          <Text style={styles.sectionLabel}>Have you been?</Text>
-          <View style={styles.statusRow}>
-            <TouchableOpacity
-              style={[
-                styles.statusBtn,
-                status === 'visited' && { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-              ]}
-              onPress={() => setStatus('visited')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.statusBtnText, status === 'visited' && styles.statusBtnTextActive]}>
-                ✓ Visited
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.statusBtn,
-                status === 'want_to_go' && { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
-              ]}
-              onPress={() => setStatus('want_to_go')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.statusBtnText, status === 'want_to_go' && styles.statusBtnTextActive]}>
-                ♡ Want to go
-              </Text>
-            </TouchableOpacity>
-          </View>
+            {/* Status buttons */}
+            <Text style={styles.sectionLabel}>Have you been?</Text>
+            <View style={styles.statusRow}>
+              {STATUS_OPTIONS.map((opt) => {
+                const active = uiStatus === opt.key;
+                const activeColor = opt.key === 'want_to_go' ? '#F59E0B' : COLORS.primary;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[
+                      styles.statusBtn,
+                      active && { backgroundColor: activeColor + '20', borderColor: activeColor },
+                    ]}
+                    onPress={() => setUiStatus(opt.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.statusIcon, active && { color: activeColor }]}>{opt.icon}</Text>
+                    <Text style={[styles.statusBtnText, active && { color: activeColor }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-          {/* Impression */}
-          <Text style={styles.sectionLabel}>Impression <Text style={styles.optional}>(optional)</Text></Text>
-          <View style={styles.impressionContainer}>
-            <TextInput
-              style={[
-                styles.impressionInput,
-                charsLeft < 20 && charsLeft >= 0 && styles.impressionInputWarning,
-                charsLeft < 0 && styles.impressionInputError,
-              ]}
-              placeholder="What made it worth pinning?"
-              placeholderTextColor="#bbb"
-              value={impression}
-              onChangeText={(t) => {
-                if (t.length <= MAX_IMPRESSION) setImpression(t);
-              }}
-              multiline
-              maxLength={MAX_IMPRESSION}
-              returnKeyType="done"
-            />
-            <Text style={[
-              styles.charCount,
-              charsLeft < 20 && styles.charCountWarning,
-              charsLeft < 5 && styles.charCountError,
-            ]}>
-              {charsLeft}
-            </Text>
-          </View>
-
-          {/* PIN button */}
-          <TouchableOpacity
-            style={[styles.pinBtn, { backgroundColor: color }, (!status || saving) && styles.pinBtnDisabled]}
-            onPress={handlePin}
-            disabled={!status || saving}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.pinBtnText}>
-                {status ? 'PIN THIS PLACE' : 'SELECT VISITED OR WANT TO GO'}
-              </Text>
+            {/* Star rating — only for 'been' or 'going_again' */}
+            {showRating && (
+              <View style={[styles.ratingCard, GLASS_SM]}>
+                <Text style={styles.sectionLabel}>How was it?</Text>
+                <StarRating value={rating} onChange={setRating} />
+              </View>
             )}
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+            {/* Photo upload */}
+            <Text style={styles.sectionLabel}>
+              Photo <Text style={styles.optional}>(optional)</Text>
+            </Text>
+            {photoUri ? (
+              <View style={styles.photoPreviewWrap}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <TouchableOpacity style={styles.removePhoto} onPress={() => setPhotoUri(null)}>
+                  <Text style={styles.removePhotoText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={[styles.photoBtn, GLASS_SM]} onPress={pickPhoto} activeOpacity={0.8}>
+                <Text style={styles.photoBtnIcon}>＋</Text>
+                <Text style={styles.photoBtnText}>Add photo</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Impression */}
+            <Text style={styles.sectionLabel}>
+              Impression <Text style={styles.optional}>(optional)</Text>
+            </Text>
+            <View style={styles.impressionContainer}>
+              <TextInput
+                style={[
+                  styles.impressionInput,
+                  charsLeft < 20 && charsLeft >= 0 && styles.impressionInputWarning,
+                  charsLeft < 0 && styles.impressionInputError,
+                ]}
+                placeholder="What made it worth pinning?"
+                placeholderTextColor="rgba(26,26,26,0.35)"
+                value={impression}
+                onChangeText={(t) => { if (t.length <= MAX_IMPRESSION) setImpression(t); }}
+                multiline
+                maxLength={MAX_IMPRESSION}
+                returnKeyType="done"
+              />
+              <Text style={[
+                styles.charCount,
+                charsLeft < 20 && styles.charCountWarning,
+                charsLeft < 5 && styles.charCountError,
+              ]}>
+                {charsLeft}
+              </Text>
+            </View>
+
+            {/* PIN button */}
+            <TouchableOpacity
+              style={[
+                styles.pinBtn,
+                { backgroundColor: uiStatus ? color : 'rgba(255,255,255,0.1)' },
+                (!uiStatus || saving) && styles.pinBtnDisabled,
+              ]}
+              onPress={handlePin}
+              disabled={!uiStatus || saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.pinBtnText}>
+                  {uiStatus ? 'PIN THIS PLACE' : 'SELECT A STATUS ABOVE'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
-  container: { paddingHorizontal: 20, paddingBottom: 40, gap: 20 },
-  backBtn: { paddingVertical: 16 },
-  backText: { fontSize: 15, color: '#E63946', fontWeight: '600' },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  orbRed: {
+    position: 'absolute', width: 280, height: 280, borderRadius: 140,
+    backgroundColor: 'rgba(230,57,70,0.15)', top: -60, right: -60,
+  },
+  orbBlue: {
+    position: 'absolute', width: 240, height: 240, borderRadius: 120,
+    backgroundColor: 'rgba(67,97,238,0.10)', bottom: 80, left: -70,
+  },
+  container: { paddingHorizontal: 20, paddingBottom: 48, gap: 18 },
+  backBtn: { paddingVertical: 14 },
+  backText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
 
-  placeCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  placePhoto: { width: '100%', height: 160, resizeMode: 'cover' },
-  photoPlaceholder: {
-    width: '100%',
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  placeCard: { overflow: 'hidden' },
+  placePhoto: { width: '100%', height: 170, resizeMode: 'cover' },
+  photoPlaceholder: { width: '100%', height: 120, alignItems: 'center', justifyContent: 'center' },
   photoEmoji: { fontSize: 48 },
   placeInfo: { padding: 16, gap: 6 },
   catBadge: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 4,
+    alignSelf: 'flex-start', borderWidth: 1,
+    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 2,
   },
-  catBadgeText: { fontSize: 12, fontWeight: '700' },
-  placeName: { fontSize: 20, fontWeight: '800', color: '#111' },
-  placeAddress: { fontSize: 13, color: '#888' },
+  catBadgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  placeName: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
+  placeAddress: { fontSize: 13, color: COLORS.textSecondary },
 
-  sectionLabel: { fontSize: 14, fontWeight: '700', color: '#111' },
-  optional: { color: '#aaa', fontWeight: '400' },
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: 0.2 },
+  optional: { color: COLORS.textMuted, fontWeight: '400' },
 
-  statusRow: { flexDirection: 'row', gap: 12 },
+  statusRow: { flexDirection: 'row', gap: 8 },
   statusBtn: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 14,
-    paddingVertical: 18,
+    flex: 1, borderWidth: 1.5,
+    borderColor: 'rgba(26,26,26,0.15)',
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  statusBtnText: { fontSize: 15, fontWeight: '700', color: '#999' },
-  statusBtnTextActive: { color: '#fff' },
+  statusIcon: { fontSize: 18, color: COLORS.textSecondary },
+  statusBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.2 },
+
+  ratingCard: { padding: 16, gap: 10 },
+  starRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  star: { fontSize: 28 },
+  starFilled: { color: '#F59E0B' },
+  starEmpty: { color: 'rgba(26,26,26,0.18)' },
+  clearStars: { marginLeft: 8 },
+  clearStarsText: { fontSize: 12, color: COLORS.textSecondary },
+
+  photoPreviewWrap: { position: 'relative', borderRadius: 16, overflow: 'hidden' },
+  photoPreview: { width: '100%', height: 160, resizeMode: 'cover' },
+  removePhoto: {
+    position: 'absolute', top: 10, right: 10,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  removePhotoText: { color: COLORS.textPrimary, fontSize: 12, fontWeight: '700' },
+  photoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 18, gap: 8,
+    borderStyle: 'dashed',
+  },
+  photoBtnIcon: { fontSize: 20, color: COLORS.textSecondary },
+  photoBtnText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '600' },
 
   impressionContainer: { position: 'relative' },
   impressionInput: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderWidth: 1.5,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: 'rgba(26,26,26,0.15)',
+    borderRadius: 14,
     padding: 14,
-    paddingBottom: 30,
+    paddingBottom: 32,
     fontSize: 15,
-    color: '#111',
+    color: COLORS.textPrimary,
     minHeight: 90,
     textAlignVertical: 'top',
-    backgroundColor: '#fafafa',
   },
-  impressionInputWarning: { borderColor: '#f59e0b' },
-  impressionInputError: { borderColor: '#E63946' },
-  charCount: {
-    position: 'absolute',
-    bottom: 10,
-    right: 12,
-    fontSize: 12,
-    color: '#bbb',
-    fontWeight: '600',
-  },
-  charCountWarning: { color: '#f59e0b' },
-  charCountError: { color: '#E63946' },
+  impressionInputWarning: { borderColor: '#F59E0B' },
+  impressionInputError: { borderColor: COLORS.primary },
+  charCount: { position: 'absolute', bottom: 10, right: 12, fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  charCountWarning: { color: '#F59E0B' },
+  charCountError: { color: COLORS.primary },
 
   pinBtn: {
-    borderRadius: 14,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 8,
+    borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 4,
   },
   pinBtnDisabled: { opacity: 0.45 },
-  pinBtnText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
+  pinBtnText: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
 });
