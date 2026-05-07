@@ -1,12 +1,18 @@
 import 'react-native-gesture-handler';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 import { OnboardingContext } from '../contexts/onboarding';
+
+// Keep the splash up until fonts are loaded so first paint is on-brand.
+SplashScreen.preventAutoHideAsync().catch(() => { /* no-op on web/simulator */ });
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -39,11 +45,8 @@ function AppCore({ session, loading }: { session: Session | null; loading: boole
   const router = useRouter();
   const segments = useSegments();
 
-  // Onboarding state lives here so both the routing guard and onboarding
-  // screens (via context) can read and update it.
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
-  // Load onboarding status whenever the authed user changes
   useEffect(() => {
     if (!session?.user?.id) {
       setOnboardingComplete(null);
@@ -59,7 +62,6 @@ function AppCore({ session, loading }: { session: Session | null; loading: boole
       });
   }, [session?.user?.id]);
 
-  // Route guard
   useEffect(() => {
     if (loading) return;
 
@@ -72,19 +74,15 @@ function AppCore({ session, loading }: { session: Session | null; loading: boole
       return;
     }
 
-    // Waiting for onboarding status to resolve — don't redirect yet
     if (onboardingComplete === null) return;
 
     if (inAuth) {
-      // Auth screens (profile-setup) navigate away explicitly.
-      // If a returning fully-set-up user somehow ends up here, send them home.
       if (onboardingComplete) router.replace('/(app)');
       return;
     }
 
-    if (inOnboarding) return; // onboarding screens self-navigate
+    if (inOnboarding) return;
 
-    // In the main app — if onboarding isn't done, redirect there
     if (inApp && !onboardingComplete) {
       router.replace('/onboarding/welcome');
     }
@@ -106,6 +104,18 @@ export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [fontsLoaded, fontError] = useFonts({
+    'Fraunces':          require('../assets/fonts/Fraunces-Regular.ttf'),
+    'Fraunces-Italic':   require('../assets/fonts/Fraunces-Italic.ttf'),
+    'Fraunces-SemiBold': require('../assets/fonts/Fraunces-SemiBold.ttf'),
+    'Inter':             require('../assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium':      require('../assets/fonts/Inter-Medium.ttf'),
+    'Inter-SemiBold':    require('../assets/fonts/Inter-SemiBold.ttf'),
+    'Inter-Bold':        require('../assets/fonts/Inter-Bold.ttf'),
+    'DMMono':            require('../assets/fonts/DMMono-Regular.ttf'),
+    'DMMono-Medium':     require('../assets/fonts/DMMono-Medium.ttf'),
+  });
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -122,8 +132,18 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const onLayoutReady = useCallback(async () => {
+    if ((fontsLoaded || fontError) && !loading) {
+      await SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError, loading]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutReady}>
       <SafeAreaProvider>
         <AppCore session={session} loading={loading} />
       </SafeAreaProvider>

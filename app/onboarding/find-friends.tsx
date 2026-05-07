@@ -143,8 +143,6 @@ export default function FindFriendsScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         {/* Header */}
@@ -207,15 +205,7 @@ export default function FindFriendsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(230,57,70,0.14)', top: -60, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(67,97,238,0.09)', bottom: 80, left: -70,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
@@ -257,10 +247,10 @@ const styles = StyleSheet.create({
     minWidth: 84, alignItems: 'center', justifyContent: 'center',
   },
   followingBtn: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1, borderColor: 'rgba(26,26,26,0.15)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E8E8E8',
   },
-  followBtnText:    { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  followBtnText:    { fontSize: 13, fontWeight: '700', color: '#fff' },
   followingBtnText: { color: COLORS.textSecondary },
 
   footer: {
@@ -272,7 +262,7 @@ const styles = StyleSheet.create({
     paddingVertical: 17, alignItems: 'center',
   },
   doneBtnDisabled: { opacity: 0.6 },
-  doneBtnText: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: 0.2 },
+  doneBtnText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
 
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyRing: {

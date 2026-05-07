@@ -48,8 +48,6 @@ export default function EmailScreen() {
   return (
     <View style={styles.safe}>
       {/* Orbs */}
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
       {/* Red thread */}
       <View style={styles.thread1} pointerEvents="none" />
       <View style={styles.thread2} pointerEvents="none" />
@@ -109,15 +107,7 @@ export default function EmailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 360, height: 360, borderRadius: 180,
-    backgroundColor: 'rgba(230,57,70,0.18)', top: -100, right: -80,
-  },
-  orbBlue: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(67,97,238,0.12)', bottom: -60, left: -80,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   thread1: {
     position: 'absolute', width: 200, height: 80, borderRadius: 80,
     borderTopWidth: 1.5, borderColor: 'rgba(230,57,70,0.3)',
@@ -148,9 +138,9 @@ const styles = StyleSheet.create({
   formCard: { padding: 24, gap: 14 },
   label: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 2 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,26,0.15)',
+    borderColor: '#E8E8E8',
     borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 15,
     fontSize: 16, color: COLORS.textPrimary,

@@ -66,8 +66,6 @@ export default function PinSearchScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -139,15 +137,7 @@ export default function PinSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 240, height: 240, borderRadius: 120,
-    backgroundColor: 'rgba(230,57,70,0.13)', top: -40, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(67,97,238,0.09)', bottom: 80, left: -60,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -161,10 +151,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(26,26,26,0.12)',
+    borderColor: '#F0F0F0',
     paddingHorizontal: 12,
   },
   searchIcon: { fontSize: 16, color: COLORS.textMuted, marginRight: 6 },

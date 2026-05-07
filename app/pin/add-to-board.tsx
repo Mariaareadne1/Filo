@@ -92,8 +92,6 @@ export default function AddToBoardScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -190,15 +188,7 @@ export default function AddToBoardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(230,57,70,0.14)', top: -50, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 220, height: 220, borderRadius: 110,
-    backgroundColor: 'rgba(67,97,238,0.09)', bottom: 60, left: -60,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
 
   successHeader: {
@@ -239,9 +229,9 @@ const styles = StyleSheet.create({
   createRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   createInput: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,26,0.15)',
+    borderColor: '#E8E8E8',
     borderRadius: 14,
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: COLORS.textPrimary,
@@ -251,7 +241,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center',
   },
   createBtnDisabled: { opacity: 0.4 },
-  createBtnText: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 14 },
+  createBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   newBoardBtn: {
     borderWidth: 1.5,

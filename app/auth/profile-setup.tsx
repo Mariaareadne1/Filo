@@ -164,8 +164,6 @@ export default function ProfileSetupScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -264,15 +262,7 @@ export default function ProfileSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(230,57,70,0.15)', top: -60, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(67,97,238,0.10)', bottom: 60, left: -70,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   container: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, gap: 20 },
   title: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
   subtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: -12 },
@@ -301,9 +291,9 @@ const styles = StyleSheet.create({
   fieldCard: { padding: 16, gap: 8 },
   label: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: 0.2 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,26,0.15)',
+    borderColor: '#E8E8E8',
     borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 13,
     fontSize: 16, color: COLORS.textPrimary,

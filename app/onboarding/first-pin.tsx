@@ -186,26 +186,26 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: 20, paddingTop: 8,
   },
   skipBtn: {
-    backgroundColor: 'rgba(245,240,235,0.95)',
+    backgroundColor: 'rgba(242,237,232,0.97)',
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8,
-    borderWidth: 1, borderColor: 'rgba(26,26,26,0.12)',
+    borderWidth: 1, borderColor: '#F0F0F0',
   },
   skipText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
   stepRow: {
     flexDirection: 'row', gap: 6,
-    backgroundColor: 'rgba(245,240,235,0.95)',
+    backgroundColor: 'rgba(242,237,232,0.97)',
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1, borderColor: 'rgba(26,26,26,0.12)',
+    borderWidth: 1, borderColor: '#F0F0F0',
   },
   stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(26,26,26,0.18)' },
   stepDotActive: { backgroundColor: COLORS.primary, width: 18, borderRadius: 3 },
 
   tooltip: {
     position: 'absolute', alignSelf: 'center',
-    backgroundColor: 'rgba(245,240,235,0.97)',
+    backgroundColor: 'rgba(242,237,232,0.97)',
     borderRadius: 16, paddingHorizontal: 20, paddingVertical: 14,
     maxWidth: 270, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(26,26,26,0.12)',
+    borderWidth: 1, borderColor: '#F0F0F0',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 10,
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     width: 0, height: 0,
     borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 8,
     borderLeftColor: 'transparent', borderRightColor: 'transparent',
-    borderTopColor: 'rgba(245,240,235,0.97)',
+    borderTopColor: 'rgba(242,237,232,0.97)',
   },
   fab: {
     position: 'absolute', alignSelf: 'center',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   fabText: { fontSize: 28, color: COLORS.textPrimary, fontWeight: '300', lineHeight: 32 },
   loadingOverlay: {
     position: 'absolute', top: '50%', alignSelf: 'center',
-    backgroundColor: 'rgba(245,240,235,0.96)', borderRadius: 20, padding: 12,
+    backgroundColor: 'rgba(242,237,232,0.97)', borderRadius: 20, padding: 12,
     borderWidth: 1, borderColor: 'rgba(26,26,26,0.06)',
   },
 });

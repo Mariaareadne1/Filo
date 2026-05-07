@@ -77,8 +77,6 @@ export default function OTPScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -157,15 +155,7 @@ export default function OTPScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 320, height: 320, borderRadius: 160,
-    backgroundColor: 'rgba(230,57,70,0.15)', top: -80, right: -80,
-  },
-  orbBlue: {
-    position: 'absolute', width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(67,97,238,0.10)', bottom: 40, left: -70,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   back: { alignSelf: 'flex-start', paddingVertical: 8 },
   backText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
@@ -181,8 +171,8 @@ const styles = StyleSheet.create({
   otpBox: {
     width: 48, height: 58, borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(26,26,26,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderColor: '#E8E8E8',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },
   otpBoxActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '15' },

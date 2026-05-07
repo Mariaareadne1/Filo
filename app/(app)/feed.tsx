@@ -3,7 +3,9 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   Image,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -14,35 +16,35 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { MapPin, CATEGORY_COLORS, CATEGORY_LABELS, Category } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
-import { COLORS, GLASS } from '../../constants/theme';
+import { COLORS } from '../../constants/theme';
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️',
-  bar: '🍸',
-  beauty: '✂️',
-  experience: '🎯',
-  retail: '🛍️',
+  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
 };
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return `${hrs}h`;
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return `${days}d`;
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function Stars({ count = 4 }: { count?: number }) {
+function RatingDots({ count = 4 }: { count?: number }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <Text key={i} style={{ fontSize: 13, color: i < count ? '#F59E0B' : 'rgba(26,26,26,0.18)' }}>
-          ★
-        </Text>
+        <View
+          key={i}
+          style={{
+            width: 7, height: 7, borderRadius: 4,
+            backgroundColor: i < count ? COLORS.primary : '#E8E8E8',
+          }}
+        />
       ))}
     </View>
   );
@@ -54,12 +56,11 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
   const loadFeed = useCallback(async (uid: string | null = userId) => {
@@ -70,91 +71,131 @@ export default function FeedScreen() {
     setRefreshing(false);
   }, [userId]);
 
-  useEffect(() => {
-    if (userId) loadFeed(userId);
-  }, [userId]);
-
-  useFocusEffect(useCallback(() => {
-    if (userId) loadFeed(userId);
-  }, [userId]));
+  useEffect(() => { if (userId) loadFeed(userId); }, [userId]);
+  useFocusEffect(useCallback(() => { if (userId) loadFeed(userId); }, [userId]));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadFeed();
   }, [loadFeed]);
 
-  const renderItem = ({ item }: { item: MapPin }) => {
+  const filteredPins = searchQuery.trim()
+    ? pins.filter(
+        (p) =>
+          p.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.username.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : pins;
+
+  const renderItem = ({ item, index }: { item: MapPin; index: number }) => {
     const color = CATEGORY_COLORS[item.category as Category] ?? '#888';
     const label = CATEGORY_LABELS[item.category as Category] ?? item.category;
     const emoji = CATEGORY_EMOJI[item.category] ?? '📍';
-    const initials = item.display_name
-      .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+    const initials = item.display_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+    const isLast = index === filteredPins.length - 1;
 
     return (
-      <TouchableOpacity
-        style={[styles.card, GLASS]}
-        onPress={() => setSelectedPin(item)}
-        activeOpacity={0.85}
-      >
-        {/* User row */}
+      <View>
         <TouchableOpacity
-          style={styles.userRow}
-          onPress={() => router.push(`/(app)/user/${item.user_id}`)}
-          activeOpacity={0.7}
+          style={styles.card}
+          onPress={() => setSelectedPin(item)}
+          activeOpacity={0.96}
         >
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: color + '33' }]}>
-              <Text style={[styles.avatarInitials, { color }]}>{initials}</Text>
+          {/* Top row: avatar + text + time */}
+          <View style={styles.cardHeader}>
+            <TouchableOpacity
+              onPress={() => router.push(`/(app)/user/${item.user_id}`)}
+              activeOpacity={0.7}
+            >
+              {item.avatar_url ? (
+                <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatarFallback, { backgroundColor: color + '22' }]}>
+                  <Text style={[styles.avatarInitials, { color }]}>{initials}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.cardHeaderText}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                <Text style={styles.cardUserName}>{item.display_name}</Text>
+                <Text style={styles.cardAction}> pinned </Text>
+                <Text style={styles.cardPlaceName}>{item.place_name}</Text>
+              </Text>
+              <View style={styles.cardMeta}>
+                <Text style={styles.cardAddress} numberOfLines={1}>{item.address ? item.address.split(',')[0] : ''}</Text>
+                <Text style={styles.cardDot}> · </Text>
+                <Text style={styles.cardTime}>{timeAgo(item.created_at)}</Text>
+              </View>
             </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.userLine} numberOfLines={1}>
-              <Text style={styles.username}>@{item.username}</Text>
-              <Text style={styles.wasAt}> was at</Text>
-            </Text>
-            <Text style={styles.timestamp}>{timeAgo(item.created_at)}</Text>
           </View>
-          <View style={[styles.catPill, { backgroundColor: color + '22', borderColor: color + '66' }]}>
-            <Text style={[styles.catPillText, { color }]}>{label}</Text>
+
+          {/* Photo strip */}
+          {item.photo_url ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.photoStrip}
+              contentContainerStyle={styles.photoStripContent}
+            >
+              <Image source={{ uri: item.photo_url }} style={styles.photo} />
+            </ScrollView>
+          ) : null}
+
+          {/* Bottom: rating + impression + category */}
+          <View style={styles.cardBottom}>
+            <View style={styles.cardBottomLeft}>
+              {item.status === 'visited' && (
+                <View style={styles.ratingRow}>
+                  <RatingDots count={4} />
+                </View>
+              )}
+              {item.impression ? (
+                <Text style={styles.impression} numberOfLines={2}>"{item.impression}"</Text>
+              ) : null}
+            </View>
+            <View style={[styles.catPill, { backgroundColor: color + '15' }]}>
+              <Text style={[styles.catPillText, { color }]}>{emoji} {label}</Text>
+            </View>
           </View>
         </TouchableOpacity>
 
-        {/* Place photo or gradient placeholder */}
-        {item.photo_url ? (
-          <Image source={{ uri: item.photo_url }} style={styles.placePhoto} />
-        ) : (
-          <View style={[styles.gradientPlaceholder, { backgroundColor: color + '22' }]}>
-            <Text style={styles.placeholderEmoji}>{emoji}</Text>
-            <Text style={[styles.placeholderCategory, { color }]}>{label}</Text>
-          </View>
-        )}
-
-        {/* Content */}
-        <View style={styles.bottomContent}>
-          <Text style={styles.placeName} numberOfLines={2}>{item.place_name}</Text>
-          {item.status === 'visited' && <Stars count={4} />}
-          {item.impression ? (
-            <Text style={styles.impression} numberOfLines={2}>"{item.impression}"</Text>
-          ) : null}
-          <View style={item.status === 'visited' ? styles.visitedPill : styles.wantPill}>
-            <Text style={styles.statusText}>
-              {item.status === 'visited' ? '✓  Been' : '♡  Want to go'}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+        {!isLast && <View style={styles.divider} />}
+      </View>
     );
   };
 
   return (
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Feed</Text>
-          {/* Red thread motif */}
-          <View style={styles.redThread} pointerEvents="none" />
+          <Text style={styles.wordmark}>filo</Text>
+          <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
+            <Text style={styles.bellIcon}>🔔</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Search bar */}
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBar}>
+            <Text style={styles.searchIcon}>⊕</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search a place, person..."
+              placeholderTextColor="#BBBBBB"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                <Text style={styles.searchClear}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {loading ? (
@@ -163,29 +204,30 @@ export default function FeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={pins}
+            data={filteredPins}
             keyExtractor={(item) => item.pin_id}
             renderItem={renderItem}
-            contentContainerStyle={pins.length === 0 ? styles.emptyContainer : styles.list}
+            contentContainerStyle={filteredPins.length === 0 ? styles.emptyContainer : styles.list}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <View style={styles.threadIllustration}>
-                  <View style={[styles.threadRing, styles.threadRing1]} />
-                  <View style={[styles.threadRing, styles.threadRing2]} />
-                  <View style={styles.threadDot} />
-                </View>
-                <Text style={styles.emptyTitle}>Follow people to see{'\n'}their pins.</Text>
-                <Text style={styles.emptySub}>Find Columbia students in the directory.</Text>
-                <TouchableOpacity
-                  style={styles.directoryBtn}
-                  onPress={() => router.push('/(app)/directory')}
-                >
-                  <Text style={styles.directoryBtnText}>Browse Directory</Text>
-                </TouchableOpacity>
+                <Text style={styles.emptyTitle}>
+                  {searchQuery ? 'No results.' : 'Your feed is empty.'}
+                </Text>
+                <Text style={styles.emptySub}>
+                  {searchQuery ? 'Try a different search.' : 'Follow people to see their pins.'}
+                </Text>
+                {!searchQuery && (
+                  <TouchableOpacity
+                    style={styles.findBtn}
+                    onPress={() => router.push('/(app)/directory')}
+                  >
+                    <Text style={styles.findBtnText}>Find Friends</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             }
           />
@@ -198,146 +240,71 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 14,
-    position: 'relative',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    letterSpacing: -0.5,
+  wordmark: { fontSize: 26, fontWeight: '900', color: COLORS.primary, letterSpacing: -0.5 },
+  bellBtn: { padding: 4 },
+  bellIcon: { fontSize: 18 },
+
+  searchWrap: { paddingHorizontal: 16, paddingBottom: 12 },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F5F5F5', borderRadius: 50,
+    paddingHorizontal: 14, paddingVertical: 10, gap: 8,
   },
-  redThread: {
-    position: 'absolute',
-    right: 24,
-    top: 12,
-    width: 90,
-    height: 36,
-    borderTopWidth: 1.5,
-    borderColor: 'rgba(230,57,70,0.5)',
-    borderRadius: 40,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
-  },
+  searchIcon: { fontSize: 14, color: '#BBBBBB' },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.textPrimary },
+  searchClear: { fontSize: 12, color: '#BBBBBB', paddingLeft: 4 },
+
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 16, paddingBottom: 32, gap: 16, paddingTop: 4 },
+  list: { paddingBottom: 40 },
   emptyContainer: { flex: 1 },
 
-  card: { overflow: 'hidden' },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+  card: { paddingHorizontal: 20, paddingVertical: 16 },
+
+  cardHeader: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  avatarFallback: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontSize: 14, fontWeight: '700' },
+
+  cardHeaderText: { flex: 1, gap: 3 },
+  cardTitle: { fontSize: 14, lineHeight: 20 },
+  cardUserName: { fontWeight: '700', color: COLORS.textPrimary },
+  cardAction: { fontWeight: '400', color: COLORS.textSecondary },
+  cardPlaceName: { fontWeight: '700', color: COLORS.textPrimary },
+  cardMeta: { flexDirection: 'row', alignItems: 'center' },
+  cardAddress: { fontSize: 12, color: COLORS.textSecondary, flexShrink: 1 },
+  cardDot: { fontSize: 12, color: '#CCCCCC' },
+  cardTime: { fontSize: 12, color: COLORS.textSecondary },
+
+  photoStrip: { marginTop: 12, marginLeft: -20, marginRight: -20 },
+  photoStripContent: { paddingHorizontal: 20, gap: 8 },
+  photo: { width: 200, height: 140, borderRadius: 10, resizeMode: 'cover' },
+
+  cardBottom: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 10, gap: 8,
   },
-  avatar: { width: 38, height: 38, borderRadius: 19 },
-  avatarFallback: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarInitials: { fontSize: 13, fontWeight: '700' },
-  userLine: { fontSize: 13 },
-  username: { fontWeight: '700', color: COLORS.textPrimary },
-  wasAt: { fontWeight: '400', color: COLORS.textSecondary },
-  timestamp: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  cardBottomLeft: { flex: 1, gap: 4 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center' },
+  impression: { fontSize: 13, color: COLORS.textSecondary, fontStyle: 'italic', lineHeight: 18 },
   catPill: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 50, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start',
   },
-  catPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  catPillText: { fontSize: 11, fontWeight: '700' },
 
-  placePhoto: { width: '100%', height: 180, resizeMode: 'cover' },
-  gradientPlaceholder: {
-    width: '100%', height: 130,
-    alignItems: 'center', justifyContent: 'center',
-    gap: 6,
-  },
-  placeholderEmoji: { fontSize: 44 },
-  placeholderCategory: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, opacity: 0.8 },
+  divider: { height: 1, backgroundColor: '#F0F0F0', marginHorizontal: 20 },
 
-  bottomContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
-    gap: 8,
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingTop: 80, gap: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
+  emptySub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 },
+  findBtn: {
+    marginTop: 12, backgroundColor: COLORS.primary,
+    borderRadius: 50, paddingHorizontal: 28, paddingVertical: 13,
   },
-  placeName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    letterSpacing: -0.3,
-    lineHeight: 22,
-  },
-  impression: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  visitedPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(34,197,94,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.35)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  wantPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(245,158,11,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  statusText: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary },
-
-  emptyState: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 40, paddingTop: 80, gap: 14,
-  },
-  threadIllustration: {
-    width: 80, height: 80,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8,
-  },
-  threadRing: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    borderRadius: 100,
-  },
-  threadRing1: { width: 80, height: 80, opacity: 0.25 },
-  threadRing2: { width: 52, height: 52, opacity: 0.45 },
-  threadDot: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: COLORS.primary, opacity: 0.85,
-  },
-  emptyTitle: {
-    fontSize: 22, fontWeight: '800',
-    color: COLORS.textPrimary, textAlign: 'center', lineHeight: 30,
-  },
-  emptySub: {
-    fontSize: 14, color: COLORS.textSecondary,
-    textAlign: 'center', lineHeight: 20,
-  },
-  directoryBtn: {
-    marginTop: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-  },
-  directoryBtnText: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 15 },
+  findBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

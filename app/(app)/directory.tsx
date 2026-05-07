@@ -94,8 +94,6 @@ export default function DirectoryScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.navHeader}>
@@ -133,15 +131,7 @@ export default function DirectoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(230,57,70,0.12)', top: -60, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 240, height: 240, borderRadius: 120,
-    backgroundColor: 'rgba(67,97,238,0.08)', bottom: 120, left: -70,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   navHeader: {
     paddingHorizontal: 24,
     paddingTop: 18,

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Share,
 } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { useBoards, Board } from '../../hooks/useBoards';
 import { CATEGORY_COLORS, CATEGORY_LABELS, Category, MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
-import { COLORS, GLASS, GLASS_SM, VISIBILITY_COLOR, VISIBILITY_LABEL } from '../../constants/theme';
+import { COLORS, VISIBILITY_COLOR, VISIBILITY_LABEL } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 const BOARD_CARD_SIZE = (width - 48 - 12) / 2;
@@ -40,7 +41,7 @@ export default function ProfileScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [recentPins, setRecentPins] = useState<MapPin[]>([]);
+  const [allPins, setAllPins] = useState<MapPin[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const router = useRouter();
 
@@ -69,7 +70,7 @@ export default function ProfileScreen() {
         id, user_id, status, impression, created_at,
         users!inner(username, display_name, avatar_url),
         places!inner(id, name, category, address, lat, lng, photo_url)
-      `).eq('user_id', userId).eq('is_public', true).order('created_at', { ascending: false }).limit(6),
+      `).eq('user_id', userId).order('created_at', { ascending: false }),
     ]);
 
     setFollowerCount(followerRes.count ?? 0);
@@ -91,54 +92,44 @@ export default function ProfileScreen() {
         created_at: row.created_at,
       } as MapPin;
     });
-    setRecentPins(pins);
+    setAllPins(pins);
   }, [userId]);
 
-  useFocusEffect(useCallback(() => {
-    refetch();
-    loadCounts();
-  }, [userId]));
+  useFocusEffect(useCallback(() => { refetch(); loadCounts(); }, [userId]));
+  useEffect(() => { if (userId) loadCounts(); }, [userId]);
 
-  useEffect(() => {
-    if (userId) loadCounts();
-  }, [userId]);
+  const beenPins = allPins.filter((p) => p.status === 'visited');
+  const wantPins = allPins.filter((p) => p.status === 'want_to_go');
 
   const initials = profile?.display_name
     .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) ?? '';
 
+  async function handleShare() {
+    try {
+      await Share.share({ message: `Check out @${profile?.username ?? ''} on Filo` });
+    } catch {}
+  }
+
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
-
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.avatarWrap}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitials}>{initials}</Text>
-                </View>
-              )}
-              <View style={styles.avatarRing} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.displayName}>{profile?.display_name ?? ''}</Text>
-              <Text style={styles.username}>@{profile?.username ?? ''}</Text>
-              <View style={styles.campusBadge}>
-                <Text style={styles.campusBadgeText}>Columbia</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+          {/* Avatar + name section */}
+          <View style={styles.profileSection}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
               </View>
-            </View>
-            <TouchableOpacity style={styles.signOutBtn} onPress={() => supabase.auth.signOut()}>
-              <Text style={styles.signOutText}>Sign out</Text>
-            </TouchableOpacity>
+            )}
+            <Text style={styles.displayName}>{profile?.display_name ?? ''}</Text>
+            <Text style={styles.username}>@{profile?.username ?? ''}</Text>
           </View>
 
-          {/* Stats */}
-          <View style={[styles.statsRow, GLASS_SM]}>
+          {/* Stats row */}
+          <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{followerCount}</Text>
               <Text style={styles.statLabel}>Followers</Text>
@@ -150,67 +141,69 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{recentPins.length}</Text>
-              <Text style={styles.statLabel}>Recent</Text>
+              <Text style={styles.statNumber}>{allPins.length}</Text>
+              <Text style={styles.statLabel}>Pins</Text>
             </View>
           </View>
 
-          {/* Red thread motif */}
-          <View style={styles.threadWrap} pointerEvents="none">
-            <View style={styles.threadLine} />
+          {/* Action buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+              <Text style={styles.actionBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.7}>
+              <Text style={styles.actionBtnText}>Share Profile</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Recent Pins */}
-          {recentPins.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Pins</Text>
-              {recentPins.map((pin) => {
-                const color = CATEGORY_COLORS[pin.category] ?? '#888';
-                const label = CATEGORY_LABELS[pin.category] ?? pin.category;
-                return (
-                  <TouchableOpacity
-                    key={pin.pin_id}
-                    style={[styles.pinRow, GLASS_SM]}
-                    onPress={() => setSelectedPin(pin)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.pinDot, { backgroundColor: color }]} />
-                    <View style={styles.pinInfo}>
-                      <Text style={styles.pinName}>{pin.place_name}</Text>
-                      <Text style={[styles.pinCategory, { color }]}>{label}</Text>
-                    </View>
-                    <Text style={styles.chevron}>›</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          <View style={styles.divider} />
+
+          {/* Been / Want to Go rows */}
+          <TouchableOpacity style={styles.sectionRow} activeOpacity={0.7}>
+            <View style={styles.sectionRowLeft}>
+              <Text style={styles.sectionRowIcon}>✓</Text>
+              <Text style={styles.sectionRowLabel}>Been</Text>
             </View>
-          )}
+            <View style={styles.sectionRowRight}>
+              <Text style={styles.sectionRowCount}>{beenPins.length}</Text>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.rowDivider} />
+          <TouchableOpacity style={styles.sectionRow} activeOpacity={0.7}>
+            <View style={styles.sectionRowLeft}>
+              <Text style={styles.sectionRowIcon}>♡</Text>
+              <Text style={styles.sectionRowLabel}>Want to Go</Text>
+            </View>
+            <View style={styles.sectionRowRight}>
+              <Text style={styles.sectionRowCount}>{wantPins.length}</Text>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
 
           {/* Boards */}
           <View style={styles.boardsHeader}>
-            <Text style={styles.boardsTitle}>My Boards</Text>
+            <Text style={styles.boardsTitle}>Boards</Text>
             <TouchableOpacity
-              style={styles.createBtn}
+              style={styles.newBoardBtn}
               onPress={() => router.push('/board-modal/create')}
             >
-              <Text style={styles.createBtnText}>+ New board</Text>
+              <Text style={styles.newBoardBtnText}>+ New</Text>
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
           ) : boards.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyThreadDot} />
-              <Text style={styles.emptyTitle}>No boards yet</Text>
-              <Text style={styles.emptySub}>
-                Create a board to organise your pins — "Late Night Eats", "Ideal Date Night", anything.
-              </Text>
+            <View style={styles.emptyBoards}>
+              <Text style={styles.emptyBoardsText}>No boards yet.</Text>
               <TouchableOpacity
-                style={styles.emptyBtn}
+                style={styles.createBtn}
                 onPress={() => router.push('/board-modal/create')}
               >
-                <Text style={styles.emptyBtnText}>Create your first board</Text>
+                <Text style={styles.createBtnText}>Create your first board</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -220,23 +213,20 @@ export default function ProfileScreen() {
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.boardCard, { borderColor: accent + '33' }]}
+                    style={styles.boardCard}
                     onPress={() => router.push(`/(app)/board/${item.id}`)}
-                    activeOpacity={0.8}
+                    activeOpacity={0.82}
                   >
-                    {/* Cover area */}
-                    <View style={[styles.boardCover, { backgroundColor: accent + '18' }]}>
-                      <View style={[styles.boardCoverAccent, { backgroundColor: accent + '22' }]} />
+                    <View style={[styles.boardCover, { backgroundColor: accent + '16' }]}>
                       <Text style={[styles.boardCoverLetter, { color: accent }]}>
                         {item.name[0].toUpperCase()}
                       </Text>
                     </View>
-                    {/* Bottom info */}
                     <View style={styles.boardCardBottom}>
                       <Text style={styles.boardCardName} numberOfLines={1}>{item.name}</Text>
                       <View style={styles.boardCardMeta}>
                         <Text style={styles.boardCardCount}>{item.pin_count} pins</Text>
-                        <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[item.visibility] + '66' }]}>
+                        <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[item.visibility] + '55' }]}>
                           <Text style={[styles.visBadgeText, { color: VISIBILITY_COLOR[item.visibility] }]}>
                             {VISIBILITY_LABEL[item.visibility]}
                           </Text>
@@ -249,6 +239,11 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {/* Sign out */}
+          <TouchableOpacity style={styles.signOutBtn} onPress={() => supabase.auth.signOut()}>
+            <Text style={styles.signOutText}>Sign out</Text>
+          </TouchableOpacity>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
@@ -259,161 +254,88 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(230,57,70,0.12)', top: -60, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 240, height: 240, borderRadius: 120,
-    backgroundColor: 'rgba(67,97,238,0.08)', bottom: 200, left: -80,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  scroll: {},
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 14,
-  },
-  avatarWrap: { position: 'relative' },
-  avatar: { width: 60, height: 60, borderRadius: 30 },
+  profileSection: { alignItems: 'center', paddingTop: 28, paddingBottom: 20, paddingHorizontal: 20 },
+  avatar: { width: 80, height: 80, borderRadius: 40, marginBottom: 12 },
   avatarFallback: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: 'rgba(230,57,70,0.2)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#FEE2E4',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  avatarInitials: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
-  avatarRing: {
-    position: 'absolute', top: -2, left: -2,
-    width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2, borderColor: COLORS.primary + '50',
-  },
-  profileInfo: { flex: 1, gap: 3 },
-  displayName: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  username: { fontSize: 13, color: COLORS.textSecondary },
-  campusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(67,97,238,0.18)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginTop: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(67,97,238,0.35)',
-  },
-  campusBadgeText: { fontSize: 11, color: '#7B93FF', fontWeight: '600' },
-  signOutBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-  signOutText: { fontSize: 12, color: COLORS.textMuted },
+  avatarInitials: { fontSize: 28, fontWeight: '800', color: COLORS.primary },
+  displayName: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 4 },
+  username: { fontSize: 14, color: COLORS.textSecondary },
 
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 20,
-    paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, paddingHorizontal: 40,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
   statNumber: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  statLabel: { fontSize: 11, color: COLORS.textSecondary },
-  statDivider: { width: 1, height: 28, backgroundColor: 'rgba(26,26,26,0.06)' },
+  statLabel: { fontSize: 12, color: COLORS.textSecondary },
+  statDivider: { width: 1, height: 28, backgroundColor: '#F0F0F0' },
 
-  threadWrap: { alignItems: 'flex-end', paddingRight: 24, marginTop: 4 },
-  threadLine: {
-    width: 120, height: 28,
-    borderTopWidth: 1.5,
-    borderColor: 'rgba(230,57,70,0.35)',
-    borderRadius: 40,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
+  actionRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingBottom: 20 },
+  actionBtn: {
+    flex: 1, borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: 50,
+    paddingVertical: 10, alignItems: 'center',
   },
+  actionBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
 
-  section: { paddingHorizontal: 20, paddingTop: 16, gap: 8 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 4, letterSpacing: -0.3 },
-  pinRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 14, gap: 12,
+  divider: { height: 1, backgroundColor: '#F0F0F0' },
+  rowDivider: { height: 1, backgroundColor: '#F5F5F5', marginLeft: 20 },
+
+  sectionRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
   },
-  pinDot: { width: 9, height: 9, borderRadius: 5 },
-  pinInfo: { flex: 1, gap: 1 },
-  pinName: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  pinCategory: { fontSize: 11, fontWeight: '600' },
-  chevron: { fontSize: 20, color: 'rgba(26,26,26,0.25)' },
+  sectionRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sectionRowIcon: { fontSize: 16, color: COLORS.primary, width: 24, textAlign: 'center' },
+  sectionRowLabel: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary },
+  sectionRowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionRowCount: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary },
+  chevron: { fontSize: 20, color: '#CCCCCC' },
 
   boardsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14,
   },
-  boardsTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
-  createBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+  boardsTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
+  newBoardBtn: {
+    borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 50,
+    paddingHorizontal: 14, paddingVertical: 6,
   },
-  createBtnText: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700' },
+  newBoardBtnText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
 
-  boardGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 18,
-    gap: 12,
-  },
+  boardGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 18, gap: 12 },
   boardCard: {
-    width: BOARD_CARD_SIZE,
-    height: BOARD_CARD_SIZE + 56,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1,
+    width: BOARD_CARD_SIZE, height: BOARD_CARD_SIZE + 52,
+    borderRadius: 12, overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#F0F0F0',
   },
-  boardCover: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  boardCoverAccent: {
-    position: 'absolute',
-    width: 80, height: 80, borderRadius: 40,
-    top: '20%', right: '10%',
-  },
-  boardCoverLetter: {
-    fontSize: 52,
-    fontWeight: '900',
-    opacity: 0.7,
-  },
+  boardCover: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  boardCoverLetter: { fontSize: 52, fontWeight: '900', opacity: 0.65 },
   boardCardBottom: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(245,240,235,0.9)',
-    gap: 4,
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: '#FAFAFA', borderTopWidth: 1, borderTopColor: '#F0F0F0', gap: 4,
   },
-  boardCardName: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  boardCardName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
   boardCardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   boardCardCount: { fontSize: 11, color: COLORS.textSecondary },
-  visBadge: {
-    borderWidth: 1, borderRadius: 8,
-    paddingHorizontal: 6, paddingVertical: 1,
-  },
+  visBadge: { borderWidth: 1, borderRadius: 50, paddingHorizontal: 7, paddingVertical: 2 },
   visBadgeText: { fontSize: 10, fontWeight: '600' },
 
-  emptyState: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 40, gap: 10 },
-  emptyThreadDot: {
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: 1.5, borderColor: COLORS.primary + '55',
-    marginBottom: 4,
+  emptyBoards: { alignItems: 'center', paddingTop: 32, paddingHorizontal: 40, gap: 12 },
+  emptyBoardsText: { fontSize: 15, color: COLORS.textSecondary },
+  createBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 50,
+    paddingHorizontal: 24, paddingVertical: 12,
   },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  emptySub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 },
-  emptyBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    paddingHorizontal: 24, paddingVertical: 14, marginTop: 8,
-  },
-  emptyBtnText: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 15 },
+  createBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  signOutBtn: { alignItems: 'center', paddingVertical: 20, marginTop: 8 },
+  signOutText: { fontSize: 14, color: COLORS.textSecondary },
 });

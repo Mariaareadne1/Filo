@@ -18,6 +18,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '../../../lib/supabase';
 import { fetchBoardPins, BoardPin } from '../../../hooks/useBoards';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../../../types';
+import { COLORS } from '../../../constants/theme';
 
 interface BoardMeta {
   name: string;

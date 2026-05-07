@@ -17,7 +17,9 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Filo uses your location to center the map near you.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Filo uses your location to center the map near you.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "bundleIdentifier": "com.anonymous.Filo"
     },
@@ -47,7 +49,8 @@
         {
           "RNMapboxMapsDownloadToken": "sk.eyJ1IjoibWFyaWFhcmVhZG5lMSIsImEiOiJjbW5xemlqdnUwY3V1MnBtdm9haWc4N3EwIn0.cUL68aH6EgYv5lwEYYVaDw"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

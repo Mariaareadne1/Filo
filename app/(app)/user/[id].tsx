@@ -122,7 +122,6 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <View style={styles.safe}>
-        <View style={styles.orbRed} pointerEvents="none" />
         <SafeAreaView style={{ flex: 1 }}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={COLORS.primary} size="large" />
@@ -146,8 +145,6 @@ export default function UserProfileScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -304,15 +301,7 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  orbRed: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(230,57,70,0.12)', top: -40, right: -60,
-  },
-  orbBlue: {
-    position: 'absolute', width: 220, height: 220, borderRadius: 110,
-    backgroundColor: 'rgba(67,97,238,0.08)', bottom: 100, left: -60,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFound: { fontSize: 16, color: COLORS.textSecondary },
   scroll: { paddingBottom: 60 },
@@ -357,14 +346,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, borderRadius: 14,
     paddingVertical: 14, alignItems: 'center',
   },
-  followingBtn: { backgroundColor: 'rgba(26,26,26,0.06)', borderWidth: 1, borderColor: 'rgba(26,26,26,0.15)' },
-  pendingBtn: { backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: 'rgba(26,26,26,0.12)' },
-  followBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  followingBtn: { backgroundColor: 'rgba(26,26,26,0.06)', borderWidth: 1, borderColor: '#E8E8E8' },
+  pendingBtn: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0F0F0' },
+  followBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   followingBtnText: { color: COLORS.textSecondary },
 
   editBtn: {
     marginHorizontal: 20, marginTop: 16, marginBottom: 4,
-    borderWidth: 1, borderColor: 'rgba(26,26,26,0.15)', borderRadius: 14,
+    borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 14,
     paddingVertical: 13, alignItems: 'center',
   },
   editBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
@@ -393,7 +382,7 @@ const styles = StyleSheet.create({
     height: BOARD_CARD_SIZE + 52,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
   },
   boardCover: {
@@ -404,7 +393,7 @@ const styles = StyleSheet.create({
   boardCoverLetter: { fontSize: 48, fontWeight: '900', opacity: 0.7 },
   boardCardBottom: {
     paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: 'rgba(245,240,235,0.9)',
+    backgroundColor: 'rgba(242,237,232,0.97)',
     gap: 3,
   },
   boardCardName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },

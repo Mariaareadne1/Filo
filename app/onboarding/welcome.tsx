@@ -56,9 +56,6 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.safe}>
-      {/* Background orbs */}
-      <View style={styles.orbRed} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
       {/* Red thread decorations */}
       <View style={styles.thread1} pointerEvents="none" />
       <View style={styles.thread2} pointerEvents="none" />
@@ -129,18 +126,10 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   loadingContainer: {
-    flex: 1, backgroundColor: COLORS.bg,
+    flex: 1, backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-  },
-  orbRed: {
-    position: 'absolute', width: 400, height: 400, borderRadius: 200,
-    backgroundColor: 'rgba(230,57,70,0.18)', top: -120, right: -100,
-  },
-  orbBlue: {
-    position: 'absolute', width: 320, height: 320, borderRadius: 160,
-    backgroundColor: 'rgba(67,97,238,0.12)', bottom: -80, left: -80,
   },
   thread1: {
     position: 'absolute', width: 180, height: 60, borderRadius: 60,
@@ -190,7 +179,7 @@ const styles = StyleSheet.create({
   ctaWrap: {},
   ctaBtn: {
     paddingVertical: 18, alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 50,
   },
   ctaBtnText: {
     fontSize: 17, fontWeight: '800',
