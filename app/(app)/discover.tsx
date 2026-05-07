@@ -20,6 +20,23 @@ import {
   SCREEN_PAD,
 } from '../../constants/theme';
 
+/**
+ * DISCOVER — surfaces the six discovery lenses as a masonry of cards.
+ * Category chips at the top scope all six queries.
+ *
+ * The six queries (always in this order):
+ *   1. {cat} near you            — most-liked, all of campus
+ *   2. {cat} by your circle      — pins from people you follow
+ *   3. by your {cat}-twins       — FOR YOU (the killer query)
+ *   4. by {cat} experts          — friends with 20+ ranks in this cat
+ *   5. wishlist overlap          — on your circle's want-list
+ *   6. undiscovered              — no one in circle has been
+ *
+ * Data wiring lives in hooks/useDiscover.ts (TODO step 4.5). For now this
+ * renders structurally with placeholder counts so the layout is real and
+ * the wiring drops in cleanly.
+ */
+
 type CatKey = 'cafes' | 'food' | 'bars' | 'shops' | 'experiences';
 
 const CATEGORIES: { key: CatKey; label: string }[] = [
@@ -32,10 +49,15 @@ const CATEGORIES: { key: CatKey; label: string }[] = [
 
 interface QueryDef {
   id: string;
+  /** template uses {cat} for the active category label */
   title: (cat: string) => { plain: string; italic: string };
+  /** kicker line above the title */
   kicker: string;
+  /** is this the highlighted "for you" query? */
   highlight?: boolean;
+  /** mock count for the chip */
   count: number;
+  /** card height variant — masonry rhythm */
   variant: 'sm' | 'md' | 'lg';
 }
 
@@ -85,6 +107,7 @@ const QUERIES: QueryDef[] = [
   },
 ];
 
+/** Visual icon for each query — uses unicode glyphs not emoji. */
 const QUERY_GLYPH: Record<string, string> = {
   'near-you':     '◉',
   'circle':       '○',
@@ -109,6 +132,8 @@ export default function DiscoverScreen() {
     [activeCat],
   );
 
+  // Split queries into two columns for the masonry. Distribute by height
+  // greedy-balanced so columns stay roughly even regardless of variant mix.
   const [colA, colB] = useMemo(() => {
     const a: QueryDef[] = [];
     const b: QueryDef[] = [];
@@ -129,6 +154,7 @@ export default function DiscoverScreen() {
   return (
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.metaLabel}>DISCOVER · MORNINGSIDE</Text>
           <Text style={styles.title}>
@@ -136,6 +162,7 @@ export default function DiscoverScreen() {
           </Text>
         </View>
 
+        {/* Category chip row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -160,6 +187,7 @@ export default function DiscoverScreen() {
           })}
         </ScrollView>
 
+        {/* Masonry */}
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -197,6 +225,7 @@ export default function DiscoverScreen() {
             </View>
           </View>
 
+          {/* Twins teaser footer — leads to /twins */}
           <TouchableOpacity
             style={styles.twinsFooter}
             onPress={() => router.push('/(app)/twins' as never)}
@@ -219,6 +248,8 @@ export default function DiscoverScreen() {
   );
 }
 
+// ─── Card ───────────────────────────────────────────────────────────────
+
 function DiscoverCard({
   query,
   catLabel,
@@ -238,6 +269,7 @@ function DiscoverCard({
       { height, opacity: pressed ? 0.85 : 1 },
       highlight && styles.cardHighlight,
     ]}>
+      {/* Glyph 'image area' — gradient-ish radial effect via two stacked tints */}
       <View style={[styles.cardImage, highlight && styles.cardImageHighlight]}>
         <View style={[styles.cardImageHalo, highlight && styles.cardImageHaloHighlight]} />
         <Text style={[styles.cardGlyph, highlight && styles.cardGlyphHighlight]}>
@@ -268,9 +300,12 @@ function DiscoverCard({
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: PALETTE.bg },
 
+  // Header
   header: {
     paddingHorizontal: SCREEN_PAD,
     paddingTop: 8,
@@ -295,6 +330,7 @@ const styles = StyleSheet.create({
     color: ACCENT.red,
   },
 
+  // Chips
   chipsRow: {
     paddingHorizontal: SCREEN_PAD,
     paddingTop: 4,
@@ -323,6 +359,7 @@ const styles = StyleSheet.create({
     color: PALETTE.bg,
   },
 
+  // Masonry
   scroll: {
     paddingHorizontal: SCREEN_PAD - 4,
     paddingBottom: TAB_CLEARANCE + 16,
@@ -336,6 +373,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  // Card
   card: {
     backgroundColor: PALETTE.surface,
     borderWidth: 1,
@@ -438,6 +476,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Twins teaser footer
   twinsFooter: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -10,7 +10,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { COLORS, GLASS } from '../../constants/theme';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  SCREEN_PAD,
+} from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -49,33 +56,29 @@ export default function WelcomeScreen() {
   if (checking) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={COLORS.primary} size="large" />
+        <ActivityIndicator color={ACCENT.red} size="large" />
       </View>
     );
   }
 
   return (
     <View style={styles.safe}>
-      {/* Red thread decorations */}
-      <View style={styles.thread1} pointerEvents="none" />
-      <View style={styles.thread2} pointerEvents="none" />
-
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.container}>
-          {/* Logo */}
+          {/* Brand */}
           <Animated.View
             style={[
-              styles.logoWrap,
+              styles.brandWrap,
               {
                 opacity: logoAnim,
                 transform: [{ translateY: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
               },
             ]}
           >
-            <View style={styles.logoRing}>
-              <Text style={styles.logoPin}>◉</Text>
-            </View>
-            <Text style={styles.logoWord}>Filo</Text>
+            <Text style={styles.metaLabel}>COLUMBIA · MORNINGSIDE</Text>
+            <Text style={styles.wordmark}>
+              filo<Text style={styles.wordmarkDot}>.</Text>
+            </Text>
           </Animated.View>
 
           {/* Copy */}
@@ -88,12 +91,15 @@ export default function WelcomeScreen() {
               },
             ]}
           >
-            <Text style={styles.headline}>The map your{'\n'}friends would draw.</Text>
+            <Text style={styles.headline}>
+              the map your{'\n'}
+              <Text style={styles.headlineItalic}>friends</Text> would draw.
+            </Text>
             <Text style={styles.subtext}>
-              You're now in the Columbia circle.{'\n'}See what your campus has pinned.
+              you're now in the columbia circle.{'\n'}
+              see what your campus has pinned.
             </Text>
 
-            {/* Step indicators */}
             <View style={styles.stepRow}>
               <View style={[styles.stepDot, styles.stepDotActive]} />
               <View style={styles.stepDot} />
@@ -112,12 +118,13 @@ export default function WelcomeScreen() {
             ]}
           >
             <TouchableOpacity
-              style={[styles.ctaBtn, GLASS]}
+              style={styles.ctaBtn}
               onPress={() => router.push('/onboarding/first-pin')}
               activeOpacity={0.85}
             >
-              <Text style={styles.ctaBtnText}>Show me the map  →</Text>
+              <Text style={styles.ctaBtnText}>show me the map  →</Text>
             </TouchableOpacity>
+            <Text style={styles.ctaCaption}>step 1 of 3</Text>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -126,63 +133,90 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
   loadingContainer: {
-    flex: 1, backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  thread1: {
-    position: 'absolute', width: 180, height: 60, borderRadius: 60,
-    borderTopWidth: 1.5, borderColor: 'rgba(230,57,70,0.4)',
-    borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
-    bottom: 180, right: 20,
-  },
-  thread2: {
-    position: 'absolute', width: 140, height: 50, borderRadius: 50,
-    borderBottomWidth: 1.5, borderColor: 'rgba(67,97,238,0.3)',
-    borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
-    top: 200, left: 20,
+    flex: 1,
+    backgroundColor: PALETTE.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   container: {
-    flex: 1, paddingHorizontal: 32,
+    flex: 1,
+    paddingHorizontal: SCREEN_PAD + 4,
     justifyContent: 'space-between',
-    paddingTop: 60, paddingBottom: 48,
+    paddingTop: 56,
+    paddingBottom: 44,
   },
 
-  logoWrap: { alignItems: 'center', gap: 12 },
-  logoRing: {
-    width: 72, height: 72, borderRadius: 36,
-    borderWidth: 2, borderColor: COLORS.primary + '55',
-    backgroundColor: COLORS.primary + '18',
-    alignItems: 'center', justifyContent: 'center',
+  brandWrap: { alignItems: 'flex-start', gap: 8 },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
   },
-  logoPin: { fontSize: 32, color: COLORS.primary },
-  logoWord: {
-    fontSize: 58, fontWeight: '900', color: COLORS.textPrimary, letterSpacing: -2,
+  wordmark: {
+    fontFamily: FONTS.display,
+    fontSize: 64,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    letterSpacing: -2,
+    lineHeight: 64,
   },
+  wordmarkDot: { color: ACCENT.red },
 
   copyBlock: { gap: 18 },
   headline: {
-    fontSize: 38, fontWeight: '800',
-    color: COLORS.textPrimary, lineHeight: 46, letterSpacing: -0.8,
+    fontFamily: FONTS.display,
+    fontSize: 36,
+    fontWeight: '400',
+    color: PALETTE.ink,
+    lineHeight: 42,
+    letterSpacing: -0.5,
+  },
+  headlineItalic: {
+    fontStyle: 'italic',
+    color: ACCENT.red,
   },
   subtext: {
-    fontSize: 17, color: COLORS.textSecondary, lineHeight: 25,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: PALETTE.inkSoft,
+    lineHeight: 22,
   },
-  stepRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  stepRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
   stepDot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: 'rgba(26,26,26,0.18)',
+    width: 6,
+    height: 6,
+    backgroundColor: PALETTE.inkLine,
   },
-  stepDotActive: { backgroundColor: COLORS.primary, width: 20, borderRadius: 3 },
+  stepDotActive: {
+    backgroundColor: ACCENT.red,
+    width: 22,
+  },
 
-  ctaWrap: {},
+  ctaWrap: { gap: 10 },
   ctaBtn: {
-    paddingVertical: 18, alignItems: 'center',
-    borderRadius: 50,
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingVertical: 16,
+    alignItems: 'center',
+    ...STICKER_SHADOW_LG,
   },
   ctaBtnText: {
-    fontSize: 17, fontWeight: '800',
-    color: COLORS.textPrimary, letterSpacing: 0.2,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    fontWeight: '700',
+    color: PALETTE.surface,
+    letterSpacing: 0.4,
+  },
+  ctaCaption: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: PALETTE.inkMute,
+    textAlign: 'center',
   },
 });

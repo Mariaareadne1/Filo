@@ -91,12 +91,6 @@ export default function AppLayout() {
           }}
         />
         <Tabs.Screen
-          name="__pin_spacer"
-          options={{
-            tabBarButton: () => <View style={{ flex: 1 }} />,
-          }}
-        />
-        <Tabs.Screen
           name="feed"
           options={{
             tabBarIcon: ({ focused }) => (

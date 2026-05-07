@@ -12,7 +12,14 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  SCREEN_PAD,
+} from '../../constants/theme';
 
 const ALLOWED_DOMAINS = ['columbia.edu', 'barnard.edu'];
 
@@ -30,9 +37,9 @@ export default function EmailScreen() {
   async function handleContinue() {
     setError('');
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed) { setError('Please enter your email address.'); return; }
+    if (!trimmed) { setError('please enter your email address.'); return; }
     if (!isValidCampusEmail(trimmed)) {
-      setError('You must sign up with a @columbia.edu or @barnard.edu email.');
+      setError('use a @columbia.edu or @barnard.edu email.');
       return;
     }
     setLoading(true);
@@ -41,17 +48,12 @@ export default function EmailScreen() {
       options: { shouldCreateUser: true },
     });
     setLoading(false);
-    if (otpError) { setError(otpError.message); return; }
+    if (otpError) { setError(otpError.message.toLowerCase()); return; }
     router.push({ pathname: '/auth/otp', params: { email: trimmed } });
   }
 
   return (
     <View style={styles.safe}>
-      {/* Orbs */}
-      {/* Red thread */}
-      <View style={styles.thread1} pointerEvents="none" />
-      <View style={styles.thread2} pointerEvents="none" />
-
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={styles.container}
@@ -59,20 +61,22 @@ export default function EmailScreen() {
         >
           {/* Brand */}
           <View style={styles.brand}>
-            <View style={styles.logoRing}>
-              <Text style={styles.logoPin}>◉</Text>
-            </View>
-            <Text style={styles.logoWord}>Filo</Text>
-            <Text style={styles.tagline}>The map your friends would draw.</Text>
+            <Text style={styles.metaLabel}>COLUMBIA · BARNARD</Text>
+            <Text style={styles.wordmark}>
+              filo<Text style={styles.wordmarkDot}>.</Text>
+            </Text>
+            <Text style={styles.tagline}>
+              the map your <Text style={styles.taglineItalic}>friends</Text> would draw.
+            </Text>
           </View>
 
-          {/* Form */}
-          <View style={[styles.formCard, GLASS]}>
-            <Text style={styles.label}>Columbia or Barnard email</Text>
+          {/* Form card */}
+          <View style={styles.formCard}>
+            <Text style={styles.fieldKicker}>EMAIL</Text>
             <TextInput
               style={[styles.input, error ? styles.inputError : null]}
               placeholder="you@columbia.edu"
-              placeholderTextColor="rgba(26,26,26,0.35)"
+              placeholderTextColor={PALETTE.inkMute}
               value={email}
               onChangeText={(t) => { setEmail(t); setError(''); }}
               keyboardType="email-address"
@@ -88,17 +92,18 @@ export default function EmailScreen() {
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleContinue}
               disabled={loading}
+              activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={PALETTE.surface} />
               ) : (
-                <Text style={styles.buttonText}>Continue →</Text>
+                <Text style={styles.buttonText}>continue →</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <Text style={styles.fine}>
-            Filo is invite-only for Columbia and Barnard students.
+            invite-only for columbia and barnard students.
           </Text>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -107,53 +112,99 @@ export default function EmailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
-  thread1: {
-    position: 'absolute', width: 200, height: 80, borderRadius: 80,
-    borderTopWidth: 1.5, borderColor: 'rgba(230,57,70,0.3)',
-    borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
-    bottom: 160, right: 0,
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
+  container: {
+    flex: 1,
+    paddingHorizontal: SCREEN_PAD + 4,
+    justifyContent: 'center',
+    gap: 28,
   },
-  thread2: {
-    position: 'absolute', width: 140, height: 60, borderRadius: 60,
-    borderBottomWidth: 1.5, borderColor: 'rgba(67,97,238,0.25)',
-    borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
-    top: 120, left: 0,
-  },
-  container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', gap: 32 },
-  brand: { alignItems: 'center', gap: 10 },
-  logoRing: {
-    width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2, borderColor: COLORS.primary + '55',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.primary + '15',
-  },
-  logoPin: { fontSize: 28, color: COLORS.primary },
-  logoWord: {
-    fontSize: 44, fontWeight: '900', color: COLORS.textPrimary,
-    letterSpacing: -1.5,
-  },
-  tagline: { fontSize: 15, color: COLORS.textSecondary },
 
-  formCard: { padding: 24, gap: 14 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 2 },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 15,
-    fontSize: 16, color: COLORS.textPrimary,
+  brand: { alignItems: 'center', gap: 8 },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+    marginBottom: 2,
   },
-  inputError: { borderColor: COLORS.primary },
-  errorText: { fontSize: 13, color: COLORS.primary, marginTop: -6 },
+  wordmark: {
+    fontFamily: FONTS.display,
+    fontSize: 64,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    letterSpacing: -2,
+    lineHeight: 64,
+  },
+  wordmarkDot: { color: ACCENT.red },
+  tagline: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: PALETTE.inkSoft,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  taglineItalic: {
+    fontFamily: FONTS.display,
+    fontStyle: 'italic',
+    color: ACCENT.red,
+  },
+
+  formCard: {
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    padding: 22,
+    gap: 12,
+    ...STICKER_SHADOW_LG,
+  },
+  fieldKicker: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  input: {
+    backgroundColor: PALETTE.bg,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: PALETTE.ink,
+  },
+  inputError: { borderColor: ACCENT.red },
+  errorText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: ACCENT.red,
+    marginTop: -4,
+  },
   button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', marginTop: 4,
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+    ...STICKER_SHADOW,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  buttonText: {
+    fontFamily: FONTS.body,
+    color: PALETTE.surface,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
 
-  fine: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+  fine: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: PALETTE.inkMute,
+    textAlign: 'center',
+  },
 });
