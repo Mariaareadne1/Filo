@@ -141,7 +141,7 @@ export function PinDetailSheet({ pin, onClose }: Props) {
     router.push({
       pathname: '/pin/review',
       params: {
-        placeId: pin.pin_id,
+        placeId: pin.place_id,
         placeName: pin.place_name,
         category: pin.category,
       },

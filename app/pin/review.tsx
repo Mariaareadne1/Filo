@@ -5,10 +5,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Pressable,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 import {
   PALETTE,
   ACCENT,
@@ -22,19 +25,12 @@ import {
 type Bucket = 'loved' | 'okay' | 'meh';
 
 interface Ranked {
+  /** place_id used as the React key and as the foreign key on save. */
   id: string;
   name: string;
+  /** Absolute rank in the user's category list, 1-indexed. */
   rank: number;
-  bucket: Bucket;
 }
-
-const MOCK_LOVED_CAFES: Ranked[] = [
-  { id: '1', name: "Joe's Coffee",      rank: 1, bucket: 'loved' },
-  { id: '2', name: 'Hex & Co.',         rank: 2, bucket: 'loved' },
-  { id: '3', name: 'Oren\'s Daily Roast', rank: 3, bucket: 'loved' },
-  { id: '4', name: 'Pisticci',          rank: 4, bucket: 'loved' },
-  { id: '5', name: 'Community Food',    rank: 5, bucket: 'loved' },
-];
 
 const BUCKETS: { key: Bucket; label: string; sub: string }[] = [
   { key: 'loved', label: 'liked it',        sub: 'going back' },
@@ -63,11 +59,44 @@ export default function ReviewScreen() {
   const [hi, setHi]                 = useState(0);
   const [finalRank, setFinalRank]   = useState<number | null>(null);
 
-  const pool = useMemo<Ranked[]>(() => {
-    if (bucket === 'loved') return MOCK_LOVED_CAFES;
-    if (bucket === 'okay')  return MOCK_LOVED_CAFES.slice(0, 3);
-    return MOCK_LOVED_CAFES.slice(0, 2);
-  }, [bucket]);
+  // ─── Real ranking pool ─────────────────────────────────────────────
+  const [userId, setUserId] = useState<string | null>(null);
+  const [rankings, setRankings] = useState<Ranked[]>([]);
+  const [loadingRankings, setLoadingRankings] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoadingRankings(false); return; }
+      setUserId(user.id);
+
+      const { data, error } = await supabase
+        .from('rankings')
+        .select('position, place_id, places!inner(name)')
+        .eq('user_id', user.id)
+        .eq('category', category)
+        .order('position', { ascending: true });
+
+      if (!error && data) {
+        const mapped: Ranked[] = data.map((row: any) => {
+          const place = Array.isArray(row.places) ? row.places[0] : row.places;
+          return {
+            id: row.place_id,
+            name: place?.name ?? '(unknown)',
+            rank: row.position,
+          };
+        });
+        setRankings(mapped);
+      }
+      setLoadingRankings(false);
+    })();
+  }, [category]);
+
+  /** Pool = full list. Bucket is preserved as UI metadata only; the binary
+   * search will converge to the right slot regardless of which bucket the
+   * user picked, so no slicing is needed. */
+  const pool = rankings;
 
   const totalAfter = pool.length + 1;
 
@@ -82,7 +111,7 @@ export default function ReviewScreen() {
         setStep('compare');
       }
     }
-  }, [bucket]);
+  }, [bucket, pool.length]);
 
   const mid = Math.floor((lo + hi) / 2);
   const candidate = pool[mid];
@@ -106,12 +135,111 @@ export default function ReviewScreen() {
     setHi(nextHi);
   }
 
-  function handleDone() {
+  const saveRanking = useCallback(async (): Promise<{ ok: boolean; message?: string }> => {
+    if (finalRank == null) return { ok: false, message: 'No rank chosen.' };
+    if (!params.placeId)   return { ok: false, message: 'Missing place id.' };
+    if (!userId)           return { ok: false, message: 'Not signed in.' };
+
+    // Idempotent re-rank: if this place is already ranked in this category,
+    // delete the old row and shift everything below it up by one before we
+    // bump for the new insert. Otherwise the second rank attempt would hit
+    // a unique-constraint error or leave duplicate place rows.
+    const { data: existing, error: existingErr } = await supabase
+      .from('rankings')
+      .select('id, position')
+      .eq('user_id', userId)
+      .eq('place_id', params.placeId)
+      .eq('category', category)
+      .maybeSingle();
+
+    if (existingErr && existingErr.code !== 'PGRST116') {
+      return { ok: false, message: existingErr.message };
+    }
+
+    if (existing) {
+      const { error: delErr } = await supabase
+        .from('rankings')
+        .delete()
+        .eq('id', existing.id);
+      if (delErr) return { ok: false, message: delErr.message };
+
+      const { data: laterRows } = await supabase
+        .from('rankings')
+        .select('id, position')
+        .eq('user_id', userId)
+        .eq('category', category)
+        .gt('position', existing.position)
+        .order('position', { ascending: true });
+
+      // Shift down ascending — each row vacates its slot before the next
+      // row claims it, so we never collide with the unique constraint on
+      // (user_id, category, position).
+      for (const row of laterRows ?? []) {
+        const { error } = await supabase
+          .from('rankings')
+          .update({ position: row.position - 1 })
+          .eq('id', row.id);
+        if (error) return { ok: false, message: error.message };
+      }
+    }
+
+    // Bump existing rankings >= finalRank by +1, in DESCENDING order so
+    // the highest position moves first and never collides with a row
+    // we're about to update.
+    const { data: bumpRows, error: bumpErr } = await supabase
+      .from('rankings')
+      .select('id, position')
+      .eq('user_id', userId)
+      .eq('category', category)
+      .gte('position', finalRank)
+      .order('position', { ascending: false });
+
+    if (bumpErr) return { ok: false, message: bumpErr.message };
+
+    for (const row of bumpRows ?? []) {
+      const { error } = await supabase
+        .from('rankings')
+        .update({ position: row.position + 1 })
+        .eq('id', row.id);
+      if (error) return { ok: false, message: error.message };
+    }
+
+    // Insert new ranking at finalRank.
+    const { error: insertErr } = await supabase.from('rankings').insert({
+      user_id: userId,
+      place_id: params.placeId,
+      category,
+      position: finalRank,
+    });
+    if (insertErr) return { ok: false, message: insertErr.message };
+
+    return { ok: true };
+  }, [finalRank, params.placeId, userId, category]);
+
+  async function handleConfirm() {
+    if (saving) return;
+    setSaving(true);
+    const result = await saveRanking();
+    setSaving(false);
+    if (!result.ok) {
+      Alert.alert('could not save rank', result.message ?? 'please try again.');
+      return;
+    }
     if (params.returnTo) {
       router.replace(params.returnTo as never);
     } else {
       router.back();
     }
+  }
+
+  if (loadingRankings) {
+    return (
+      <View style={styles.safe}>
+        <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={ACCENT.red} />
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (
@@ -155,7 +283,8 @@ export default function ReviewScreen() {
               bucket={bucket}
               placeName={placeName}
               pool={pool}
-              onConfirm={handleDone}
+              saving={saving}
+              onConfirm={handleConfirm}
             />
           )}
         </ScrollView>
@@ -264,6 +393,7 @@ function DoneStep({
   bucket,
   placeName,
   pool,
+  saving,
   onConfirm,
 }: {
   rank: number;
@@ -272,6 +402,7 @@ function DoneStep({
   bucket: Bucket;
   placeName: string;
   pool: Ranked[];
+  saving: boolean;
   onConfirm: () => void;
 }) {
   const ordered: { id: string; name: string; isNew?: boolean }[] = useMemo(() => {
@@ -333,11 +464,16 @@ function DoneStep({
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.confirmBtn}
+        style={[styles.confirmBtn, saving && styles.confirmBtnDisabled]}
         onPress={onConfirm}
+        disabled={saving}
         activeOpacity={0.85}
       >
-        <Text style={styles.confirmBtnText}>save rank</Text>
+        {saving ? (
+          <ActivityIndicator color={PALETTE.bg} />
+        ) : (
+          <Text style={styles.confirmBtnText}>save rank</Text>
+        )}
       </TouchableOpacity>
 
       <Text style={styles.privacyLine}>
@@ -559,6 +695,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: PALETTE.ink,
     ...STICKER_SHADOW_LG,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.6,
   },
   confirmBtnText: {
     fontFamily: FONTS.display,

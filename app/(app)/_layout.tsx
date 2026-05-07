@@ -18,14 +18,17 @@ interface TabSlotProps {
 function TabSlot({ glyph, label, focused }: TabSlotProps) {
   return (
     <View style={styles.slot}>
-      <Text
-        style={[
-          styles.glyph,
-          { color: focused ? PALETTE.ink : PALETTE.inkMute },
-        ]}
-      >
-        {glyph}
-      </Text>
+      <View style={styles.glyphWrap}>
+        <Text
+          allowFontScaling={false}
+          style={[
+            styles.glyph,
+            { color: focused ? PALETTE.ink : PALETTE.inkMute },
+          ]}
+        >
+          {glyph}
+        </Text>
+      </View>
       <Text
         numberOfLines={1}
         style={[
@@ -80,7 +83,7 @@ export default function AppLayout() {
           name="discover"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="✦" label="discover" focused={focused} />
+              <TabSlot glyph="✦" label="find" focused={focused} />
             ),
           }}
         />
@@ -110,12 +113,13 @@ export default function AppLayout() {
           name="profile"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabSlot glyph={'◯'} label="you" focused={focused} />
+              <TabSlot glyph={'○'} label="you" focused={focused} />
             ),
           }}
         />
 
         <Tabs.Screen name="directory" options={{ href: null }} />
+        <Tabs.Screen name="twins" options={{ href: null }} />
         <Tabs.Screen name="board/[id]" options={{ href: null }} />
         <Tabs.Screen name="user/[id]" options={{ href: null }} />
       </Tabs>
@@ -159,7 +163,14 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingTop: 2,
   },
-  glyph: { fontSize: 16, lineHeight: 18 },
+  glyphWrap: { alignItems: 'center', justifyContent: 'center', height: 20 },
+  glyph: {
+    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: undefined }),
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
   label: {
     fontFamily: Platform.select({ ios: FONTS.mono, default: 'monospace' }),
     fontSize: 9,
