@@ -63,6 +63,7 @@ export default function AppLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: PALETTE.bg }}>
       <Tabs
+        initialRouteName="discover"
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: false,
@@ -75,18 +76,18 @@ export default function AppLayout() {
         }}
       >
         <Tabs.Screen
-          name="index"
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="◉" label="map" focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="discover"
           options={{
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="✦" label="discover" focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabSlot glyph="◉" label="map" focused={focused} />
             ),
           }}
         />
@@ -102,7 +103,7 @@ export default function AppLayout() {
           name="profile"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="◯" label="you" focused={focused} />
+              <TabSlot glyph={'◯'} label="you" focused={focused} />
             ),
           }}
         />

@@ -14,14 +14,22 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  SCREEN_PAD,
+  VISIBILITY_COLOR,
+} from '../../constants/theme';
 
 type Visibility = 'private' | 'friends' | 'public';
 
-const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string; color: string }[] = [
-  { key: 'public',  label: 'Public',  desc: 'Anyone can view. Shareable link works.',  color: '#22c55e' },
-  { key: 'friends', label: 'Friends', desc: 'Only people you follow can see it.',       color: '#3b82f6' },
-  { key: 'private', label: 'Private', desc: 'Only you.',                                color: 'rgba(255,255,255,0.4)' },
+const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
+  { key: 'public',  label: 'public',  desc: 'anyone can view. shareable link works.' },
+  { key: 'friends', label: 'friends', desc: 'only people you follow can see it.' },
+  { key: 'private', label: 'private', desc: 'only you.' },
 ];
 
 function generateShareToken(): string {
@@ -38,7 +46,7 @@ export default function CreateBoardScreen() {
   const [nameError, setNameError] = useState('');
 
   async function handleCreate() {
-    if (!name.trim()) { setNameError('Board name is required.'); return; }
+    if (!name.trim()) { setNameError('board name is required.'); return; }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -62,35 +70,40 @@ export default function CreateBoardScreen() {
 
   return (
     <View style={styles.safe}>
-
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+                <Text style={styles.cancelText}>cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.title}>New board</Text>
+              <View style={styles.headerCenter}>
+                <Text style={styles.headerKicker}>NEW</Text>
+                <Text style={styles.headerTitle}>
+                  <Text style={styles.headerTitleItalic}>board.</Text>
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={handleCreate}
                 disabled={saving}
                 style={[styles.createBtn, saving && styles.createBtnDisabled]}
+                activeOpacity={0.85}
               >
                 {saving
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.createBtnText}>Create</Text>
+                  ? <ActivityIndicator color={PALETTE.surface} size="small" />
+                  : <Text style={styles.createBtnText}>create</Text>
                 }
               </TouchableOpacity>
             </View>
 
             {/* Name */}
             <View style={styles.field}>
-              <Text style={styles.label}>Board name *</Text>
+              <Text style={styles.label}>BOARD NAME *</Text>
               <TextInput
                 style={[styles.input, nameError ? styles.inputError : null]}
-                placeholder="e.g. Late Night Eats"
-                placeholderTextColor="rgba(26,26,26,0.35)"
+                placeholder="e.g. late night eats"
+                placeholderTextColor={PALETTE.inkMute}
                 value={name}
                 onChangeText={(t) => { setName(t); setNameError(''); }}
                 autoFocus
@@ -102,12 +115,12 @@ export default function CreateBoardScreen() {
             {/* Description */}
             <View style={styles.field}>
               <Text style={styles.label}>
-                Description <Text style={styles.optional}>(optional)</Text>
+                DESCRIPTION <Text style={styles.optional}>· optional</Text>
               </Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="What's this board for?"
-                placeholderTextColor="rgba(26,26,26,0.35)"
+                placeholder="what's this board for?"
+                placeholderTextColor={PALETTE.inkMute}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -118,36 +131,36 @@ export default function CreateBoardScreen() {
 
             {/* Visibility */}
             <View style={styles.field}>
-              <Text style={styles.label}>Visibility</Text>
+              <Text style={styles.label}>VISIBILITY</Text>
               <View style={styles.visOptions}>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[
-                      styles.visOption,
-                      visibility === opt.key && { borderColor: opt.color + '66', backgroundColor: opt.color + '10' },
-                    ]}
-                    onPress={() => setVisibility(opt.key)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.visOptionTop}>
-                      <View style={[styles.radio, visibility === opt.key && { borderColor: opt.color }]}>
-                        {visibility === opt.key && <View style={[styles.radioDot, { backgroundColor: opt.color }]} />}
+                {VISIBILITY_OPTIONS.map((opt) => {
+                  const active = visibility === opt.key;
+                  const dotColor = VISIBILITY_COLOR[opt.key];
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[styles.visOption, active && styles.visOptionActive]}
+                      onPress={() => setVisibility(opt.key)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.visOptionTop}>
+                        <View style={[styles.radio, active && styles.radioActive]}>
+                          {active && <View style={styles.radioDot} />}
+                        </View>
+                        <View style={[styles.visDot, { backgroundColor: dotColor }]} />
+                        <Text style={styles.visLabel}>{opt.label}</Text>
                       </View>
-                      <Text style={[styles.visLabel, visibility === opt.key && { color: opt.color }]}>
-                        {opt.label}
-                      </Text>
-                    </View>
-                    <Text style={styles.visDesc}>{opt.desc}</Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={styles.visDesc}>{opt.desc}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {visibility === 'public' && (
-              <View style={[styles.infoBox, GLASS_SM]}>
+              <View style={styles.infoBox}>
                 <Text style={styles.infoText}>
-                  A shareable link will be generated. Anyone with the link can view this board.
+                  a shareable link will be generated. anyone with the link can view this board.
                 </Text>
               </View>
             )}
@@ -159,58 +172,157 @@ export default function CreateBoardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
   container: { paddingBottom: 48 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 18,
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 14,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(26,26,26,0.08)',
+    borderBottomColor: PALETTE.inkLine,
+    gap: 12,
   },
-  cancelText: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '500' },
-  title: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
+  cancelText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: PALETTE.inkSoft,
+    textTransform: 'lowercase',
+  },
+  headerCenter: { alignItems: 'center', flex: 1 },
+  headerKicker: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  headerTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 18,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  headerTitleItalic: {
+    fontStyle: 'italic',
+    color: ACCENT.red,
+  },
   createBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10, paddingHorizontal: 18, paddingVertical: 8,
-    minWidth: 70, alignItems: 'center',
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    minWidth: 70,
+    alignItems: 'center',
+    ...STICKER_SHADOW,
   },
   createBtnDisabled: { opacity: 0.5 },
-  createBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  createBtnText: {
+    fontFamily: FONTS.body,
+    color: PALETTE.surface,
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
 
-  field: { paddingHorizontal: 20, paddingTop: 24, gap: 8 },
-  label: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
-  optional: { color: COLORS.textMuted, fontWeight: '400' },
+  field: { paddingHorizontal: SCREEN_PAD, paddingTop: 22, gap: 8 },
+  label: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  optional: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.inkMute,
+    textTransform: 'lowercase',
+  },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: 'rgba(26,26,26,0.14)',
-    borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: 15, color: COLORS.textPrimary,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: PALETTE.ink,
   },
-  textArea: { minHeight: 80, paddingTop: 13 },
-  inputError: { borderColor: COLORS.primary },
-  errorText: { fontSize: 13, color: COLORS.primary },
+  textArea: { minHeight: 88, paddingTop: 12 },
+  inputError: { borderColor: ACCENT.red },
+  errorText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: ACCENT.red,
+  },
 
-  visOptions: { gap: 10 },
+  visOptions: { gap: 8 },
   visOption: {
-    borderWidth: 1.5,
-    borderColor: '#F0F0F0',
-    borderRadius: 14, padding: 14, gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.surface,
+    padding: 14,
+    gap: 6,
   },
-  visOptionTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  visOptionActive: {
+    ...STICKER_SHADOW,
+  },
+  visOptionTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   radio: {
-    width: 18, height: 18, borderRadius: 9,
-    borderWidth: 2, borderColor: 'rgba(26,26,26,0.2)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: PALETTE.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  radioDot: { width: 8, height: 8, borderRadius: 4 },
-  visLabel: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  visDesc: { fontSize: 12, color: COLORS.textSecondary, marginLeft: 28 },
+  radioActive: {
+    borderColor: ACCENT.red,
+  },
+  radioDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: ACCENT.red,
+  },
+  visDot: { width: 8, height: 8, borderRadius: 4 },
+  visLabel: {
+    fontFamily: FONTS.display,
+    fontSize: 17,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  visDesc: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+    marginLeft: 26 + 8 + 8,
+    lineHeight: 17,
+  },
 
-  infoBox: { marginHorizontal: 20, marginTop: 16, padding: 14 },
-  infoText: { fontSize: 13, color: '#7B93FF', lineHeight: 18 },
+  infoBox: {
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 18,
+    padding: 14,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW,
+  },
+  infoText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+    lineHeight: 17,
+  },
 });

@@ -14,12 +14,22 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import { useFollow } from '../../../hooks/useFollow';
 import { useBoards, Board } from '../../../hooks/useBoards';
-import { CATEGORY_COLORS, CATEGORY_LABELS, Category, MapPin } from '../../../types';
+import { CATEGORY_LABELS, Category, MapPin } from '../../../types';
 import { PinDetailSheet } from '../../../components/PinDetailSheet';
-import { COLORS, GLASS, GLASS_SM, VISIBILITY_COLOR, VISIBILITY_LABEL } from '../../../constants/theme';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  RADII,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  SCREEN_PAD,
+  VISIBILITY_COLOR,
+  VISIBILITY_LABEL,
+} from '../../../constants/theme';
 
 const { width } = Dimensions.get('window');
-const BOARD_CARD_SIZE = (width - 48 - 12) / 2;
+const BOARD_CARD_SIZE = (width - SCREEN_PAD * 2 - 12) / 2;
 
 interface UserProfile {
   id: string;
@@ -30,15 +40,19 @@ interface UserProfile {
   is_private: boolean;
 }
 
+const CATEGORY_GLYPH: Record<string, string> = {
+  food: '◆', bar: '○', beauty: '◇', experience: '✦', retail: '◉',
+};
+
+const BOARD_ACCENTS = [ACCENT.red, ACCENT.electric, '#f4c542', '#2ec27e', '#7d5fff', '#e6739f'];
 function boardAccentColor(name: string): string {
-  const colors = [COLORS.primary, COLORS.accent, '#06D6A0', '#FFB703', '#FB5607', '#7209B7'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffffffff;
-  return colors[Math.abs(hash) % colors.length];
+  return BOARD_ACCENTS[Math.abs(hash) % BOARD_ACCENTS.length];
 }
 
 export default function UserProfileScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -55,9 +69,7 @@ export default function UserProfileScreen() {
   const isOwnProfile = currentUserId === id;
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
-    });
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -114,9 +126,9 @@ export default function UserProfileScreen() {
 
   const followButtonLabel = () => {
     if (followLoading) return '...';
-    if (status === 'active') return 'Following';
-    if (status === 'pending') return 'Requested';
-    return 'Follow';
+    if (status === 'active') return 'following ✓';
+    if (status === 'pending') return 'requested';
+    return '+ follow';
   };
 
   if (loading) {
@@ -124,7 +136,7 @@ export default function UserProfileScreen() {
       <View style={styles.safe}>
         <SafeAreaView style={{ flex: 1 }}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
+            <ActivityIndicator color={ACCENT.red} size="large" />
           </View>
         </SafeAreaView>
       </View>
@@ -136,76 +148,83 @@ export default function UserProfileScreen() {
       <View style={styles.safe}>
         <SafeAreaView style={{ flex: 1 }}>
           <View style={styles.loadingContainer}>
-            <Text style={styles.notFound}>User not found.</Text>
+            <Text style={styles.notFound}>user not found.</Text>
           </View>
         </SafeAreaView>
       </View>
     );
   }
 
+  const visibleBoards = boards.filter(
+    (b) =>
+      b.visibility === 'public' ||
+      (status === 'active' && b.visibility === 'friends') ||
+      isOwnProfile
+  );
+
   return (
     <View style={styles.safe}>
-
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Back</Text>
+          {/* Back */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+            <Text style={styles.backText}>← back</Text>
           </TouchableOpacity>
 
-          {/* Avatar + name */}
+          {/* Header */}
           <View style={styles.header}>
-            <View style={styles.avatarWrap}>
-              {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitials}>{initials}</Text>
-                </View>
-              )}
-              <View style={styles.avatarRing} />
-            </View>
+            <Text style={styles.metaLabel}>PROFILE · @{profile.username.toUpperCase()}</Text>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
+            )}
             <Text style={styles.displayName}>{profile.display_name}</Text>
             <Text style={styles.username}>@{profile.username}</Text>
             {profile.campus ? (
               <View style={styles.campusBadge}>
-                <Text style={styles.campusBadgeText}>Columbia</Text>
+                <Text style={styles.campusBadgeText}>columbia</Text>
               </View>
             ) : null}
           </View>
 
           {/* Stats */}
-          <View style={[styles.statsRow, GLASS_SM]}>
+          <View style={styles.statsCard}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{followerCount}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
+              <Text style={styles.statLabel}>FOLLOWERS</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{followingCount}</Text>
-              <Text style={styles.statLabel}>Following</Text>
+              <Text style={styles.statLabel}>FOLLOWING</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{recentPins.length > 0 ? recentPins.length : 0}</Text>
-              <Text style={styles.statLabel}>Pins</Text>
+              <Text style={styles.statNumber}>{recentPins.length}</Text>
+              <Text style={styles.statLabel}>PINS</Text>
             </View>
           </View>
 
-          {/* Follow / Sign out button */}
+          {/* Follow / Sign out */}
           {!isOwnProfile ? (
             <TouchableOpacity
               style={[
                 styles.followBtn,
-                status === 'active' && styles.followingBtn,
-                status === 'pending' && styles.pendingBtn,
+                (status === 'active' || status === 'pending') && styles.followBtnSecondary,
               ]}
               onPress={handleFollowPress}
               disabled={followLoading}
+              activeOpacity={0.85}
             >
-              <Text style={[
-                styles.followBtnText,
-                (status === 'active' || status === 'pending') && styles.followingBtnText,
-              ]}>
+              <Text
+                style={[
+                  styles.followBtnText,
+                  (status === 'active' || status === 'pending') && styles.followBtnTextSecondary,
+                ]}
+              >
                 {followButtonLabel()}
               </Text>
             </TouchableOpacity>
@@ -213,83 +232,95 @@ export default function UserProfileScreen() {
             <TouchableOpacity
               style={styles.editBtn}
               onPress={() => supabase.auth.signOut()}
+              activeOpacity={0.85}
             >
-              <Text style={styles.editBtnText}>Sign out</Text>
+              <Text style={styles.editBtnText}>sign out</Text>
             </TouchableOpacity>
           )}
 
-          {/* Recent Pins */}
+          {/* Recent pins */}
           {recentPins.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Pins</Text>
-              {recentPins.map((pin) => {
-                const color = CATEGORY_COLORS[pin.category] ?? '#888';
-                const label = CATEGORY_LABELS[pin.category] ?? pin.category;
-                return (
-                  <TouchableOpacity
-                    key={pin.pin_id}
-                    style={[styles.pinRow, GLASS_SM]}
-                    onPress={() => setSelectedPin(pin)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.pinDot, { backgroundColor: color }]} />
-                    <View style={styles.pinInfo}>
-                      <Text style={styles.pinName}>{pin.place_name}</Text>
-                      <Text style={[styles.pinCategory, { color }]}>{label}</Text>
-                      {pin.impression ? (
-                        <Text style={styles.pinImpression} numberOfLines={1}>"{pin.impression}"</Text>
-                      ) : null}
-                    </View>
-                    <Text style={styles.pinChevron}>›</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Boards */}
-          {boards.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Boards</Text>
-              <View style={styles.boardGrid}>
-                {boards
-                  .filter((b) => b.visibility === 'public' || (status === 'active' && b.visibility === 'friends') || isOwnProfile)
-                  .map((board: Board) => {
-                    const accent = boardAccentColor(board.name);
-                    return (
-                      <TouchableOpacity
-                        key={board.id}
-                        style={[styles.boardCard, { borderColor: accent + '33' }]}
-                        onPress={() => router.push(`/(app)/board/${board.id}`)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={[styles.boardCover, { backgroundColor: accent + '18' }]}>
-                          <Text style={[styles.boardCoverLetter, { color: accent }]}>
-                            {board.name[0].toUpperCase()}
+              <Text style={styles.sectionMeta}>RECENT</Text>
+              <Text style={styles.sectionTitle}>
+                pinned <Text style={styles.sectionTitleItalic}>by them.</Text>
+              </Text>
+              <View style={styles.pinList}>
+                {recentPins.map((pin) => {
+                  const glyph = CATEGORY_GLYPH[pin.category] ?? '◉';
+                  const label = CATEGORY_LABELS[pin.category] ?? pin.category;
+                  return (
+                    <TouchableOpacity
+                      key={pin.pin_id}
+                      style={styles.pinRow}
+                      onPress={() => setSelectedPin(pin)}
+                      activeOpacity={0.92}
+                    >
+                      <View style={styles.pinIcon}>
+                        <Text style={styles.pinGlyph}>{glyph}</Text>
+                      </View>
+                      <View style={styles.pinInfo}>
+                        <Text style={styles.pinName} numberOfLines={1}>{pin.place_name}</Text>
+                        <Text style={styles.pinCategory}>{label.toLowerCase()}</Text>
+                        {pin.impression ? (
+                          <Text style={styles.pinImpression} numberOfLines={1}>
+                            "{pin.impression}"
                           </Text>
-                        </View>
-                        <View style={styles.boardCardBottom}>
-                          <Text style={styles.boardCardName} numberOfLines={1}>{board.name}</Text>
-                          <View style={styles.boardCardMeta}>
-                            <Text style={styles.boardCardCount}>{board.pin_count} pins</Text>
-                            <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[board.visibility] + '55' }]}>
-                              <Text style={[styles.visBadgeText, { color: VISIBILITY_COLOR[board.visibility] }]}>
-                                {VISIBILITY_LABEL[board.visibility]}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
+                        ) : null}
+                      </View>
+                      <Text style={styles.pinChevron}>→</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
 
-          {recentPins.length === 0 && boards.length === 0 && (
+          {/* Boards */}
+          {visibleBoards.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionMeta}>LISTS</Text>
+              <Text style={styles.sectionTitle}>
+                their <Text style={styles.sectionTitleItalic}>boards.</Text>
+              </Text>
+              <View style={styles.boardGrid}>
+                {visibleBoards.map((board: Board) => {
+                  const accent = boardAccentColor(board.name);
+                  return (
+                    <TouchableOpacity
+                      key={board.id}
+                      style={styles.boardCard}
+                      onPress={() => router.push(`/(app)/board/${board.id}`)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={[styles.boardCover, { backgroundColor: PALETTE.zone1 }]}>
+                        <View style={[styles.boardCoverHalo, { backgroundColor: accent, opacity: 0.18 }]} />
+                        <Text style={[styles.boardCoverLetter, { color: accent }]}>
+                          {board.name[0].toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.boardCardBottom}>
+                        <Text style={styles.boardCardName} numberOfLines={1}>{board.name}</Text>
+                        <View style={styles.boardCardMeta}>
+                          <Text style={styles.boardCardCount}>{board.pin_count} pins</Text>
+                          <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[board.visibility] }]}>
+                            <Text style={[styles.visBadgeText, { color: VISIBILITY_COLOR[board.visibility] }]}>
+                              {VISIBILITY_LABEL[board.visibility].toLowerCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {recentPins.length === 0 && visibleBoards.length === 0 && (
             <View style={styles.emptyState}>
               <View style={styles.emptyRing} />
-              <Text style={styles.emptyText}>No pins yet.</Text>
+              <Text style={styles.emptyTitle}>no pins yet.</Text>
             </View>
           )}
         </ScrollView>
@@ -301,77 +332,238 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notFound: { fontSize: 16, color: COLORS.textSecondary },
+  notFound: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: PALETTE.inkSoft,
+  },
   scroll: { paddingBottom: 60 },
 
-  backBtn: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  backText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+  backBtn: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  backText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: PALETTE.inkSoft,
+  },
 
-  header: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 },
-  avatarWrap: { marginBottom: 14, position: 'relative' },
-  avatar: { width: 84, height: 84, borderRadius: 42 },
+  // Header
+  header: {
+    alignItems: 'center',
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 12,
+    paddingBottom: 22,
+  },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+    marginBottom: 14,
+  },
+  avatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    marginBottom: 12,
+  },
   avatarFallback: {
-    width: 84, height: 84, borderRadius: 42,
-    backgroundColor: 'rgba(230,57,70,0.2)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: PALETTE.zone1,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    ...STICKER_SHADOW,
   },
-  avatarInitials: { fontSize: 30, fontWeight: '700', color: COLORS.primary },
-  avatarRing: {
-    position: 'absolute', top: -3, left: -3,
-    width: 90, height: 90, borderRadius: 45,
-    borderWidth: 2, borderColor: COLORS.primary + '45',
+  avatarInitials: {
+    fontFamily: FONTS.display,
+    fontSize: 30,
+    color: ACCENT.red,
+    fontWeight: '400',
   },
-  displayName: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 4 },
-  username: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 8 },
+  displayName: {
+    fontFamily: FONTS.display,
+    fontSize: 24,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    marginBottom: 2,
+  },
+  username: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: PALETTE.inkSoft,
+    marginBottom: 10,
+  },
   campusBadge: {
-    backgroundColor: 'rgba(67,97,238,0.18)',
-    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(67,97,238,0.35)',
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    ...STICKER_SHADOW,
   },
-  campusBadgeText: { fontSize: 12, color: '#7B93FF', fontWeight: '600' },
-
-  statsRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: 20, paddingVertical: 16,
+  campusBadgeText: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: PALETTE.ink,
+    fontWeight: '600',
   },
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statNumber: { fontSize: 20, fontWeight: '800', color: COLORS.textPrimary },
-  statLabel: { fontSize: 12, color: COLORS.textSecondary },
-  statDivider: { width: 1, height: 32, backgroundColor: 'rgba(26,26,26,0.06)' },
 
+  // Stats
+  statsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: SCREEN_PAD,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW_LG,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 4 },
+  statNumber: {
+    fontFamily: FONTS.display,
+    fontSize: 24,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  statLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    letterSpacing: 1.5,
+    color: PALETTE.inkSoft,
+  },
+  statDivider: { width: 1, height: 32, backgroundColor: PALETTE.inkLine },
+
+  // Follow buttons
   followBtn: {
-    marginHorizontal: 20, marginTop: 16, marginBottom: 4,
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    paddingVertical: 14, alignItems: 'center',
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 14,
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: ACCENT.red,
+    paddingVertical: 14,
+    alignItems: 'center',
+    ...STICKER_SHADOW_LG,
   },
-  followingBtn: { backgroundColor: 'rgba(26,26,26,0.06)', borderWidth: 1, borderColor: '#E8E8E8' },
-  pendingBtn: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F0F0F0' },
-  followBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  followingBtnText: { color: COLORS.textSecondary },
+  followBtnSecondary: {
+    backgroundColor: PALETTE.surface,
+    borderColor: PALETTE.ink,
+  },
+  followBtnText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    fontWeight: '700',
+    color: PALETTE.surface,
+  },
+  followBtnTextSecondary: { color: PALETTE.ink },
 
   editBtn: {
-    marginHorizontal: 20, marginTop: 16, marginBottom: 4,
-    borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 14,
-    paddingVertical: 13, alignItems: 'center',
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 14,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingVertical: 13,
+    alignItems: 'center',
+    ...STICKER_SHADOW,
   },
-  editBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
+  editBtnText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: PALETTE.ink,
+  },
 
-  section: { marginTop: 24, paddingHorizontal: 20, gap: 8 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 4, letterSpacing: -0.3 },
+  // Sections
+  section: {
+    marginTop: 28,
+    paddingHorizontal: SCREEN_PAD,
+  },
+  sectionMeta: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+    marginBottom: 6,
+  },
+  sectionTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 24,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    marginBottom: 14,
+  },
+  sectionTitleItalic: {
+    fontStyle: 'italic',
+    color: ACCENT.red,
+  },
 
+  // Pin list
+  pinList: { gap: 10 },
   pinRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 14, gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 12,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW,
   },
-  pinDot: { width: 10, height: 10, borderRadius: 5 },
+  pinIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: PALETTE.zone1,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinGlyph: { fontSize: 14, color: ACCENT.red },
   pinInfo: { flex: 1, gap: 2 },
-  pinName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  pinCategory: { fontSize: 12, fontWeight: '600' },
-  pinImpression: { fontSize: 12, color: COLORS.textSecondary, fontStyle: 'italic' },
-  pinChevron: { fontSize: 20, color: 'rgba(26,26,26,0.18)' },
+  pinName: {
+    fontFamily: FONTS.display,
+    fontSize: 15,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  pinCategory: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.inkSoft,
+  },
+  pinImpression: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  pinChevron: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: PALETTE.ink,
+  },
 
+  // Boards
   boardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -379,37 +571,84 @@ const styles = StyleSheet.create({
   },
   boardCard: {
     width: BOARD_CARD_SIZE,
-    height: BOARD_CARD_SIZE + 52,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    height: BOARD_CARD_SIZE + 56,
+    backgroundColor: PALETTE.surface,
     borderWidth: 1,
+    borderColor: PALETTE.ink,
+    overflow: 'hidden',
+    ...STICKER_SHADOW_LG,
   },
   boardCover: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.ink,
   },
-  boardCoverLetter: { fontSize: 48, fontWeight: '900', opacity: 0.7 },
+  boardCoverHalo: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+  },
+  boardCoverLetter: {
+    fontFamily: FONTS.display,
+    fontSize: 56,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
   boardCardBottom: {
-    paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: 'rgba(242,237,232,0.97)',
-    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
   },
-  boardCardName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
-  boardCardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  boardCardCount: { fontSize: 10, color: COLORS.textSecondary },
+  boardCardName: {
+    fontFamily: FONTS.display,
+    fontSize: 14,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  boardCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  boardCardCount: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    color: PALETTE.inkSoft,
+  },
   visBadge: {
-    borderWidth: 1, borderRadius: 8,
-    paddingHorizontal: 5, paddingVertical: 1,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
   },
-  visBadgeText: { fontSize: 9, fontWeight: '600' },
+  visBadgeText: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    letterSpacing: 1,
+    fontWeight: '600',
+  },
 
-  emptyState: { alignItems: 'center', paddingTop: 48, gap: 8 },
-  emptyRing: {
-    width: 50, height: 50, borderRadius: 25,
-    borderWidth: 1.5, borderColor: COLORS.primary + '40',
-    marginBottom: 4,
+  // Empty
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 60,
+    gap: 12,
   },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary },
+  emptyRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: ACCENT.red,
+    opacity: 0.4,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 20,
+    color: PALETTE.inkSoft,
+    fontWeight: '400',
+  },
 });

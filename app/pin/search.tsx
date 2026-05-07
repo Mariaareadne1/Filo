@@ -13,12 +13,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchPlaces, PlaceResult } from '../../lib/places';
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../../types';
-import { COLORS, GLASS_SM } from '../../constants/theme';
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
-};
+import { CATEGORY_LABELS } from '../../types';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  SCREEN_PAD,
+} from '../../constants/theme';
 
 export default function PinSearchScreen() {
   const [query, setQuery] = useState('');
@@ -42,7 +43,7 @@ export default function PinSearchScreen() {
         const places = await searchPlaces(text);
         setResults(places);
       } catch {
-        setError('Search failed. Check your connection and try again.');
+        setError('search failed. check your connection and try again.');
       } finally {
         setLoading(false);
       }
@@ -66,33 +67,33 @@ export default function PinSearchScreen() {
 
   return (
     <View style={styles.safe}>
-
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.searchRow}>
-              <Text style={styles.searchIcon}>⊕</Text>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Search for a place…"
-                placeholderTextColor="rgba(26,26,26,0.35)"
-                value={query}
-                onChangeText={handleQueryChange}
-                returnKeyType="search"
-                autoCorrect={false}
-              />
-              {loading && <ActivityIndicator style={styles.spinner} color={COLORS.primary} size="small" />}
+            <Text style={styles.metaLabel}>PIN A PLACE</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.searchRow}>
+                <Text style={styles.searchIcon}>⌕</Text>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  placeholder="search for a place…"
+                  placeholderTextColor={PALETTE.inkMute}
+                  value={query}
+                  onChangeText={handleQueryChange}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                />
+                {loading && <ActivityIndicator style={styles.spinner} color={ACCENT.red} size="small" />}
+              </View>
+              <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn} hitSlop={8}>
+                <Text style={styles.cancelText}>cancel</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
 
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <FlatList
             data={results}
@@ -100,32 +101,27 @@ export default function PinSearchScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
             ListEmptyComponent={
               !loading && query.length > 1 ? (
-                <Text style={styles.emptyText}>No results. Try a different search.</Text>
+                <Text style={styles.emptyText}>no results. try a different search.</Text>
               ) : null
             }
             renderItem={({ item }) => {
-              const color = CATEGORY_COLORS[item.category as keyof typeof CATEGORY_COLORS] ?? '#888';
-              const emoji = CATEGORY_EMOJI[item.category] ?? '📍';
-              const label = CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] ?? item.category;
+              const label =
+                CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] ?? item.category;
               return (
                 <TouchableOpacity
-                  style={[styles.resultRow, GLASS_SM]}
+                  style={styles.resultRow}
                   onPress={() => selectPlace(item)}
-                  activeOpacity={0.75}
+                  activeOpacity={0.7}
                 >
-                  <View style={[styles.categoryIcon, { backgroundColor: color + '22' }]}>
-                    <Text style={styles.emoji}>{emoji}</Text>
-                  </View>
                   <View style={styles.resultText}>
                     <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.placeAddress} numberOfLines={1}>{item.address}</Text>
-                    <View style={[styles.catBadge, { borderColor: color + '55', backgroundColor: color + '15' }]}>
-                      <Text style={[styles.catBadgeText, { color }]}>{label}</Text>
-                    </View>
+                    <Text style={styles.catLabel}>{label.toLowerCase()}</Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  <Text style={styles.chevron}>→</Text>
                 </TouchableOpacity>
               );
             }}
@@ -137,59 +133,111 @@ export default function PinSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
+
   header: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 10,
+  },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(26,26,26,0.08)',
-    gap: 10,
+    gap: 12,
   },
   searchRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: PALETTE.surface,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: PALETTE.ink,
     paddingHorizontal: 12,
   },
-  searchIcon: { fontSize: 16, color: COLORS.textMuted, marginRight: 6 },
+  searchIcon: {
+    fontSize: 14,
+    color: PALETTE.inkSoft,
+    marginRight: 8,
+  },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-    paddingVertical: 13,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: PALETTE.ink,
+    paddingVertical: 12,
   },
   spinner: { marginLeft: 8 },
-  cancelBtn: { paddingHorizontal: 4 },
-  cancelText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
-  errorText: { fontSize: 13, color: COLORS.primary, marginHorizontal: 20, marginTop: 10 },
-  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40, gap: 8 },
+  cancelBtn: { paddingHorizontal: 2, paddingVertical: 4 },
+  cancelText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: ACCENT.red,
+    textTransform: 'lowercase',
+  },
+
+  errorText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: ACCENT.red,
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 8,
+  },
+
+  list: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 4,
+    paddingBottom: 40,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: PALETTE.inkLine,
+  },
 
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 12,
   },
-  categoryIcon: {
-    width: 46, height: 46, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  emoji: { fontSize: 20 },
   resultText: { flex: 1, gap: 3 },
-  placeName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  placeAddress: { fontSize: 12, color: COLORS.textSecondary },
-  catBadge: {
-    alignSelf: 'flex-start', borderWidth: 1,
-    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2,
+  placeName: {
+    fontFamily: FONTS.display,
+    fontSize: 17,
+    color: PALETTE.ink,
+    fontWeight: '400',
   },
-  catBadgeText: { fontSize: 10, fontWeight: '600' },
-  chevron: { fontSize: 20, color: 'rgba(26,26,26,0.18)' },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginTop: 48 },
+  placeAddress: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+  },
+  catLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: PALETTE.inkSoft,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  chevron: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: PALETTE.ink,
+  },
+
+  emptyText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    textAlign: 'center',
+    marginTop: 48,
+  },
 });

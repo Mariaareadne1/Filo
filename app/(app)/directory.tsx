@@ -7,12 +7,22 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { COLORS, GLASS_SM } from '../../constants/theme';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  RADII,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  TAB_CLEARANCE,
+  SCREEN_PAD,
+} from '../../constants/theme';
 
 interface DirectoryUser {
   id: string;
@@ -26,6 +36,7 @@ export default function DirectoryScreen() {
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   const loadDirectory = useCallback(async () => {
@@ -57,21 +68,29 @@ export default function DirectoryScreen() {
     loadDirectory();
   }, [loadDirectory]);
 
+  const filtered = searchQuery.trim()
+    ? users.filter(
+        (u) =>
+          u.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          u.username.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users;
+
   const renderItem = ({ item, index }: { item: DirectoryUser; index: number }) => {
     const initials = item.display_name
       .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-    const isTop3 = index < 3;
-    const medalColor = index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32';
+    const rank = users.findIndex((u) => u.id === item.id) + 1; // stable rank from full list
 
     return (
       <TouchableOpacity
-        style={[styles.row, GLASS_SM]}
+        style={styles.row}
         onPress={() => router.push(`/(app)/user/${item.id}?from=directory`)}
-        activeOpacity={0.75}
+        activeOpacity={0.92}
       >
-        <Text style={[styles.rank, isTop3 && { color: medalColor }]}>
-          {isTop3 ? ['①', '②', '③'][index] : `#${index + 1}`}
-        </Text>
+        <View style={styles.rankWrap}>
+          <Text style={styles.rankNum}>{String(rank).padStart(2, '0')}</Text>
+        </View>
+
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
@@ -79,48 +98,88 @@ export default function DirectoryScreen() {
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
         )}
+
         <View style={styles.info}>
           <Text style={styles.displayName} numberOfLines={1}>{item.display_name}</Text>
           <Text style={styles.username}>@{item.username}</Text>
         </View>
+
         <View style={styles.pinCountWrap}>
           <Text style={styles.pinCount}>{item.pin_count}</Text>
-          <Text style={styles.pinCountLabel}>pins</Text>
+          <Text style={styles.pinCountLabel}>PINS</Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
+
+        <Text style={styles.chevron}>→</Text>
       </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.safe}>
-
       <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.navHeader}>
-          <Text style={styles.navTitle}>Columbia</Text>
-          <Text style={styles.navSub}>{users.length} students</Text>
-          {/* Red thread */}
-          <View style={styles.redThread} pointerEvents="none" />
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.metaLabel}>WHO'S PINNING</Text>
+          <Text style={styles.title}>
+            columbia<Text style={styles.titleItalic}>.</Text>
+          </Text>
+          <Text style={styles.subtitle}>
+            {users.length} {users.length === 1 ? 'student' : 'students'} on the map.
+          </Text>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBar}>
+            <Text style={styles.searchIcon}>⌕</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="search by name or @handle…"
+              placeholderTextColor={PALETTE.inkMute}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Text style={styles.searchClear}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
+            <ActivityIndicator color={ACCENT.red} size="large" />
           </View>
         ) : (
           <FlatList
-            data={users}
+            data={filtered}
             keyExtractor={(u) => u.id}
             renderItem={renderItem}
-            contentContainerStyle={styles.list}
+            contentContainerStyle={
+              filtered.length === 0 ? styles.emptyContainer : styles.list
+            }
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={ACCENT.red}
+              />
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <View style={styles.emptyThreadRing} />
-                <Text style={styles.emptyTitle}>No users yet</Text>
+                <View style={styles.emptyRing} />
+                <Text style={styles.emptyTitle}>
+                  {searchQuery ? 'no matches.' : 'no students yet.'}
+                </Text>
+                {searchQuery ? (
+                  <Text style={styles.emptySub}>try a different name or handle.</Text>
+                ) : null}
               </View>
             }
           />
@@ -131,57 +190,180 @@ export default function DirectoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
-  navHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(26,26,26,0.08)',
-    position: 'relative',
-  },
-  navTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
-  navSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  redThread: {
-    position: 'absolute',
-    right: 24, top: 14,
-    width: 80, height: 30,
-    borderTopWidth: 1.5,
-    borderColor: 'rgba(230,57,70,0.4)',
-    borderRadius: 30,
-    borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
-  },
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40, gap: 8 },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
 
+  // Header
+  header: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 8,
+    paddingBottom: 14,
+  },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+    marginBottom: 6,
+  },
+  title: {
+    fontFamily: FONTS.display,
+    fontSize: 38,
+    lineHeight: 40,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    letterSpacing: -1,
+  },
+  titleItalic: {
+    color: ACCENT.red,
+  },
+  subtitle: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    marginTop: 4,
+  },
+
+  // Search
+  searchWrap: { paddingHorizontal: SCREEN_PAD, paddingBottom: 14 },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PALETTE.surface,
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    gap: 8,
+    ...STICKER_SHADOW,
+  },
+  searchIcon: { fontSize: 14, color: PALETTE.inkSoft },
+  searchInput: {
+    flex: 1,
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.ink,
+    padding: 0,
+  },
+  searchClear: {
+    fontSize: 18,
+    color: PALETTE.inkSoft,
+    lineHeight: 18,
+  },
+
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingBottom: TAB_CLEARANCE + 16 },
+  emptyContainer: { flex: 1 },
+  separator: { height: 1, backgroundColor: PALETTE.inkLine, marginLeft: SCREEN_PAD },
+
+  // Row
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PAD,
     paddingVertical: 14,
     gap: 12,
+    backgroundColor: PALETTE.bg,
   },
-  rank: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, width: 28, textAlign: 'center' },
-  avatar: { width: 46, height: 46, borderRadius: 23 },
+  rankWrap: {
+    width: 32,
+    alignItems: 'flex-start',
+  },
+  rankNum: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: PALETTE.inkSoft,
+    fontWeight: '500',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+  },
   avatarFallback: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: 'rgba(230,57,70,0.18)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: PALETTE.zone1,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarInitials: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
+  avatarInitials: {
+    fontFamily: FONTS.display,
+    fontSize: 15,
+    fontWeight: '400',
+    color: ACCENT.red,
+  },
   info: { flex: 1, gap: 2 },
-  displayName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  username: { fontSize: 12, color: COLORS.textSecondary },
-  pinCountWrap: { alignItems: 'center' },
-  pinCount: { fontSize: 18, fontWeight: '800', color: COLORS.primary },
-  pinCountLabel: { fontSize: 10, color: COLORS.textMuted, marginTop: -1 },
-  chevron: { fontSize: 20, color: 'rgba(26,26,26,0.18)' },
+  displayName: {
+    fontFamily: FONTS.display,
+    fontSize: 16,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  username: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: PALETTE.inkSoft,
+  },
 
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: 10 },
-  emptyThreadRing: {
-    width: 60, height: 60, borderRadius: 30,
-    borderWidth: 1.5, borderColor: COLORS.primary + '44',
+  pinCountWrap: { alignItems: 'center', minWidth: 40 },
+  pinCount: {
+    fontFamily: FONTS.display,
+    fontSize: 20,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: ACCENT.red,
+    lineHeight: 22,
+  },
+  pinCountLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    letterSpacing: 1.2,
+    color: PALETTE.inkSoft,
+    marginTop: 1,
+  },
+  chevron: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: PALETTE.ink,
+    paddingLeft: 4,
+  },
+
+  // Empty
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  emptyRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: ACCENT.red,
+    opacity: 0.4,
     marginBottom: 4,
   },
-  emptyTitle: { fontSize: 16, color: COLORS.textSecondary },
+  emptyTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    textAlign: 'center',
+  },
 });

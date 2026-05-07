@@ -6,6 +6,7 @@ import {
   Share,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,8 +18,18 @@ import DraggableFlatList, {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '../../../lib/supabase';
 import { fetchBoardPins, BoardPin } from '../../../hooks/useBoards';
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../../../types';
-import { COLORS } from '../../../constants/theme';
+import { CATEGORY_LABELS } from '../../../types';
+import {
+  PALETTE,
+  ACCENT,
+  FONTS,
+  RADII,
+  STICKER_SHADOW,
+  STICKER_SHADOW_LG,
+  SCREEN_PAD,
+  VISIBILITY_COLOR,
+  VISIBILITY_LABEL,
+} from '../../../constants/theme';
 
 interface BoardMeta {
   name: string;
@@ -28,8 +39,8 @@ interface BoardMeta {
   user_id: string;
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
+const CATEGORY_GLYPH: Record<string, string> = {
+  food: '◆', bar: '○', beauty: '◇', experience: '✦', retail: '◉',
 };
 
 export default function BoardDetailScreen() {
@@ -65,23 +76,19 @@ export default function BoardDetailScreen() {
   async function handleReorder(newPins: BoardPin[]) {
     setPins(newPins);
     setSavingOrder(true);
-    // Persist new positions
     await Promise.all(
       newPins.map((pin, index) =>
-        supabase
-          .from('board_pins')
-          .update({ position: index })
-          .eq('id', pin.id)
+        supabase.from('board_pins').update({ position: index }).eq('id', pin.id)
       )
     );
     setSavingOrder(false);
   }
 
   async function handleRemovePin(boardPinId: string) {
-    Alert.alert('Remove pin', 'Remove this place from the board?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('remove pin', 'remove this place from the board?', [
+      { text: 'cancel', style: 'cancel' },
       {
-        text: 'Remove',
+        text: 'remove',
         style: 'destructive',
         onPress: async () => {
           await supabase.from('board_pins').delete().eq('id', boardPinId);
@@ -94,9 +101,9 @@ export default function BoardDetailScreen() {
   async function handleShare() {
     if (!board?.share_token) {
       Alert.alert(
-        'Not shareable',
-        'Set this board to Public to generate a shareable link.',
-        [{ text: 'OK' }]
+        'not shareable',
+        'set this board to public to generate a shareable link.',
+        [{ text: 'ok' }]
       );
       return;
     }
@@ -108,8 +115,7 @@ export default function BoardDetailScreen() {
 
   const renderItem = useCallback(
     ({ item, drag, isActive }: RenderItemParams<BoardPin>) => {
-      const color = CATEGORY_COLORS[item.category as keyof typeof CATEGORY_COLORS] ?? '#888';
-      const emoji = CATEGORY_EMOJI[item.category] ?? '📍';
+      const glyph = CATEGORY_GLYPH[item.category] ?? '◉';
       const label = CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] ?? item.category;
 
       return (
@@ -117,27 +123,31 @@ export default function BoardDetailScreen() {
           <TouchableOpacity
             onLongPress={isOwner ? drag : undefined}
             delayLongPress={200}
-            activeOpacity={0.85}
+            activeOpacity={0.92}
             style={[styles.pinRow, isActive && styles.pinRowActive]}
           >
-            <View style={[styles.pinIcon, { backgroundColor: color + '18' }]}>
-              <Text style={styles.pinEmoji}>{emoji}</Text>
+            <View style={styles.pinIcon}>
+              <Text style={styles.pinGlyph}>{glyph}</Text>
             </View>
             <View style={styles.pinInfo}>
-              <Text style={styles.pinName}>{item.place_name}</Text>
-              <View style={[styles.catBadge, { borderColor: color }]}>
-                <Text style={[styles.catBadgeText, { color }]}>{label}</Text>
+              <View style={styles.pinNameRow}>
+                <Text style={styles.pinName} numberOfLines={1}>{item.place_name}</Text>
+                <View style={[
+                  styles.statusDot,
+                  { backgroundColor: item.status === 'visited' ? PALETTE.ink : PALETTE.surface },
+                  item.status !== 'visited' && { borderWidth: 1, borderColor: PALETTE.ink },
+                ]} />
               </View>
+              <Text style={styles.catBadgeText}>{label.toLowerCase()}</Text>
               {item.impression ? (
                 <Text style={styles.impression} numberOfLines={2}>"{item.impression}"</Text>
               ) : null}
               <Text style={styles.address} numberOfLines={1}>{item.address}</Text>
             </View>
             <View style={styles.pinRight}>
-              <View style={[styles.statusDot, { backgroundColor: item.status === 'visited' ? '#22c55e' : '#f59e0b' }]} />
               {isOwner && (
                 <TouchableOpacity onPress={() => handleRemovePin(item.id)} hitSlop={12}>
-                  <Text style={styles.removeText}>✕</Text>
+                  <Text style={styles.removeText}>×</Text>
                 </TouchableOpacity>
               )}
               {isOwner && <Text style={styles.dragHandle}>⠿</Text>}
@@ -151,152 +161,295 @@ export default function BoardDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color="#E63946" style={{ marginTop: 60 }} />
-      </SafeAreaView>
+      <View style={styles.safe}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <ActivityIndicator color={ACCENT.red} style={{ marginTop: 60 }} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safe}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>‹</Text>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.boardName} numberOfLines={1}>{board?.name}</Text>
-            {board?.description ? (
-              <Text style={styles.boardDesc} numberOfLines={1}>{board.description}</Text>
-            ) : null}
-          </View>
-          <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-            <Text style={styles.shareBtnText}>Share</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.safe}>
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+              <Text style={styles.backText}>← back</Text>
+            </TouchableOpacity>
 
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <Text style={styles.pinCount}>{pins.length} pin{pins.length !== 1 ? 's' : ''}</Text>
-          {savingOrder && <Text style={styles.saving}>Saving…</Text>}
-          {board?.visibility === 'public' && board.share_token && (
-            <View style={styles.publicBadge}>
-              <Text style={styles.publicBadgeText}>🔗 Shareable</Text>
+            <View style={styles.headerBlock}>
+              <Text style={styles.metaLabel}>BOARD · {pins.length} PIN{pins.length !== 1 ? 'S' : ''}</Text>
+              <Text style={styles.boardName} numberOfLines={2}>{board?.name}</Text>
+              {board?.description ? (
+                <Text style={styles.boardDesc} numberOfLines={2}>{board.description}</Text>
+              ) : null}
+
+              {/* Visibility + share row */}
+              <View style={styles.metaRow}>
+                <View style={[
+                  styles.visBadge,
+                  { borderColor: VISIBILITY_COLOR[board?.visibility ?? 'private'] }
+                ]}>
+                  <View style={[
+                    styles.visDot,
+                    { backgroundColor: VISIBILITY_COLOR[board?.visibility ?? 'private'] }
+                  ]} />
+                  <Text style={styles.visBadgeText}>
+                    {(VISIBILITY_LABEL[board?.visibility ?? 'private'] ?? 'private').toLowerCase()}
+                  </Text>
+                </View>
+                {savingOrder && <Text style={styles.saving}>saving…</Text>}
+                {isOwner && (
+                  <TouchableOpacity onPress={handleShare} style={styles.shareBtn} activeOpacity={0.85}>
+                    <Text style={styles.shareBtnText}>share →</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isOwner && pins.length > 1 && (
+                <Text style={styles.reorderHint}>hold any pin to reorder.</Text>
+              )}
             </View>
-          )}
-          {isOwner && pins.length > 1 && (
-            <Text style={styles.reorderHint}>Hold to reorder</Text>
-          )}
-        </View>
-
-        {/* Pin list */}
-        {pins.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📍</Text>
-            <Text style={styles.emptyTitle}>No pins yet</Text>
-            <Text style={styles.emptySub}>
-              Pin a place on the map, then tap "Add to board" to add it here.
-            </Text>
           </View>
-        ) : (
-          <DraggableFlatList
-            data={pins}
-            keyExtractor={(item) => item.id}
-            onDragEnd={({ data }) => handleReorder(data)}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-          />
-        )}
-      </SafeAreaView>
+
+          {/* Pin list */}
+          {pins.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyRing} />
+              <Text style={styles.emptyTitle}>
+                no pins <Text style={styles.emptyTitleItalic}>yet.</Text>
+              </Text>
+              <Text style={styles.emptySub}>
+                pin a place on the map, then tap "add to board" to drop it here.
+              </Text>
+            </View>
+          ) : (
+            <DraggableFlatList
+              data={pins}
+              keyExtractor={(item) => item.id}
+              onDragEnd={({ data }) => handleReorder(data)}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+          )}
+        </SafeAreaView>
+      </View>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    gap: 10,
-  },
-  backBtn: { padding: 4 },
-  backText: { fontSize: 28, color: '#E63946', fontWeight: '300', lineHeight: 32 },
-  headerCenter: { flex: 1 },
-  boardName: { fontSize: 17, fontWeight: '800', color: '#111' },
-  boardDesc: { fontSize: 12, color: '#aaa', marginTop: 2 },
-  shareBtn: {
-    backgroundColor: '#E63946',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  shareBtnText: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 13 },
+  safe: { flex: 1, backgroundColor: PALETTE.bg },
 
-  statsRow: {
+  // Header
+  header: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 4,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.inkLine,
+  },
+  backBtn: { paddingVertical: 8, alignSelf: 'flex-start' },
+  backText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: PALETTE.inkSoft,
+  },
+  headerBlock: { gap: 6, paddingTop: 4 },
+  metaLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  boardName: {
+    fontFamily: FONTS.display,
+    fontSize: 30,
+    lineHeight: 33,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  boardDesc: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    lineHeight: 18,
+  },
+
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
     gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    marginTop: 8,
   },
-  pinCount: { fontSize: 13, color: '#888', fontWeight: '600' },
-  saving: { fontSize: 12, color: '#aaa' },
-  publicBadge: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 8,
+  visBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    backgroundColor: PALETTE.surface,
   },
-  publicBadgeText: { fontSize: 11, color: '#22c55e', fontWeight: '600' },
-  reorderHint: { fontSize: 11, color: '#bbb', marginLeft: 'auto' },
+  visDot: { width: 6, height: 6, borderRadius: 3 },
+  visBadgeText: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.ink,
+    fontWeight: '600',
+  },
+  saving: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: PALETTE.inkSoft,
+    letterSpacing: 0.5,
+  },
+  shareBtn: {
+    marginLeft: 'auto',
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: ACCENT.red,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    ...STICKER_SHADOW,
+  },
+  shareBtnText: {
+    fontFamily: FONTS.body,
+    color: PALETTE.surface,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  reorderHint: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.inkMute,
+    marginTop: 4,
+  },
 
-  list: { paddingBottom: 40 },
-  separator: { height: 1, backgroundColor: '#f5f5f5', marginLeft: 74 },
+  // List
+  list: { paddingTop: 8, paddingBottom: 60 },
+  separator: { height: 1, backgroundColor: PALETTE.inkLine, marginLeft: SCREEN_PAD + 50 },
 
   pinRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
+    paddingHorizontal: SCREEN_PAD,
     paddingVertical: 14,
     gap: 14,
-    backgroundColor: '#fff',
+    backgroundColor: PALETTE.bg,
   },
-  pinRowActive: { backgroundColor: '#fef2f2', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
+  pinRowActive: {
+    backgroundColor: PALETTE.surface,
+    ...STICKER_SHADOW_LG,
+  },
   pinIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
     alignItems: 'center',
     justifyContent: 'center',
+    ...STICKER_SHADOW,
   },
-  pinEmoji: { fontSize: 22 },
-  pinInfo: { flex: 1, gap: 4 },
-  pinName: { fontSize: 15, fontWeight: '700', color: '#111' },
-  catBadge: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  pinGlyph: {
+    fontSize: 16,
+    color: ACCENT.red,
   },
-  catBadgeText: { fontSize: 11, fontWeight: '600' },
-  impression: { fontSize: 13, color: '#555', fontStyle: 'italic', lineHeight: 18 },
-  address: { fontSize: 12, color: '#aaa' },
-  pinRight: { alignItems: 'center', gap: 8, paddingTop: 2 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  removeText: { fontSize: 14, color: '#ccc', fontWeight: '600' },
-  dragHandle: { fontSize: 18, color: '#ccc' },
 
-  emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 10 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: '#111' },
-  emptySub: { fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 20 },
+  pinInfo: { flex: 1, gap: 4 },
+  pinNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pinName: {
+    flex: 1,
+    fontFamily: FONTS.display,
+    fontSize: 17,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  catBadgeText: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.inkSoft,
+    textTransform: 'lowercase',
+  },
+  impression: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.ink,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  address: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: PALETTE.inkMute,
+    marginTop: 2,
+  },
+
+  pinRight: {
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 4,
+  },
+  removeText: {
+    fontSize: 18,
+    color: PALETTE.inkMute,
+    fontWeight: '400',
+    lineHeight: 18,
+  },
+  dragHandle: {
+    fontSize: 16,
+    color: PALETTE.inkMute,
+    letterSpacing: -1,
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  emptyRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    borderColor: ACCENT.red,
+    opacity: 0.4,
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  emptyTitleItalic: { fontStyle: 'italic', color: ACCENT.red },
+  emptySub: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
 });
