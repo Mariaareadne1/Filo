@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: SCREEN_PAD,
     paddingTop: 4,
-    paddingBottom: TAB_CLEARANCE + 16,
+    paddingBottom: TAB_CLEARANCE,
     gap: 12,
   },
   emptyContainer: { flex: 1 },

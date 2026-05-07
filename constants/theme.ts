@@ -248,7 +248,7 @@ export const SPACING = {
 } as const;
 
 export const SCREEN_PAD = 20;       // standard screen edge padding
-export const TAB_CLEARANCE = 90;    // bottom-content clearance for floating tab bar
+export const TAB_CLEARANCE = 100;   // BAR_HEIGHT (64) + worst-case bottom inset (~34); covers home-indicator phones
 
 // ─── Visibility (kept from original) ────────────────────────────────────
 

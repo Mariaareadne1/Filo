@@ -7,7 +7,7 @@ import {
   Image,
 } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabase';
@@ -118,6 +118,7 @@ export default function MapScreen() {
   const [mode, setMode] = useState<MapMode>('my');
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const { pins, loading, error, refetch } = usePins(userId, mode);
 
@@ -167,7 +168,10 @@ export default function MapScreen() {
       </MapboxGL.MapView>
 
       {/* Top toggle */}
-      <SafeAreaView style={styles.topBar} pointerEvents="box-none">
+      <View
+        style={[styles.topBar, { paddingTop: insets.top + 12 }]}
+        pointerEvents="box-none"
+      >
         <View style={styles.toggleContainer}>
           {MODES.map(({ key, label }) => (
             <TouchableOpacity
@@ -182,7 +186,7 @@ export default function MapScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </SafeAreaView>
+      </View>
 
       {loading && (
         <View style={styles.loadingOverlay} pointerEvents="none">
@@ -218,7 +222,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingTop: 8,
   },
   toggleContainer: {
     flexDirection: 'row',

@@ -27,6 +27,7 @@ function TabSlot({ glyph, label, focused }: TabSlotProps) {
         {glyph}
       </Text>
       <Text
+        numberOfLines={1}
         style={[
           styles.label,
           { color: focused ? PALETTE.ink : PALETTE.inkMute },
@@ -89,6 +90,12 @@ export default function AppLayout() {
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="◉" label="map" focused={focused} />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="__pin_spacer"
+          options={{
+            tabBarButton: () => <View style={styles.spacerSlot} />,
           }}
         />
         <Tabs.Screen
@@ -156,9 +163,9 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Platform.select({ ios: FONTS.mono, default: 'monospace' }),
     fontSize: 9,
-    letterSpacing: 1.2,
     textTransform: 'lowercase',
   },
+  spacerSlot: { flex: 1 },
   labelActive: { fontWeight: '700' },
   activeDot: {
     position: 'absolute',

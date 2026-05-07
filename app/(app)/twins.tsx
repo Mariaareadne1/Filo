@@ -14,20 +14,23 @@ import {
   PALETTE,
   ACCENT,
   FONTS,
-  STICKER_SHADOW,
   STICKER_SHADOW_LG,
   TAB_CLEARANCE,
   SCREEN_PAD,
 } from '../../constants/theme';
 
 /**
- * TASTE TWINS — five category rows, one top match per category, with
- * a per-category match %. Same friend can be top in one category and
- * absent from another.
+ * TASTE TWINS — five category rows, one top match per category, with a
+ * per-category match %. Same friend can be top in one category and absent
+ * from another.
+ *
+ * Each row keeps just three things: the category swatch, the friend
+ * (name + "your X-twin" label), and the match %, plus a thin progress
+ * bar that visualizes the %.
  *
  * Data wiring: hooks/useTwins.ts (TODO step 4.5) — for now this renders
  * placeholder data. Tap a row → opens that friend's profile scoped to
- * the category (we'll honor `?category=` in user/[id].tsx in step 5+).
+ * the category.
  */
 
 type CatKey = 'cafes' | 'food' | 'bars' | 'shops' | 'experiences';
@@ -37,7 +40,7 @@ interface CategoryDef {
   label: string;
   /** glyph used in the left swatch */
   glyph: string;
-  /** mock total ranked count for the user */
+  /** mock total ranked count for the user (used only for empty-state copy) */
   yourCount: number;
 }
 
@@ -56,51 +59,23 @@ interface Twin {
   avatar_url: string | null;
   /** 0–100 */
   match: number;
-  /** their ranked count in this category */
-  rankedCount: number;
 }
 
-interface CategoryTwins {
-  top: Twin | null;
-  also: Twin | null;
-}
-
-const PLACEHOLDER: Record<CatKey, CategoryTwins> = {
-  cafes: {
-    top:  mockTwin('maya',  'Maya R.',     92, 12),
-    also: mockTwin('jules', 'Jules H.',    81, 18),
-  },
-  food: {
-    top:  mockTwin('amir',  'Amir T.',     88, 30),
-    also: mockTwin('rae',   'Rae N.',      74, 16),
-  },
-  bars: {
-    top:  mockTwin('sasha', 'Sasha K.',    79, 14),
-    also: mockTwin('amir',  'Amir T.',     71, 12),
-  },
-  shops: {
-    top:  mockTwin('jules', 'Jules H.',    84, 9),
-    also: null,
-  },
-  experiences: {
-    top:  mockTwin('kai',   'Kai O.',      90, 17),
-    also: mockTwin('maya',  'Maya R.',     76, 8),
-  },
+const PLACEHOLDER: Record<CatKey, Twin | null> = {
+  cafes:       mockTwin('maya',  'Maya R.',  92),
+  food:        mockTwin('amir',  'Amir T.',  88),
+  bars:        mockTwin('sasha', 'Sasha K.', 79),
+  shops:       mockTwin('jules', 'Jules H.', 84),
+  experiences: mockTwin('kai',   'Kai O.',   90),
 };
 
-function mockTwin(
-  username: string,
-  display_name: string,
-  match: number,
-  rankedCount: number,
-): Twin {
+function mockTwin(username: string, display_name: string, match: number): Twin {
   return {
     user_id: `mock-${username}`,
     username,
     display_name,
     avatar_url: null,
     match,
-    rankedCount,
   };
 }
 
@@ -118,7 +93,6 @@ export default function TwinsScreen() {
   const [_currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
 
-  // Stub: load current user. Real twin computation lands in hooks/useTwins.
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
@@ -153,10 +127,9 @@ export default function TwinsScreen() {
               <TwinRow
                 key={c.key}
                 cat={c}
-                top={twins[c.key].top}
-                also={twins[c.key].also}
+                twin={twins[c.key]}
                 onPress={() => {
-                  const t = twins[c.key].top;
+                  const t = twins[c.key];
                   if (!t) return;
                   router.push({
                     pathname: `/(app)/user/${t.user_id}`,
@@ -171,7 +144,7 @@ export default function TwinsScreen() {
           <View style={styles.footnote}>
             <Text style={styles.footnoteText}>
               match % = how closely your private rankings agree on places{'\n'}
-              you've both been. computed per category. updates as you rank more.
+              you've both been. computed per category.
             </Text>
           </View>
         </ScrollView>
@@ -184,96 +157,69 @@ export default function TwinsScreen() {
 
 function TwinRow({
   cat,
-  top,
-  also,
+  twin,
   onPress,
 }: {
   cat: CategoryDef;
-  top: Twin | null;
-  also: Twin | null;
+  twin: Twin | null;
   onPress: () => void;
 }) {
-  if (!top) {
+  if (!twin) {
     return (
       <View style={[styles.row, styles.rowEmpty]}>
         <View style={[styles.swatch, { backgroundColor: PALETTE.zone2 }]}>
           <Text style={styles.swatchGlyph}>{cat.glyph}</Text>
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.rowKicker}>{cat.label.toUpperCase()}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowLabel}>your {cat.label.replace(/s$/, '')}-twin</Text>
           <Text style={styles.rowEmptyText}>
-            rank {Math.max(0, 5 - cat.yourCount)} more to find your twin.
+            rank {Math.max(0, 5 - cat.yourCount)} more to find them.
           </Text>
         </View>
       </View>
     );
   }
 
-  const friendColor = FRIEND_COLOR[top.username] ?? ACCENT.red;
-  const initials = top.display_name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const friendColor = FRIEND_COLOR[twin.username] ?? ACCENT.red;
+  const initials = twin.display_name
+    .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={styles.row}
-    >
-      {/* Category swatch */}
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.row}>
+      {/* Category swatch with friend-tinted halo */}
       <View style={[styles.swatch, { backgroundColor: PALETTE.zone2 }]}>
         <View style={[styles.swatchHalo, { backgroundColor: friendColor }]} />
         <Text style={styles.swatchGlyph}>{cat.glyph}</Text>
       </View>
 
-      {/* Body */}
-      <View style={{ flex: 1, gap: 6 }}>
-        <View style={styles.rowHead}>
-          <Text style={styles.rowKicker}>{cat.label.toUpperCase()}</Text>
-          <View style={styles.countChip}>
-            <Text style={styles.countChipText}>{cat.yourCount} ranked</Text>
-          </View>
-        </View>
-
-        {/* Friend line */}
-        <View style={styles.friendRow}>
-          {top.avatar_url ? (
-            <Image source={{ uri: top.avatar_url }} style={styles.avatar} />
+      {/* Friend name + label + match bar */}
+      <View style={styles.body}>
+        <View style={styles.bodyTopRow}>
+          {twin.avatar_url ? (
+            <Image source={{ uri: twin.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatarFallback, { backgroundColor: friendColor }]}>
               <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={styles.friendName}>
-              {top.display_name.split(' ')[0]}{' '}
-              <Text style={styles.friendItalic}>· your {cat.label.replace(/s$/, '')}-twin</Text>
+            <Text style={styles.friendName} numberOfLines={1}>
+              {twin.display_name.split(' ')[0]}
             </Text>
-            <Text style={styles.friendSub}>
-              {top.rankedCount} ranked · #1/{top.rankedCount}
+            <Text style={styles.friendLabel} numberOfLines={1}>
+              your <Text style={styles.friendLabelItalic}>{cat.label.replace(/s$/, '')}-twin</Text>
             </Text>
           </View>
           <View style={styles.matchPct}>
-            <Text style={styles.matchPctNum}>{top.match}</Text>
+            <Text style={styles.matchPctNum}>{twin.match}</Text>
             <Text style={styles.matchPctSym}>%</Text>
           </View>
         </View>
 
         {/* Match bar */}
         <View style={styles.bar}>
-          <View style={[styles.barFill, { width: `${top.match}%` }]} />
+          <View style={[styles.barFill, { width: `${twin.match}%` }]} />
         </View>
-
-        {/* Also line */}
-        {also ? (
-          <Text style={styles.alsoLine}>
-            also: {also.display_name.split(' ')[0]}{' '}
-            <Text style={styles.alsoLineSub}>· {also.match}%</Text>
-          </Text>
-        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -283,9 +229,7 @@ function TwinRow({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: PALETTE.bg },
-  scroll: {
-    paddingBottom: TAB_CLEARANCE + 16,
-  },
+  scroll: { paddingBottom: TAB_CLEARANCE },
 
   // Header
   header: {
@@ -343,9 +287,10 @@ const styles = StyleSheet.create({
   rowEmpty: {
     backgroundColor: PALETTE.bg,
   },
+
   swatch: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -354,8 +299,8 @@ const styles = StyleSheet.create({
   },
   swatchHalo: {
     position: 'absolute',
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     opacity: 0.18,
   },
   swatchGlyph: {
@@ -363,84 +308,61 @@ const styles = StyleSheet.create({
     color: PALETTE.ink,
   },
 
-  rowHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rowKicker: {
-    fontFamily: FONTS.mono,
-    fontSize: 9,
-    letterSpacing: 2,
-    color: PALETTE.inkSoft,
-  },
-  countChip: {
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    backgroundColor: PALETTE.surface,
-    ...STICKER_SHADOW,
-  },
-  countChipText: {
-    fontFamily: FONTS.mono,
-    fontSize: 8,
-    letterSpacing: 0.5,
-    color: PALETTE.ink,
-  },
-
-  // Friend
-  friendRow: {
+  // Body
+  body: { flex: 1, justifyContent: 'space-between', gap: 10 },
+  bodyTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 2,
   },
-  avatar: { width: 32, height: 32, borderRadius: 16 },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
   avatarFallback: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: PALETTE.surface,
   },
   friendName: {
     fontFamily: FONTS.display,
-    fontSize: 16,
+    fontSize: 17,
     color: PALETTE.ink,
     fontWeight: '400',
   },
-  friendItalic: {
+  friendLabel: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+  },
+  friendLabelItalic: {
     fontStyle: 'italic',
-    color: PALETTE.inkSoft,
-    fontSize: 13,
   },
-  friendSub: {
-    fontFamily: FONTS.mono,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: PALETTE.inkSoft,
-    marginTop: 2,
-  },
+
   matchPct: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   matchPctNum: {
     fontFamily: FONTS.display,
-    fontSize: 22,
+    fontSize: 30,
     color: ACCENT.red,
+    fontStyle: 'italic',
     fontWeight: '400',
+    lineHeight: 32,
   },
   matchPctSym: {
     fontFamily: FONTS.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: ACCENT.red,
     marginLeft: 1,
   },
@@ -457,22 +379,17 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT.red,
   },
 
-  alsoLine: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: PALETTE.inkSoft,
-    marginTop: 2,
-  },
-  alsoLineSub: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-  },
-
-  rowEmptyText: {
+  // Empty row
+  rowLabel: {
     fontFamily: FONTS.body,
     fontSize: 13,
+    color: PALETTE.ink,
+  },
+  rowEmptyText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
     color: PALETTE.inkSoft,
-    marginTop: 2,
+    marginTop: 4,
   },
 
   // Footnote

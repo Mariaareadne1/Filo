@@ -293,7 +293,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: PALETTE.bg },
-  scroll: { paddingBottom: TAB_CLEARANCE + 24 },
+  scroll: { paddingBottom: TAB_CLEARANCE },
 
   // Header kicker
   headerBlock: {

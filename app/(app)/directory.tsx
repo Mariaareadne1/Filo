@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingBottom: TAB_CLEARANCE + 16 },
+  list: { paddingBottom: TAB_CLEARANCE },
   emptyContainer: { flex: 1 },
   separator: { height: 1, backgroundColor: PALETTE.inkLine, marginLeft: SCREEN_PAD },
 

@@ -26,6 +26,7 @@ import {
   STICKER_SHADOW,
   STICKER_SHADOW_LG,
   SCREEN_PAD,
+  TAB_CLEARANCE,
 } from '../constants/theme';
 
 interface Props {
@@ -347,7 +348,7 @@ export function PinDetailSheet({ pin, onClose }: Props) {
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: '88%',
+    maxHeight: '78%',
     backgroundColor: PALETTE.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -357,7 +358,7 @@ export function PinDetailSheet({ pin, onClose }: Props) {
     borderColor: PALETTE.inkLine,
     paddingHorizontal: SCREEN_PAD,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: TAB_CLEARANCE,
     ...STICKER_SHADOW_LG,
   },
   handle: {

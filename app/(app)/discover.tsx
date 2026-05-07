@@ -21,16 +21,15 @@ import {
 } from '../../constants/theme';
 
 /**
- * DISCOVER — surfaces the six discovery lenses as a masonry of cards.
- * Category chips at the top scope all six queries.
+ * DISCOVER — five typographic rows, no images. Category chips at the top
+ * scope all five queries.
  *
- * The six queries (always in this order):
- *   1. {cat} near you            — most-liked, all of campus
+ * The five queries (always in this order):
+ *   1. {cat} near you            — most-pinned, all of campus
  *   2. {cat} by your circle      — pins from people you follow
  *   3. by your {cat}-twins       — FOR YOU (the killer query)
  *   4. by {cat} experts          — friends with 20+ ranks in this cat
  *   5. wishlist overlap          — on your circle's want-list
- *   6. undiscovered              — no one in circle has been
  *
  * Data wiring lives in hooks/useDiscover.ts (TODO step 4.5). For now this
  * renders structurally with placeholder counts so the layout is real and
@@ -57,71 +56,41 @@ interface QueryDef {
   highlight?: boolean;
   /** mock count for the chip */
   count: number;
-  /** card height variant — masonry rhythm */
-  variant: 'sm' | 'md' | 'lg';
 }
 
 const QUERIES: QueryDef[] = [
   {
     id: 'near-you',
-    kicker: '01 · most pinned',
+    kicker: '01 · MOST PINNED',
     title: (cat) => ({ plain: cat, italic: 'near you' }),
     count: 24,
-    variant: 'md',
   },
   {
     id: 'circle',
-    kicker: '02 · friends',
+    kicker: '02 · FRIENDS',
     title: (cat) => ({ plain: cat + ' by', italic: 'your circle' }),
     count: 12,
-    variant: 'sm',
   },
   {
     id: 'twins',
-    kicker: '03 · for you',
+    kicker: '03 · FOR YOU',
     title: (cat) => ({ plain: 'by your', italic: cat + '-twins' }),
     count: 8,
-    variant: 'lg',
     highlight: true,
   },
   {
     id: 'experts',
-    kicker: '04 · power rankers',
+    kicker: '04 · POWER RANKERS',
     title: (cat) => ({ plain: 'by ' + cat, italic: 'experts' }),
     count: 5,
-    variant: 'md',
   },
   {
     id: 'wishlist',
-    kicker: '05 · saved by friends',
-    title: (cat) => ({ plain: 'wishlist', italic: 'overlap' }),
+    kicker: '05 · SAVED BY FRIENDS',
+    title: () => ({ plain: 'wishlist', italic: 'overlap' }),
     count: 17,
-    variant: 'sm',
-  },
-  {
-    id: 'undiscovered',
-    kicker: '06 · no one yet',
-    title: () => ({ plain: '', italic: 'undiscovered' }),
-    count: 31,
-    variant: 'md',
   },
 ];
-
-/** Visual icon for each query — uses unicode glyphs not emoji. */
-const QUERY_GLYPH: Record<string, string> = {
-  'near-you':     '◉',
-  'circle':       '○',
-  'twins':        '✦',
-  'experts':      '◆',
-  'wishlist':     '♡',
-  'undiscovered': '◌',
-};
-
-const CARD_HEIGHTS = {
-  sm: 132,
-  md: 158,
-  lg: 196,
-} as const;
 
 export default function DiscoverScreen() {
   const [activeCat, setActiveCat] = useState<CatKey>('cafes');
@@ -131,25 +100,6 @@ export default function DiscoverScreen() {
     () => CATEGORIES.find((c) => c.key === activeCat)!.label,
     [activeCat],
   );
-
-  // Split queries into two columns for the masonry. Distribute by height
-  // greedy-balanced so columns stay roughly even regardless of variant mix.
-  const [colA, colB] = useMemo(() => {
-    const a: QueryDef[] = [];
-    const b: QueryDef[] = [];
-    let aH = 0;
-    let bH = 0;
-    for (const q of QUERIES) {
-      if (aH <= bH) {
-        a.push(q);
-        aH += CARD_HEIGHTS[q.variant];
-      } else {
-        b.push(q);
-        bH += CARD_HEIGHTS[q.variant];
-      }
-    }
-    return [a, b];
-  }, []);
 
   return (
     <View style={styles.safe}>
@@ -187,43 +137,24 @@ export default function DiscoverScreen() {
           })}
         </ScrollView>
 
-        {/* Masonry */}
+        {/* Stacked rows */}
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.masonry}>
-            <View style={styles.column}>
-              {colA.map((q) => (
-                <DiscoverCard
-                  key={q.id}
-                  query={q}
-                  catLabel={activeLabel}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(app)' as never,
-                      params: { discover: q.id, cat: activeCat },
-                    } as never)
-                  }
-                />
-              ))}
-            </View>
-            <View style={styles.column}>
-              {colB.map((q) => (
-                <DiscoverCard
-                  key={q.id}
-                  query={q}
-                  catLabel={activeLabel}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(app)' as never,
-                      params: { discover: q.id, cat: activeCat },
-                    } as never)
-                  }
-                />
-              ))}
-            </View>
-          </View>
+          {QUERIES.map((q) => (
+            <DiscoverRow
+              key={q.id}
+              query={q}
+              catLabel={activeLabel}
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)' as never,
+                  params: { discover: q.id, cat: activeCat },
+                } as never)
+              }
+            />
+          ))}
 
           {/* Twins teaser footer — leads to /twins */}
           <TouchableOpacity
@@ -248,9 +179,9 @@ export default function DiscoverScreen() {
   );
 }
 
-// ─── Card ───────────────────────────────────────────────────────────────
+// ─── Row ────────────────────────────────────────────────────────────────
 
-function DiscoverCard({
+function DiscoverRow({
   query,
   catLabel,
   onPress,
@@ -260,41 +191,39 @@ function DiscoverCard({
   onPress: () => void;
 }) {
   const { plain, italic } = query.title(catLabel);
-  const height = CARD_HEIGHTS[query.variant];
   const highlight = !!query.highlight;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [
-      styles.card,
-      { height, opacity: pressed ? 0.85 : 1 },
-      highlight && styles.cardHighlight,
-    ]}>
-      {/* Glyph 'image area' — gradient-ish radial effect via two stacked tints */}
-      <View style={[styles.cardImage, highlight && styles.cardImageHighlight]}>
-        <View style={[styles.cardImageHalo, highlight && styles.cardImageHaloHighlight]} />
-        <Text style={[styles.cardGlyph, highlight && styles.cardGlyphHighlight]}>
-          {QUERY_GLYPH[query.id]}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        highlight && styles.rowHighlight,
+        { opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
+      <View style={{ flex: 1, gap: 6 }}>
+        <Text style={[styles.rowKicker, highlight && styles.rowKickerHighlight]}>
+          {query.kicker}
         </Text>
+        <Text style={styles.rowTitle}>
+          {plain ? <>{plain}{' '}</> : null}
+          <Text style={styles.rowTitleItalic}>{italic}</Text>
+        </Text>
+        {highlight && (
+          <View style={styles.forYouBadge}>
+            <Text style={styles.forYouBadgeText}>FOR YOU</Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.cardBody}>
-        <Text style={styles.cardKicker}>{query.kicker}</Text>
-        <Text style={styles.cardTitle}>
-          {plain ? <>{plain}{' '}</> : null}
-          <Text style={styles.cardTitleItalic}>{italic}</Text>
-        </Text>
-        <View style={styles.cardMetaRow}>
-          <View style={[styles.countChip, highlight && styles.countChipHighlight]}>
-            <Text style={[styles.countChipText, highlight && styles.countChipTextHighlight]}>
-              {query.count} places
-            </Text>
-          </View>
-          {highlight && (
-            <View style={styles.forYouBadge}>
-              <Text style={styles.forYouBadgeText}>FOR YOU</Text>
-            </View>
-          )}
+      <View style={styles.rowRight}>
+        <View style={[styles.countPill, highlight && styles.countPillHighlight]}>
+          <Text style={[styles.countPillText, highlight && styles.countPillTextHighlight]}>
+            {query.count}
+          </Text>
         </View>
+        <Text style={[styles.rowArrow, highlight && styles.rowArrowHighlight]}>→</Text>
       </View>
     </Pressable>
   );
@@ -359,114 +288,56 @@ const styles = StyleSheet.create({
     color: PALETTE.bg,
   },
 
-  // Masonry
+  // Scroll container
   scroll: {
-    paddingHorizontal: SCREEN_PAD - 4,
-    paddingBottom: TAB_CLEARANCE + 16,
-  },
-  masonry: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  column: {
-    flex: 1,
-    gap: 8,
+    paddingHorizontal: SCREEN_PAD,
+    paddingBottom: TAB_CLEARANCE,
+    gap: 10,
   },
 
-  // Card
-  card: {
+  // Row
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: PALETTE.surface,
     borderWidth: 1,
     borderColor: PALETTE.ink,
-    borderRadius: RADII.none,
-    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     ...STICKER_SHADOW_LG,
   },
-  cardHighlight: {
+  rowHighlight: {
     borderColor: ACCENT.red,
+    backgroundColor: '#fff7f6',
   },
-  cardImage: {
-    flex: 1,
-    backgroundColor: PALETTE.zone1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: PALETTE.ink,
-  },
-  cardImageHighlight: {
-    backgroundColor: '#fff1ef',
-  },
-  cardImageHalo: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: PALETTE.zone3,
-    opacity: 0.6,
-  },
-  cardImageHaloHighlight: {
-    backgroundColor: ACCENT.red,
-    opacity: 0.18,
-  },
-  cardGlyph: {
-    fontSize: 30,
-    color: PALETTE.ink,
-  },
-  cardGlyphHighlight: {
-    color: ACCENT.red,
-  },
-  cardBody: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 4,
-  },
-  cardKicker: {
+  rowKicker: {
     fontFamily: FONTS.mono,
-    fontSize: 8,
-    letterSpacing: 1.5,
+    fontSize: 9,
+    letterSpacing: 2,
     color: PALETTE.inkSoft,
     textTransform: 'uppercase',
   },
-  cardTitle: {
+  rowKickerHighlight: {
+    color: ACCENT.red,
+  },
+  rowTitle: {
     fontFamily: FONTS.display,
-    fontSize: 17,
-    lineHeight: 19,
+    fontSize: 22,
+    lineHeight: 26,
     color: PALETTE.ink,
     fontWeight: '400',
   },
-  cardTitleItalic: {
+  rowTitleItalic: {
     fontStyle: 'italic',
   },
-  cardMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  countChip: {
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
+
+  forYouBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: ACCENT.red,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    ...STICKER_SHADOW,
-    backgroundColor: PALETTE.surface,
-  },
-  countChipHighlight: {
-    borderColor: ACCENT.red,
-  },
-  countChipText: {
-    fontFamily: FONTS.mono,
-    fontSize: 9,
-    color: PALETTE.ink,
-    letterSpacing: 0.5,
-  },
-  countChipTextHighlight: {
-    color: ACCENT.red,
-  },
-  forYouBadge: {
-    backgroundColor: ACCENT.red,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    marginTop: 2,
   },
   forYouBadgeText: {
     fontFamily: FONTS.mono,
@@ -476,13 +347,50 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Right column
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  countPill: {
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    minWidth: 38,
+    alignItems: 'center',
+    ...STICKER_SHADOW,
+  },
+  countPillHighlight: {
+    borderColor: ACCENT.red,
+  },
+  countPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    color: PALETTE.ink,
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
+  countPillTextHighlight: {
+    color: ACCENT.red,
+  },
+  rowArrow: {
+    fontFamily: FONTS.body,
+    fontSize: 18,
+    color: PALETTE.ink,
+  },
+  rowArrowHighlight: {
+    color: ACCENT.red,
+  },
+
   // Twins teaser footer
   twinsFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 16,
-    marginHorizontal: 4,
+    marginTop: 8,
     paddingHorizontal: 14,
     paddingVertical: 14,
     backgroundColor: PALETTE.surface,

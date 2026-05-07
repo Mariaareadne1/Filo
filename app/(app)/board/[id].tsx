@@ -27,6 +27,7 @@ import {
   STICKER_SHADOW,
   STICKER_SHADOW_LG,
   SCREEN_PAD,
+  TAB_CLEARANCE,
   VISIBILITY_COLOR,
   VISIBILITY_LABEL,
 } from '../../../constants/theme';
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
   },
 
   // List
-  list: { paddingTop: 8, paddingBottom: 60 },
+  list: { paddingTop: 8, paddingBottom: TAB_CLEARANCE },
   separator: { height: 1, backgroundColor: PALETTE.inkLine, marginLeft: SCREEN_PAD + 50 },
 
   pinRow: {
