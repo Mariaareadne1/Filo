@@ -77,7 +77,7 @@ function AppCore({ session, loading }: { session: Session | null; loading: boole
     if (onboardingComplete === null) return;
 
     if (inAuth) {
-      if (onboardingComplete) router.replace('/(app)');
+      if (onboardingComplete) router.replace('/(app)/discover');
       return;
     }
 

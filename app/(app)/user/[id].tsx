@@ -174,8 +174,18 @@ export default function UserProfileScreen() {
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Back */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          {/* Back — use canGoBack so deep-link / replace cases land on
+              the tab root instead of throwing nav state. router.back()
+              already returns to the originating screen (map, feed,
+              directory) when the stack has history. */}
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/(app)' as never);
+            }}
+            hitSlop={12}
+          >
             <Text style={styles.backText}>← back</Text>
           </TouchableOpacity>
 
@@ -317,13 +327,31 @@ export default function UserProfileScreen() {
               <Text style={styles.sectionTitle}>
                 their <Text style={styles.sectionTitleItalic}>boards.</Text>
               </Text>
-              <View style={styles.boardGrid}>
-                {visibleBoards.map((board: Board) => {
+              {(() => {
+                // Pinterest-style masonry (matches profile.tsx) — two
+                // columns, alternating heights so adjacent cards across
+                // columns are uneven.
+                const HEIGHT_PATTERN = [240, 180, 180, 240];
+                const distributed = visibleBoards.map((b: Board, i: number) => ({
+                  board: b,
+                  col: (i % 2) as 0 | 1,
+                  height: HEIGHT_PATTERN[i % HEIGHT_PATTERN.length],
+                }));
+                const colA = distributed.filter((d) => d.col === 0);
+                const colB = distributed.filter((d) => d.col === 1);
+
+                const renderCard = ({
+                  board,
+                  height,
+                }: {
+                  board: Board;
+                  height: number;
+                }) => {
                   const accent = boardAccentColor(board.name);
                   return (
                     <TouchableOpacity
                       key={board.id}
-                      style={styles.boardCard}
+                      style={[styles.boardCard, { height }]}
                       onPress={() => router.push(`/(app)/board/${board.id}`)}
                       activeOpacity={0.85}
                     >
@@ -346,8 +374,15 @@ export default function UserProfileScreen() {
                       </View>
                     </TouchableOpacity>
                   );
-                })}
-              </View>
+                };
+
+                return (
+                  <View style={styles.boardGrid}>
+                    <View style={styles.boardColumn}>{colA.map(renderCard)}</View>
+                    <View style={styles.boardColumn}>{colB.map(renderCard)}</View>
+                  </View>
+                );
+              })()}
             </View>
           )}
 
@@ -618,15 +653,17 @@ const styles = StyleSheet.create({
     color: PALETTE.ink,
   },
 
-  // Boards
+  // Boards — Pinterest-style masonry
   boardGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  boardColumn: {
+    flex: 1,
     gap: 12,
   },
   boardCard: {
-    width: BOARD_CARD_SIZE,
-    height: BOARD_CARD_SIZE + 56,
     backgroundColor: PALETTE.surface,
     borderWidth: 1,
     borderColor: PALETTE.ink,

@@ -9,7 +9,7 @@ import {
   Dimensions,
   Share,
 } from 'react-native';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import MapboxGL from '@rnmapbox/maps';
@@ -245,6 +245,29 @@ export default function ProfileScreen() {
     return [sumLng / allPins.length, sumLat / allPins.length];
   }, [allPins]);
 
+  // Mini-map camera fits to the bbox of the user's pins. defaultSettings
+  // only seeds the initial frame; re-fitting via ref handles the case
+  // where pins arrive after the map has mounted.
+  const miniMapCameraRef = useRef<MapboxGL.Camera>(null);
+  useEffect(() => {
+    if (allPins.length === 0) return;
+    let minLat = allPins[0].lat, maxLat = allPins[0].lat;
+    let minLng = allPins[0].lng, maxLng = allPins[0].lng;
+    for (const p of allPins) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    }
+    // fitBounds(neCoord, swCoord, padding, animationDuration)
+    miniMapCameraRef.current?.fitBounds(
+      [maxLng, maxLat],
+      [minLng, minLat],
+      30,
+      0,
+    );
+  }, [allPins]);
+
   const hasTasteProfile = !!(topCategoryLabel || topNeighborhood || topRanked);
 
   // ─── Streak + annual challenge ──────────────────────────────────────
@@ -318,39 +341,14 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Streak chip */}
-          {streak > 0 ? (
-            <View style={styles.streakChip}>
-              <Text style={styles.streakText}>◉ {streak} week streak</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.streakChip}
-              onPress={() => router.push('/pin/search' as never)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.streakText}>start your streak →</Text>
+          {/* Action buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85}>
+              <Text style={styles.actionBtnText}>edit profile</Text>
             </TouchableOpacity>
-          )}
-
-          {/* Annual challenge */}
-          <View style={styles.challengeCard}>
-            <View style={styles.challengeRow}>
-              <Text style={styles.challengeKicker}>{currentYear} CHALLENGE</Text>
-              <Text style={styles.challengeCount}>
-                {pinsThisYear}
-                <Text style={styles.challengeCountTotal}> / {ANNUAL_CHALLENGE_GOAL}</Text>
-              </Text>
-            </View>
-            <View style={styles.challengeBar}>
-              <View
-                style={[
-                  styles.challengeBarFill,
-                  { width: `${challengeProgress * 100}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.challengeFootnote}>places this year</Text>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.85}>
+              <Text style={styles.actionBtnText}>share profile</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Taste profile chips */}
@@ -378,62 +376,31 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Mini map — non-interactive identity element */}
-          {allPins.length > 0 && (
-            <View style={styles.miniMapWrap} pointerEvents="none">
-              <MapboxGL.MapView
-                style={StyleSheet.absoluteFill}
-                styleURL={MapboxGL.StyleURL.Street}
-                logoEnabled={false}
-                attributionEnabled={false}
-                compassEnabled={false}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-              >
-                <MapboxGL.Camera
-                  defaultSettings={{
-                    centerCoordinate: miniMapCenter,
-                    zoomLevel: 13,
-                  }}
-                />
-                {allPins.map((p) => (
-                  <MapboxGL.MarkerView
-                    key={p.pin_id}
-                    coordinate={[p.lng, p.lat]}
-                  >
-                    <View style={styles.miniMapDot} />
-                  </MapboxGL.MarkerView>
-                ))}
-              </MapboxGL.MapView>
-            </View>
-          )}
-
-          {/* Filo Wrapped */}
-          <TouchableOpacity
-            style={styles.wrappedRow}
-            onPress={() => router.push('/(app)/wrapped' as never)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.wrappedLeft}>
-              <Text style={styles.wrappedKicker}>{currentYear} REVIEW</Text>
-              <Text style={styles.wrappedTitle}>
-                your <Text style={styles.wrappedTitleItalic}>year in filo.</Text>
-              </Text>
-            </View>
-            <Text style={styles.wrappedArrow}>→</Text>
-          </TouchableOpacity>
-
-          {/* Action buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85}>
-              <Text style={styles.actionBtnText}>edit profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.85}>
-              <Text style={styles.actionBtnText}>share profile</Text>
-            </TouchableOpacity>
+          {/* Rankings */}
+          <View style={styles.rankingsHeader}>
+            <Text style={styles.metaLabel}>YOUR RANKINGS</Text>
+            <Text style={styles.boardsTitle}>
+              <Text style={styles.boardsTitleItalic}>taste.</Text>
+            </Text>
           </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.rankingsScroll}
+          >
+            {RANKING_CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                style={styles.rankingsPill}
+                onPress={() =>
+                  router.push(`/(app)/rankings?category=${c.key}` as never)
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.rankingsPillText}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Been / Want to Go */}
           <View style={styles.sectionList}>
@@ -473,32 +440,6 @@ export default function ProfileScreen() {
               </View>
             </TouchableOpacity>
           </View>
-
-          {/* Rankings */}
-          <View style={styles.rankingsHeader}>
-            <Text style={styles.metaLabel}>YOUR RANKINGS</Text>
-            <Text style={styles.boardsTitle}>
-              <Text style={styles.boardsTitleItalic}>taste.</Text>
-            </Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.rankingsScroll}
-          >
-            {RANKING_CATEGORIES.map((c) => (
-              <TouchableOpacity
-                key={c.key}
-                style={styles.rankingsPill}
-                onPress={() =>
-                  router.push(`/(app)/rankings?category=${c.key}` as never)
-                }
-                activeOpacity={0.85}
-              >
-                <Text style={styles.rankingsPillText}>{c.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
 
           {/* Boards */}
           <View style={styles.boardsHeader}>
@@ -589,6 +530,104 @@ export default function ProfileScreen() {
               );
             })()
           )}
+
+          {/* Mini map — non-interactive identity element */}
+          {allPins.length > 0 && (
+            <View style={styles.miniMapWrap} pointerEvents="none">
+              <MapboxGL.MapView
+                style={StyleSheet.absoluteFill}
+                styleURL={MapboxGL.StyleURL.Street}
+                logoEnabled={false}
+                attributionEnabled={false}
+                compassEnabled={false}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+              >
+                <MapboxGL.Camera
+                  ref={miniMapCameraRef}
+                  defaultSettings={{
+                    centerCoordinate: miniMapCenter,
+                    zoomLevel: 13,
+                  }}
+                />
+                <MapboxGL.ShapeSource
+                  id="profile-pins"
+                  shape={{
+                    type: 'FeatureCollection',
+                    features: allPins.map((p) => ({
+                      type: 'Feature',
+                      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+                      properties: { id: p.pin_id },
+                    })),
+                  }}
+                >
+                  <MapboxGL.CircleLayer
+                    id="profile-pins-layer"
+                    style={{
+                      circleColor: ACCENT.red,
+                      circleRadius: 5,
+                      circleStrokeWidth: 1.5,
+                      circleStrokeColor: PALETTE.ink,
+                    }}
+                  />
+                </MapboxGL.ShapeSource>
+              </MapboxGL.MapView>
+            </View>
+          )}
+
+          {/* Overview — streak + challenge + wrapped, grouped at the bottom */}
+          <View style={styles.overviewHeader}>
+            <Text style={styles.metaLabel}>OVERVIEW</Text>
+          </View>
+
+          {streak > 0 ? (
+            <View style={styles.streakChip}>
+              <Text style={styles.streakText}>◉ {streak} week streak</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.streakChip}
+              onPress={() => router.push('/pin/search' as never)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.streakText}>start your streak →</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.challengeCard}>
+            <View style={styles.challengeRow}>
+              <Text style={styles.challengeKicker}>{currentYear}</Text>
+              <Text style={styles.challengeCount}>
+                {pinsThisYear}
+                <Text style={styles.challengeCountTotal}> / {ANNUAL_CHALLENGE_GOAL}</Text>
+              </Text>
+            </View>
+            <View style={styles.challengeBar}>
+              <View
+                style={[
+                  styles.challengeBarFill,
+                  { width: `${challengeProgress * 100}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.challengeFootnote}>places this year</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.wrappedRow}
+            onPress={() => router.push('/(app)/wrapped' as never)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.wrappedLeft}>
+              <Text style={styles.wrappedKicker}>{currentYear} REVIEW</Text>
+              <Text style={styles.wrappedTitle}>
+                your <Text style={styles.wrappedTitleItalic}>year in filo.</Text>
+              </Text>
+            </View>
+            <Text style={styles.wrappedArrow}>→</Text>
+          </TouchableOpacity>
 
           {/* Sign out */}
           <TouchableOpacity style={styles.signOutBtn} onPress={() => supabase.auth.signOut()} activeOpacity={0.7}>
@@ -846,6 +885,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: PALETTE.ink,
     fontWeight: '600',
+  },
+
+  // Overview header
+  overviewHeader: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
 
   // Mini map

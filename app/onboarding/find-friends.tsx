@@ -97,7 +97,7 @@ export default function FindFriendsScreen() {
     setSaving(true);
     await supabase.from('users').update({ onboarding_complete: true }).eq('id', currentUserId);
     setOnboardingComplete(true);
-    router.replace('/(app)');
+    router.replace('/(app)/discover');
   }
 
   const followCount = followedIds.size;

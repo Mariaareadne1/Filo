@@ -13,7 +13,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { MapPin, CATEGORY_LABELS, Category } from '../../types';
+import { MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import {
   PALETTE,
@@ -21,30 +21,22 @@ import {
   FONTS,
   RADII,
   STICKER_SHADOW,
-  STICKER_SHADOW_LG,
   TAB_CLEARANCE,
   SCREEN_PAD,
 } from '../../constants/theme';
 
-const CATEGORY_GLYPH: Record<string, string> = {
-  food: '◆',
-  bar: '○',
-  beauty: '◇',
-  experience: '✦',
-  retail: '◉',
-};
+/**
+ * FEED — Pinterest-style masonry. Pins flow into two columns by
+ * alternating index (col 0 / col 1 / col 0 / …); columns stack
+ * independently so photo cards (tall) sit naturally next to no-photo
+ * cards (short), giving uneven masonry rhythm.
+ *
+ * Long impressions (>80 chars) escape the column flow and render as
+ * full-width breakouts. The escape flushes any in-progress 2-up batch
+ * first so the chronological order stays correct.
+ */
 
-/** Paper-tinted block backgrounds for cards without a photo. The hues
- *  are pulled from the palette's "zone" + park/water tokens so each
- *  category reads slightly different without breaking the brand
- *  restraint. */
-const CATEGORY_TINT: Record<string, string> = {
-  food:       PALETTE.zone1,
-  bar:        PALETTE.water,
-  beauty:     PALETTE.zone3,
-  experience: PALETTE.park,
-  retail:     PALETTE.zone2,
-};
+const LONG_IMPRESSION_CHARS = 80;
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -58,41 +50,45 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ─── Row layout ────────────────────────────────────────────────────────
+// ─── Block layout ──────────────────────────────────────────────────────
 
-/** Photo cards always occupy a full-width row. No-photo cards pair into
- *  side-by-side rows; an unpaired trailing no-photo card spreads to a
- *  full-width "single-block" row so it doesn't look orphaned. */
-type FeedRow =
-  | { kind: 'photo';        key: string; pin: MapPin }
-  | { kind: 'single-block'; key: string; pin: MapPin }
-  | { kind: 'pair';         key: string; left: MapPin; right: MapPin };
+type FeedBlock =
+  | { kind: 'full';    key: string; pin: MapPin }
+  | { kind: 'columns'; key: string; col0: MapPin[]; col1: MapPin[] };
 
-function buildRows(pins: MapPin[]): FeedRow[] {
-  const rows: FeedRow[] = [];
-  let buffer: MapPin | null = null;
+function buildBlocks(pins: MapPin[]): FeedBlock[] {
+  const blocks: FeedBlock[] = [];
+  let col0: MapPin[] = [];
+  let col1: MapPin[] = [];
+  let altIdx = 0;
+
+  const flushColumns = () => {
+    if (col0.length || col1.length) {
+      blocks.push({
+        kind: 'columns',
+        key: `cols-${blocks.length}`,
+        col0,
+        col1,
+      });
+      col0 = [];
+      col1 = [];
+      altIdx = 0;
+    }
+  };
 
   for (const pin of pins) {
-    if (pin.photo_url) {
-      rows.push({ kind: 'photo', key: pin.pin_id, pin });
+    const isLong = (pin.impression?.length ?? 0) > LONG_IMPRESSION_CHARS;
+    if (isLong) {
+      flushColumns();
+      blocks.push({ kind: 'full', key: pin.pin_id, pin });
     } else {
-      if (buffer === null) {
-        buffer = pin;
-      } else {
-        rows.push({
-          kind: 'pair',
-          key: `${buffer.pin_id}+${pin.pin_id}`,
-          left: buffer,
-          right: pin,
-        });
-        buffer = null;
-      }
+      if (altIdx % 2 === 0) col0.push(pin);
+      else col1.push(pin);
+      altIdx++;
     }
   }
-  if (buffer) {
-    rows.push({ kind: 'single-block', key: buffer.pin_id, pin: buffer });
-  }
-  return rows;
+  flushColumns();
+  return blocks;
 }
 
 // ─── Screen ────────────────────────────────────────────────────────────
@@ -135,21 +131,12 @@ export default function FeedScreen() {
       )
     : pins;
 
-  const rows = useMemo(() => buildRows(filteredPins), [filteredPins]);
+  const blocks = useMemo(() => buildBlocks(filteredPins), [filteredPins]);
 
-  const renderRow = ({ item }: { item: FeedRow }) => {
-    if (item.kind === 'photo') {
+  const renderBlock = ({ item }: { item: FeedBlock }) => {
+    if (item.kind === 'full') {
       return (
-        <PhotoCard
-          pin={item.pin}
-          onPressCard={() => setSelectedPin(item.pin)}
-          onPressUser={() => router.push(`/(app)/user/${item.pin.user_id}` as never)}
-        />
-      );
-    }
-    if (item.kind === 'single-block') {
-      return (
-        <BlockCard
+        <FeedCard
           pin={item.pin}
           variant="full"
           onPressCard={() => setSelectedPin(item.pin)}
@@ -158,19 +145,29 @@ export default function FeedScreen() {
       );
     }
     return (
-      <View style={styles.pairRow}>
-        <BlockCard
-          pin={item.left}
-          variant="half"
-          onPressCard={() => setSelectedPin(item.left)}
-          onPressUser={() => router.push(`/(app)/user/${item.left.user_id}` as never)}
-        />
-        <BlockCard
-          pin={item.right}
-          variant="half"
-          onPressCard={() => setSelectedPin(item.right)}
-          onPressUser={() => router.push(`/(app)/user/${item.right.user_id}` as never)}
-        />
+      <View style={styles.columnsRow}>
+        <View style={styles.column}>
+          {item.col0.map((p) => (
+            <FeedCard
+              key={p.pin_id}
+              pin={p}
+              variant="column"
+              onPressCard={() => setSelectedPin(p)}
+              onPressUser={() => router.push(`/(app)/user/${p.user_id}` as never)}
+            />
+          ))}
+        </View>
+        <View style={styles.column}>
+          {item.col1.map((p) => (
+            <FeedCard
+              key={p.pin_id}
+              pin={p}
+              variant="column"
+              onPressCard={() => setSelectedPin(p)}
+              onPressUser={() => router.push(`/(app)/user/${p.user_id}` as never)}
+            />
+          ))}
+        </View>
       </View>
     );
   };
@@ -218,12 +215,12 @@ export default function FeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={rows}
-            keyExtractor={(r) => r.key}
-            renderItem={renderRow}
+            data={blocks}
+            keyExtractor={(b) => b.key}
+            renderItem={renderBlock}
             ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
             contentContainerStyle={
-              rows.length === 0 ? styles.emptyContainer : styles.list
+              blocks.length === 0 ? styles.emptyContainer : styles.list
             }
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -263,147 +260,50 @@ export default function FeedScreen() {
   );
 }
 
-// ─── Cards ─────────────────────────────────────────────────────────────
+// ─── Card ──────────────────────────────────────────────────────────────
 
-function CardHeader({
-  pin,
-  onPressUser,
-  compact = false,
-}: {
-  pin: MapPin;
-  onPressUser: () => void;
-  compact?: boolean;
-}) {
-  const initials = pin.display_name
-    .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-  return (
-    <TouchableOpacity onPress={onPressUser} activeOpacity={0.7} style={styles.cardHeader}>
-      {pin.avatar_url ? (
-        <Image
-          source={{ uri: pin.avatar_url }}
-          style={compact ? styles.avatarSmall : styles.avatar}
-        />
-      ) : (
-        <View style={[
-          compact ? styles.avatarFallbackSmall : styles.avatarFallback,
-        ]}>
-          <Text style={compact ? styles.avatarInitialsSmall : styles.avatarInitials}>
-            {initials}
-          </Text>
-        </View>
-      )}
-      <Text style={styles.headerText} numberOfLines={1}>
-        <Text style={styles.headerUsername}>@{pin.username}</Text>
-        <Text style={styles.headerAction}> pinned</Text>
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function CardFooter({ pin, compact = false }: { pin: MapPin; compact?: boolean }) {
-  const label = CATEGORY_LABELS[pin.category as Category] ?? pin.category;
-  const glyph = CATEGORY_GLYPH[pin.category] ?? '◉';
-  return (
-    <View style={styles.cardFooter}>
-      <View style={styles.catPill}>
-        <Text style={styles.catPillGlyph}>{glyph}</Text>
-        {!compact && (
-          <Text style={styles.catPillText}>{label.toLowerCase()}</Text>
-        )}
-      </View>
-      <Text style={styles.timeText}>{timeAgo(pin.created_at)}</Text>
-    </View>
-  );
-}
-
-/** Full-width card with the photo at the top and the place name overlaid
- *  in white italic Fraunces. */
-function PhotoCard({
-  pin,
-  onPressCard,
-  onPressUser,
-}: {
-  pin: MapPin;
-  onPressCard: () => void;
-  onPressUser: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.cardFull} onPress={onPressCard} activeOpacity={0.94}>
-      <View style={styles.cardHeaderWrap}>
-        <CardHeader pin={pin} onPressUser={onPressUser} />
-      </View>
-
-      <View style={styles.photoWrap}>
-        <Image source={{ uri: pin.photo_url ?? undefined }} style={styles.photo} />
-        <View style={styles.photoTint} pointerEvents="none" />
-        <Text style={styles.photoName} numberOfLines={2}>
-          {pin.place_name}
-        </Text>
-      </View>
-
-      <View style={styles.cardBody}>
-        {pin.impression ? (
-          <Text style={styles.impression} numberOfLines={2}>"{pin.impression}"</Text>
-        ) : null}
-        <CardFooter pin={pin} />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-/** No-photo card — colored category block, glyph centered, place name +
- *  impression below. `variant: 'full'` is full-width (used for trailing
- *  unpaired no-photo pins); `variant: 'half'` is the side-by-side pair
- *  rendering. */
-function BlockCard({
+/** One card. `variant: 'column'` is half-width inside a 2-up row;
+ *  `variant: 'full'` is full-width for long-impression breakouts. The
+ *  layout is otherwise identical — photo (if any) on top, then mono
+ *  "@username pinned" kicker, italic red Fraunces place name, and an
+ *  optional body-italic impression. */
+function FeedCard({
   pin,
   variant,
   onPressCard,
   onPressUser,
 }: {
   pin: MapPin;
-  variant: 'full' | 'half';
+  variant: 'column' | 'full';
   onPressCard: () => void;
   onPressUser: () => void;
 }) {
-  const tint = CATEGORY_TINT[pin.category] ?? PALETTE.zone1;
-  const glyph = CATEGORY_GLYPH[pin.category] ?? '◉';
-  const isHalf = variant === 'half';
-
+  const isFull = variant === 'full';
   return (
-    <TouchableOpacity
-      style={isHalf ? styles.cardHalf : styles.cardFull}
-      onPress={onPressCard}
-      activeOpacity={0.94}
-    >
-      <View style={styles.cardHeaderWrap}>
-        <CardHeader pin={pin} onPressUser={onPressUser} compact={isHalf} />
-      </View>
-
-      <View
-        style={[
-          isHalf ? styles.blockHalf : styles.blockFull,
-          { backgroundColor: tint },
-        ]}
-      >
-        <Text style={[styles.blockGlyph, isHalf && styles.blockGlyphHalf]}>
-          {glyph}
-        </Text>
-      </View>
-
+    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+      {pin.photo_url ? (
+        <Image source={{ uri: pin.photo_url }} style={styles.photo} />
+      ) : null}
       <View style={styles.cardBody}>
+        <TouchableOpacity onPress={onPressUser} hitSlop={6}>
+          <Text style={styles.cardKicker} numberOfLines={1}>
+            @{pin.username} pinned · {timeAgo(pin.created_at)}
+          </Text>
+        </TouchableOpacity>
         <Text
-          style={[styles.placeName, isHalf && styles.placeNameHalf]}
-          numberOfLines={isHalf ? 2 : 1}
+          style={[styles.cardPlace, isFull && styles.cardPlaceFull]}
+          numberOfLines={isFull ? 2 : 2}
         >
           {pin.place_name}
         </Text>
         {pin.impression ? (
-          <Text style={styles.impression} numberOfLines={isHalf ? 1 : 2}>
+          <Text
+            style={styles.cardImpression}
+            numberOfLines={isFull ? 6 : 3}
+          >
             "{pin.impression}"
           </Text>
         ) : null}
-        <CardFooter pin={pin} compact={isHalf} />
       </View>
     </TouchableOpacity>
   );
@@ -490,210 +390,62 @@ const styles = StyleSheet.create({
   },
   emptyContainer: { flex: 1 },
 
-  // Row container for the 2-up no-photo pair.
-  pairRow: { flexDirection: 'row', gap: 12 },
-
-  // Card chrome
-  cardFull: {
-    backgroundColor: PALETTE.surface,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    overflow: 'hidden',
-    ...STICKER_SHADOW_LG,
-  },
-  cardHalf: {
-    flex: 1,
-    backgroundColor: PALETTE.surface,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    overflow: 'hidden',
-    ...STICKER_SHADOW_LG,
-  },
-  cardHeaderWrap: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 },
-  cardBody: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12, gap: 6 },
-
-  // Header
-  cardHeader: {
+  // Block containers
+  columnsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    alignItems: 'flex-start',
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-  },
-  avatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    backgroundColor: PALETTE.zone1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontFamily: FONTS.display,
-    fontSize: 13,
-    fontWeight: '400',
-    color: ACCENT.red,
-  },
-  avatarSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-  },
-  avatarFallbackSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    backgroundColor: PALETTE.zone1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitialsSmall: {
-    fontFamily: FONTS.display,
-    fontSize: 11,
-    fontWeight: '400',
-    color: ACCENT.red,
-  },
-  headerText: {
+  column: {
     flex: 1,
-    fontFamily: FONTS.body,
-    fontSize: 13,
-  },
-  headerUsername: {
-    fontWeight: '700',
-    color: PALETTE.ink,
-  },
-  headerAction: {
-    color: PALETTE.inkSoft,
+    gap: 12,
   },
 
-  // Photo card
-  photoWrap: {
-    height: 160,
-    backgroundColor: PALETTE.zone2,
-    position: 'relative',
+  // Card chrome — used by both column and full variants.
+  card: {
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    overflow: 'hidden',
+    ...STICKER_SHADOW,
   },
   photo: {
     width: '100%',
-    height: '100%',
+    height: 180,
     resizeMode: 'cover',
   },
-  photoTint: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 90,
-    backgroundColor: 'rgba(0,0,0,0.32)',
-  },
-  photoName: {
-    position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 12,
-    fontFamily: FONTS.display,
-    fontStyle: 'italic',
-    fontSize: 24,
-    lineHeight: 28,
-    color: '#ffffff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-  },
-
-  // No-photo color block
-  blockFull: {
-    height: 130,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: PALETTE.inkLine,
-  },
-  blockHalf: {
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: PALETTE.inkLine,
-  },
-  blockGlyph: {
-    fontSize: 56,
-    color: PALETTE.inkSoft,
-    includeFontPadding: false,
-  },
-  blockGlyphHalf: {
-    fontSize: 40,
-  },
-
-  // Place name (no-photo cards)
-  placeName: {
-    fontFamily: FONTS.display,
-    fontSize: 18,
-    lineHeight: 22,
-    color: PALETTE.ink,
-    fontWeight: '400',
-  },
-  placeNameHalf: {
-    fontSize: 15,
-    lineHeight: 19,
-  },
-
-  impression: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: PALETTE.inkSoft,
-    fontStyle: 'italic',
-    lineHeight: 17,
-  },
-
-  // Footer
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    gap: 6,
-  },
-  catPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardBody: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
     gap: 4,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    backgroundColor: PALETTE.surface,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    ...STICKER_SHADOW,
   },
-  catPillGlyph: {
-    fontSize: 10,
-    color: ACCENT.red,
-  },
-  catPillText: {
-    fontFamily: FONTS.mono,
-    fontSize: 9,
-    letterSpacing: 0.5,
-    color: PALETTE.ink,
-    fontWeight: '600',
-  },
-  timeText: {
+  cardKicker: {
     fontFamily: FONTS.mono,
     fontSize: 10,
     letterSpacing: 0.5,
     color: PALETTE.inkSoft,
     textTransform: 'lowercase',
+  },
+  cardPlace: {
+    fontFamily: FONTS.display,
+    fontStyle: 'italic',
+    fontSize: 18,
+    lineHeight: 22,
+    color: ACCENT.red,
+    fontWeight: '400',
+  },
+  cardPlaceFull: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  cardImpression: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: PALETTE.inkSoft,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    marginTop: 2,
   },
 
   // Empty state
@@ -727,7 +479,7 @@ const styles = StyleSheet.create({
     borderColor: PALETTE.ink,
     paddingHorizontal: 22,
     paddingVertical: 11,
-    ...STICKER_SHADOW_LG,
+    ...STICKER_SHADOW,
   },
   findBtnText: {
     fontFamily: FONTS.body,

@@ -108,12 +108,24 @@ export default function RankingsScreen() {
 
   const possessive = isOwn ? 'your' : ownerName ? `${ownerName}'s` : 'their';
 
+  // Source-aware fallback: when the back stack is empty we'd otherwise
+  // bounce to the tab root. Resolve to user/[id] for friend rankings,
+  // own profile otherwise.
+  function handleBack() {
+    if (router.canGoBack()) { router.back(); return; }
+    if (params.userId && params.userId !== currentUserId) {
+      router.replace(`/(app)/user/${params.userId}` as never);
+    } else {
+      router.replace('/(app)/profile' as never);
+    }
+  }
+
   return (
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+          <TouchableOpacity onPress={handleBack} hitSlop={12}>
             <Text style={styles.backText}>← back</Text>
           </TouchableOpacity>
 

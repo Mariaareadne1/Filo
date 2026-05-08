@@ -81,6 +81,14 @@ export default function WrappedScreen() {
 
   const year = new Date().getFullYear();
 
+  // Reached only from profile, so the fallback for when the navigator's
+  // history is empty (cold deep link, replace-after-auth, etc.) is the
+  // profile screen — never the tab root.
+  function handleBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(app)/profile' as never);
+  }
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -180,7 +188,7 @@ export default function WrappedScreen() {
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleBack} hitSlop={12} style={styles.backBtn}>
             <Text style={styles.backText}>← back</Text>
           </TouchableOpacity>
 

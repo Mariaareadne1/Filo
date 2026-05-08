@@ -54,7 +54,7 @@ export default function OTPScreen() {
     const userId = data.user?.id;
     if (!userId) { setError('something went wrong. try again.'); return; }
     const { data: profile } = await supabase.from('users').select('id').eq('id', userId).single();
-    if (profile) router.replace('/(app)'); else router.replace('/auth/profile-setup');
+    if (profile) router.replace('/(app)/discover'); else router.replace('/auth/profile-setup');
   }
 
   async function handleVerifyWithValue(value: string) {
@@ -72,7 +72,7 @@ export default function OTPScreen() {
     const userId = data.user?.id;
     if (!userId) { setError('something went wrong. try again.'); return; }
     const { data: profile } = await supabase.from('users').select('id').eq('id', userId).single();
-    if (profile) router.replace('/(app)'); else router.replace('/auth/profile-setup');
+    if (profile) router.replace('/(app)/discover'); else router.replace('/auth/profile-setup');
   }
 
   async function handleResend() {
