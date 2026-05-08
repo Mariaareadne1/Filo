@@ -9,9 +9,10 @@ import {
   Dimensions,
   Share,
 } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import MapboxGL from '@rnmapbox/maps';
 import { supabase } from '../../lib/supabase';
 import { useBoards, Board } from '../../hooks/useBoards';
 import { Category, MapPin } from '../../types';
@@ -29,8 +30,80 @@ import {
   VISIBILITY_LABEL,
 } from '../../constants/theme';
 
+// Token must be set before any MapView mounts. Idempotent — the map
+// screen sets the same token on its own load.
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
+
 const { width } = Dimensions.get('window');
 const BOARD_CARD_SIZE = (width - SCREEN_PAD * 2 - 12) / 2;
+
+const MORNINGSIDE: [number, number] = [-73.9626, 40.8075];
+
+/** Translates places.category (MapPin vocab) to the noun used in the
+ *  "mostly X" taste-profile chip. The discover-vocab plurals read more
+ *  naturally than the singular schema values. */
+const CATEGORY_MOSTLY: Record<string, string> = {
+  food:       'food',
+  bar:        'bars',
+  beauty:     'beauty',
+  experience: 'experiences',
+  retail:     'shops',
+};
+
+/** Hand-picked neighborhood centroids around Columbia. Each pin gets
+ *  bucketed to its nearest centroid via squared Euclidean distance on
+ *  raw lat/lng — close enough at this scale, no PostGIS needed. */
+const NEIGHBORHOODS: { name: string; lat: number; lng: number }[] = [
+  { name: 'Morningside Heights', lat: 40.8075, lng: -73.9626 },
+  { name: 'Manhattanville',      lat: 40.8156, lng: -73.9580 },
+  { name: 'Hamilton Heights',    lat: 40.8226, lng: -73.9495 },
+  { name: 'Harlem',              lat: 40.8116, lng: -73.9465 },
+  { name: 'Upper West Side',     lat: 40.7870, lng: -73.9754 },
+  { name: 'Washington Heights',  lat: 40.8417, lng: -73.9393 },
+];
+
+function neighborhoodFor(lat: number, lng: number): string {
+  let best = NEIGHBORHOODS[0];
+  let bestD = Infinity;
+  for (const n of NEIGHBORHOODS) {
+    const dlat = lat - n.lat;
+    const dlng = lng - n.lng;
+    const d = dlat * dlat + dlng * dlng;
+    if (d < bestD) { bestD = d; best = n; }
+  }
+  return best.name;
+}
+
+const ANNUAL_CHALLENGE_GOAL = 50;
+
+/** Monday 00:00 of the week containing `d`, in local time. ISO weeks
+ *  start on Monday; Sunday counts as the previous week. */
+function startOfWeek(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0 = Sun, 1 = Mon, … 6 = Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
+/** Count consecutive weeks ending at the current week that contain at
+ *  least one pin. Returns 0 if the current week has no pin. */
+function computeStreak(pins: { created_at: string }[]): number {
+  if (pins.length === 0) return 0;
+  const key = (d: Date) => d.toISOString().slice(0, 10);
+  const weeksWithPin = new Set<string>();
+  for (const p of pins) {
+    weeksWithPin.add(key(startOfWeek(new Date(p.created_at))));
+  }
+  let streak = 0;
+  const cursor = startOfWeek(new Date());
+  while (weeksWithPin.has(key(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+  return streak;
+}
 
 interface Profile {
   id: string;
@@ -63,6 +136,7 @@ export default function ProfileScreen() {
   const [followingCount, setFollowingCount] = useState(0);
   const [allPins, setAllPins] = useState<MapPin[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
+  const [topRanked, setTopRanked] = useState<{ name: string; category: string } | null>(null);
   const router = useRouter();
 
   const { boards, loading, refetch } = useBoards(userId);
@@ -83,7 +157,7 @@ export default function ProfileScreen() {
 
   const loadCounts = useCallback(async () => {
     if (!userId) return;
-    const [followerRes, followingRes, pinsRes] = await Promise.all([
+    const [followerRes, followingRes, pinsRes, topRankRes] = await Promise.all([
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId).eq('status', 'active'),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId).eq('status', 'active'),
       supabase.from('pins').select(`
@@ -91,6 +165,14 @@ export default function ProfileScreen() {
         users!inner(username, display_name, avatar_url),
         places!inner(id, name, category, address, lat, lng, photo_url)
       `).eq('user_id', userId).order('created_at', { ascending: false }),
+      // Any #1 ranking — used for the taste-profile star chip. With
+      // multiple categories the user gets multiple #1s; we just take
+      // the first row Supabase returns.
+      supabase.from('rankings')
+        .select('position, category, places!inner(name)')
+        .eq('user_id', userId)
+        .eq('position', 1)
+        .limit(1),
     ]);
 
     setFollowerCount(followerRes.count ?? 0);
@@ -113,6 +195,17 @@ export default function ProfileScreen() {
       } as MapPin;
     });
     setAllPins(pins);
+
+    if (topRankRes.data && topRankRes.data.length > 0) {
+      const row = topRankRes.data[0] as any;
+      const place = Array.isArray(row.places) ? row.places[0] : row.places;
+      setTopRanked({
+        name: place?.name ?? '',
+        category: row.category ?? '',
+      });
+    } else {
+      setTopRanked(null);
+    }
   }, [userId]);
 
   useFocusEffect(useCallback(() => { refetch(); loadCounts(); }, [userId]));
@@ -120,6 +213,49 @@ export default function ProfileScreen() {
 
   const beenPins = allPins.filter((p) => p.status === 'visited');
   const wantPins = allPins.filter((p) => p.status === 'want_to_go');
+
+  // ─── Taste profile insights ─────────────────────────────────────────
+  const topCategoryLabel = useMemo<string | null>(() => {
+    if (allPins.length === 0) return null;
+    const counts = new Map<string, number>();
+    for (const p of allPins) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    let best: string | null = null;
+    let max = 0;
+    for (const [k, v] of counts) if (v > max) { max = v; best = k; }
+    return best ? (CATEGORY_MOSTLY[best] ?? best) : null;
+  }, [allPins]);
+
+  const topNeighborhood = useMemo<string | null>(() => {
+    if (allPins.length === 0) return null;
+    const counts = new Map<string, number>();
+    for (const p of allPins) {
+      const nb = neighborhoodFor(p.lat, p.lng);
+      counts.set(nb, (counts.get(nb) ?? 0) + 1);
+    }
+    let best: string | null = null;
+    let max = 0;
+    for (const [k, v] of counts) if (v > max) { max = v; best = k; }
+    return best;
+  }, [allPins]);
+
+  const miniMapCenter = useMemo<[number, number]>(() => {
+    if (allPins.length === 0) return MORNINGSIDE;
+    let sumLat = 0, sumLng = 0;
+    for (const p of allPins) { sumLat += p.lat; sumLng += p.lng; }
+    return [sumLng / allPins.length, sumLat / allPins.length];
+  }, [allPins]);
+
+  const hasTasteProfile = !!(topCategoryLabel || topNeighborhood || topRanked);
+
+  // ─── Streak + annual challenge ──────────────────────────────────────
+  const streak = useMemo(() => computeStreak(allPins), [allPins]);
+
+  const currentYear = new Date().getFullYear();
+  const pinsThisYear = useMemo(
+    () => allPins.filter((p) => new Date(p.created_at).getFullYear() === currentYear).length,
+    [allPins, currentYear],
+  );
+  const challengeProgress = Math.min(pinsThisYear / ANNUAL_CHALLENGE_GOAL, 1);
 
   const initials = profile?.display_name
     .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) ?? '';
@@ -158,21 +294,136 @@ export default function ProfileScreen() {
 
           {/* Stats row — sticker card */}
           <View style={styles.statsCard}>
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() => router.push('/(app)/follow-list?mode=followers' as never)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.statNumber}>{followerCount}</Text>
               <Text style={styles.statLabel}>FOLLOWERS</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() => router.push('/(app)/follow-list?mode=following' as never)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.statNumber}>{followingCount}</Text>
               <Text style={styles.statLabel}>FOLLOWING</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{allPins.length}</Text>
               <Text style={styles.statLabel}>PINS</Text>
             </View>
           </View>
+
+          {/* Streak chip */}
+          {streak > 0 ? (
+            <View style={styles.streakChip}>
+              <Text style={styles.streakText}>◉ {streak} week streak</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.streakChip}
+              onPress={() => router.push('/pin/search' as never)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.streakText}>start your streak →</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Annual challenge */}
+          <View style={styles.challengeCard}>
+            <View style={styles.challengeRow}>
+              <Text style={styles.challengeKicker}>{currentYear} CHALLENGE</Text>
+              <Text style={styles.challengeCount}>
+                {pinsThisYear}
+                <Text style={styles.challengeCountTotal}> / {ANNUAL_CHALLENGE_GOAL}</Text>
+              </Text>
+            </View>
+            <View style={styles.challengeBar}>
+              <View
+                style={[
+                  styles.challengeBarFill,
+                  { width: `${challengeProgress * 100}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.challengeFootnote}>places this year</Text>
+          </View>
+
+          {/* Taste profile chips */}
+          {hasTasteProfile && (
+            <View style={styles.tasteRow}>
+              {topCategoryLabel && (
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText}>
+                    MOSTLY {topCategoryLabel.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              {topNeighborhood && (
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText}>{topNeighborhood.toUpperCase()}</Text>
+                </View>
+              )}
+              {topRanked && (
+                <View style={styles.tasteChip}>
+                  <Text style={styles.tasteChipText} numberOfLines={1}>
+                    ★ {topRanked.name.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Mini map — non-interactive identity element */}
+          {allPins.length > 0 && (
+            <View style={styles.miniMapWrap} pointerEvents="none">
+              <MapboxGL.MapView
+                style={StyleSheet.absoluteFill}
+                styleURL={MapboxGL.StyleURL.Street}
+                logoEnabled={false}
+                attributionEnabled={false}
+                compassEnabled={false}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+              >
+                <MapboxGL.Camera
+                  defaultSettings={{
+                    centerCoordinate: miniMapCenter,
+                    zoomLevel: 13,
+                  }}
+                />
+                {allPins.map((p) => (
+                  <MapboxGL.MarkerView
+                    key={p.pin_id}
+                    coordinate={[p.lng, p.lat]}
+                  >
+                    <View style={styles.miniMapDot} />
+                  </MapboxGL.MarkerView>
+                ))}
+              </MapboxGL.MapView>
+            </View>
+          )}
+
+          {/* Filo Wrapped */}
+          <TouchableOpacity
+            style={styles.wrappedRow}
+            onPress={() => router.push('/(app)/wrapped' as never)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.wrappedLeft}>
+              <Text style={styles.wrappedKicker}>{currentYear} REVIEW</Text>
+              <Text style={styles.wrappedTitle}>
+                your <Text style={styles.wrappedTitleItalic}>year in filo.</Text>
+              </Text>
+            </View>
+            <Text style={styles.wrappedArrow}>→</Text>
+          </TouchableOpacity>
 
           {/* Action buttons */}
           <View style={styles.actionRow}>
@@ -280,37 +531,63 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.boardGrid}>
-              {boards.map((item: Board) => {
-                const accent = boardAccentColor(item.name);
+            (() => {
+              // Pinterest-style masonry: two columns, alternating heights so
+              // adjacent cards across columns are uneven. Pattern is offset
+              // between columns so the visual rhythm reads organic, not
+              // striped.
+              const HEIGHT_PATTERN = [240, 180, 180, 240];
+              const distributed = boards.map((b: Board, i: number) => ({
+                board: b,
+                col: (i % 2) as 0 | 1,
+                height: HEIGHT_PATTERN[i % HEIGHT_PATTERN.length],
+              }));
+              const colA = distributed.filter((d) => d.col === 0);
+              const colB = distributed.filter((d) => d.col === 1);
+
+              const renderCard = ({
+                board,
+                height,
+              }: {
+                board: Board;
+                height: number;
+              }) => {
+                const accent = boardAccentColor(board.name);
                 return (
                   <TouchableOpacity
-                    key={item.id}
-                    style={styles.boardCard}
-                    onPress={() => router.push(`/(app)/board/${item.id}`)}
+                    key={board.id}
+                    style={[styles.boardCard, { height }]}
+                    onPress={() => router.push(`/(app)/board/${board.id}`)}
                     activeOpacity={0.85}
                   >
                     <View style={[styles.boardCover, { backgroundColor: PALETTE.zone1 }]}>
                       <View style={[styles.boardCoverHalo, { backgroundColor: accent, opacity: 0.18 }]} />
                       <Text style={[styles.boardCoverLetter, { color: accent }]}>
-                        {item.name[0].toUpperCase()}
+                        {board.name[0].toUpperCase()}
                       </Text>
                     </View>
                     <View style={styles.boardCardBottom}>
-                      <Text style={styles.boardCardName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.boardCardName} numberOfLines={1}>{board.name}</Text>
                       <View style={styles.boardCardMeta}>
-                        <Text style={styles.boardCardCount}>{item.pin_count} pins</Text>
-                        <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[item.visibility] }]}>
-                          <Text style={[styles.visBadgeText, { color: VISIBILITY_COLOR[item.visibility] }]}>
-                            {VISIBILITY_LABEL[item.visibility].toLowerCase()}
+                        <Text style={styles.boardCardCount}>{board.pin_count} pins</Text>
+                        <View style={[styles.visBadge, { borderColor: VISIBILITY_COLOR[board.visibility] }]}>
+                          <Text style={[styles.visBadgeText, { color: VISIBILITY_COLOR[board.visibility] }]}>
+                            {VISIBILITY_LABEL[board.visibility].toLowerCase()}
                           </Text>
                         </View>
                       </View>
                     </View>
                   </TouchableOpacity>
                 );
-              })}
-            </View>
+              };
+
+              return (
+                <View style={styles.boardGrid}>
+                  <View style={styles.boardColumn}>{colA.map(renderCard)}</View>
+                  <View style={styles.boardColumn}>{colB.map(renderCard)}</View>
+                </View>
+              );
+            })()
           )}
 
           {/* Sign out */}
@@ -428,6 +705,169 @@ const styles = StyleSheet.create({
     color: PALETTE.inkSoft,
   },
   statDivider: { width: 1, height: 32, backgroundColor: PALETTE.inkLine },
+
+  // Streak
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: ACCENT.red,
+    ...STICKER_SHADOW,
+  },
+  streakText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: ACCENT.red,
+    fontWeight: '600',
+  },
+
+  // Annual challenge
+  challengeCard: {
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW_LG,
+  },
+  challengeRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  challengeKicker: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+  },
+  challengeCount: {
+    fontFamily: FONTS.display,
+    fontStyle: 'italic',
+    fontSize: 24,
+    color: ACCENT.red,
+    fontWeight: '400',
+  },
+  challengeCountTotal: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: PALETTE.inkSoft,
+    fontStyle: 'normal',
+  },
+  challengeBar: {
+    height: 4,
+    backgroundColor: PALETTE.zone2,
+    borderWidth: 1,
+    borderColor: PALETTE.inkLine,
+    overflow: 'hidden',
+  },
+  challengeBarFill: {
+    height: 2,
+    backgroundColor: ACCENT.red,
+  },
+  challengeFootnote: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.inkSoft,
+    marginTop: 8,
+    textTransform: 'lowercase',
+  },
+
+  // Wrapped row
+  wrappedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 4,
+    marginBottom: 14,
+    backgroundColor: PALETTE.ink,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW_LG,
+  },
+  wrappedLeft: { flex: 1 },
+  wrappedKicker: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  wrappedTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: PALETTE.bg,
+    fontWeight: '400',
+    marginTop: 2,
+  },
+  wrappedTitleItalic: {
+    fontStyle: 'italic',
+    color: ACCENT.red,
+  },
+  wrappedArrow: {
+    fontFamily: FONTS.body,
+    fontSize: 22,
+    color: PALETTE.bg,
+  },
+
+  // Taste profile
+  tasteRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  tasteChip: {
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    maxWidth: '100%',
+    ...STICKER_SHADOW,
+  },
+  tasteChipText: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: PALETTE.ink,
+    fontWeight: '600',
+  },
+
+  // Mini map
+  miniMapWrap: {
+    height: 140,
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 4,
+    marginBottom: 6,
+    backgroundColor: PALETTE.zone1,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    overflow: 'hidden',
+    ...STICKER_SHADOW_LG,
+  },
+  miniMapDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: PALETTE.surface,
+  },
 
   // Actions
   actionRow: {
@@ -589,13 +1029,15 @@ const styles = StyleSheet.create({
 
   boardGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: SCREEN_PAD,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  boardColumn: {
+    flex: 1,
     gap: 12,
   },
   boardCard: {
-    width: BOARD_CARD_SIZE,
-    height: BOARD_CARD_SIZE + 56,
     backgroundColor: PALETTE.surface,
     borderWidth: 1,
     borderColor: PALETTE.ink,

@@ -215,7 +215,16 @@ export function PinDetailSheet({ pin, onClose }: Props) {
                   {friendRanks.map((f, i) => {
                     const color = FRIEND_COLORS[i % FRIEND_COLORS.length];
                     return (
-                      <View key={f.username + i} style={styles.friendChip}>
+                      <TouchableOpacity
+                        key={(f.user_id ?? f.username) + i}
+                        style={styles.friendChip}
+                        onPress={() => {
+                          if (!f.user_id) return;
+                          onClose();
+                          router.push(`/(app)/user/${f.user_id}` as never);
+                        }}
+                        activeOpacity={0.85}
+                      >
                         <View style={[styles.friendDot, { backgroundColor: color }]} />
                         <View style={{ gap: 2 }}>
                           <Text style={styles.friendName}>@{f.username}</Text>
@@ -223,7 +232,7 @@ export function PinDetailSheet({ pin, onClose }: Props) {
                             #{f.rank}/{f.total} {f.categoryLabel ?? label.toLowerCase()}
                           </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     );
                   })}
                 </ScrollView>
@@ -243,7 +252,14 @@ export function PinDetailSheet({ pin, onClose }: Props) {
               </Text>
             </View>
 
-            <View style={styles.userRow}>
+            <TouchableOpacity
+              style={styles.userRow}
+              onPress={() => {
+                onClose();
+                router.push(`/(app)/user/${pin.user_id}` as never);
+              }}
+              activeOpacity={0.7}
+            >
               {pin.avatar_url ? (
                 <Image source={{ uri: pin.avatar_url }} style={styles.avatar} />
               ) : (
@@ -255,7 +271,8 @@ export function PinDetailSheet({ pin, onClose }: Props) {
                 <Text style={styles.pinnedBy}>PINNED BY</Text>
                 <Text style={styles.username}>@{pin.username}</Text>
               </View>
-            </View>
+              <Text style={styles.userRowChevron}>→</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.addToBoardBtn} onPress={openBoardPicker} activeOpacity={0.85}>
               <Text style={styles.addToBoardText}>+ add to board</Text>
@@ -618,6 +635,11 @@ export function PinDetailSheet({ pin, onClose }: Props) {
     fontSize: 9,
     letterSpacing: 2,
     color: PALETTE.inkSoft,
+  },
+  userRowChevron: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: PALETTE.ink,
   },
   username: {
     fontFamily: FONTS.body,

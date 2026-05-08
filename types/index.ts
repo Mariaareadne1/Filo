@@ -17,6 +17,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 };
 
 export interface FriendRank {
+  user_id: string;
   username: string;
   rank: number;
   total: number;

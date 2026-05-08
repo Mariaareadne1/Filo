@@ -187,6 +187,7 @@ async function enrichWithFriendRanks(pins: MapPin[], userId: string): Promise<Ma
     const total = totalByUserCat.get(`${r.user_id}|${r.category}`) ?? 0;
     const cat = r.category as keyof typeof CATEGORY_LABELS;
     const fr: FriendRank = {
+      user_id: r.user_id,
       username,
       rank: r.position,
       total,
