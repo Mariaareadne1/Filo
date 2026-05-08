@@ -5,10 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   PALETTE,
@@ -20,17 +22,18 @@ import {
 } from '../../constants/theme';
 
 /**
- * TASTE TWINS — five category rows, one top match per category, with a
- * per-category match %. Same friend can be top in one category and absent
- * from another.
+ * TASTE TWINS — five category rows, one top match per category.
  *
- * Each row keeps just three things: the category swatch, the friend
- * (name + "your X-twin" label), and the match %, plus a thin progress
- * bar that visualizes the %.
+ * For each category we run a real Spearman rank correlation between the
+ * caller's rankings and each followed friend's rankings, restricted to
+ * places they've both ranked. Friends with fewer than 3 overlapping
+ * places are skipped — Spearman needs n ≥ 3 to be meaningful. The
+ * friend with the highest correlation per category becomes the twin.
  *
- * Data wiring: hooks/useTwins.ts (TODO step 4.5) — for now this renders
- * placeholder data. Tap a row → opens that friend's profile scoped to
- * the category.
+ * Match % = clamp(round(ρ * 100), 0, 100). Negative correlations
+ * (anti-twins) clamp to 0. Re-ranking is performed inside the overlap
+ * subset before computing ρ — using raw category-wide positions would
+ * make the formula nonsensical for partial overlaps.
  */
 
 type CatKey = 'cafes' | 'food' | 'bars' | 'shops' | 'experiences';
@@ -40,64 +43,71 @@ interface CategoryDef {
   label: string;
   /** glyph used in the left swatch */
   glyph: string;
-  /** mock total ranked count for the user (used only for empty-state copy) */
-  yourCount: number;
 }
 
 const CATS: CategoryDef[] = [
-  { key: 'cafes',       label: 'cafes',       glyph: '◉', yourCount: 14 },
-  { key: 'food',        label: 'food',        glyph: '◆', yourCount: 22 },
-  { key: 'bars',        label: 'bars',        glyph: '○', yourCount: 9  },
-  { key: 'shops',       label: 'shops',       glyph: '◇', yourCount: 6  },
-  { key: 'experiences', label: 'experiences', glyph: '✦', yourCount: 11 },
+  { key: 'cafes',       label: 'cafes',       glyph: '◉' },
+  { key: 'food',        label: 'food',        glyph: '◆' },
+  { key: 'bars',        label: 'bars',        glyph: '○' },
+  { key: 'shops',       label: 'shops',       glyph: '◇' },
+  { key: 'experiences', label: 'experiences', glyph: '✦' },
 ];
+
+/** Spearman needs at least this many overlapping places to be meaningful. */
+const MIN_OVERLAP = 3;
 
 interface Twin {
   user_id: string;
   username: string;
   display_name: string;
   avatar_url: string | null;
-  /** 0–100 */
+  /** 0–100, clamped */
   match: number;
 }
 
-const PLACEHOLDER: Record<CatKey, Twin | null> = {
-  cafes:       mockTwin('maya',  'Maya R.',  92),
-  food:        mockTwin('amir',  'Amir T.',  88),
-  bars:        mockTwin('sasha', 'Sasha K.', 79),
-  shops:       mockTwin('jules', 'Jules H.', 84),
-  experiences: mockTwin('kai',   'Kai O.',   90),
-};
-
-function mockTwin(username: string, display_name: string, match: number): Twin {
-  return {
-    user_id: `mock-${username}`,
-    username,
-    display_name,
-    avatar_url: null,
-    match,
-  };
+interface CatStats {
+  twin: Twin | null;
+  myCount: number;
 }
 
-const FRIEND_COLOR: Record<string, string> = {
-  maya:  '#ff6b4a',
-  amir:  '#5b8def',
-  jules: '#f4c542',
-  sasha: '#7d5fff',
-  kai:   '#2ec27e',
-  rae:   '#e6739f',
+const EMPTY_STATS: Record<CatKey, CatStats> = {
+  cafes:       { twin: null, myCount: 0 },
+  food:        { twin: null, myCount: 0 },
+  bars:        { twin: null, myCount: 0 },
+  shops:       { twin: null, myCount: 0 },
+  experiences: { twin: null, myCount: 0 },
 };
 
+const FRIEND_COLOR_PALETTE = [
+  '#ff6b4a', '#5b8def', '#f4c542', '#7d5fff', '#2ec27e', '#e6739f',
+];
+function colorForUserId(uid: string): string {
+  // Deterministic hash → palette index, so each friend always gets the
+  // same swatch tint across renders / screens.
+  let h = 0;
+  for (let i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0;
+  return FRIEND_COLOR_PALETTE[h % FRIEND_COLOR_PALETTE.length];
+}
+
 export default function TwinsScreen() {
-  const [twins] = useState(PLACEHOLDER);
-  const [_currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [stats, setStats] = useState<Record<CatKey, CatStats>>(EMPTY_STATS);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
-    });
+  const reload = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setStats(EMPTY_STATS);
+      setLoading(false);
+      return;
+    }
+    const next = await computeTwins(user.id);
+    setStats(next);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+  useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
   return (
     <View style={styles.safe}>
@@ -121,24 +131,33 @@ export default function TwinsScreen() {
             </Text>
           </View>
 
-          {/* Category rows */}
-          <View style={styles.rows}>
-            {CATS.map((c) => (
-              <TwinRow
-                key={c.key}
-                cat={c}
-                twin={twins[c.key]}
-                onPress={() => {
-                  const t = twins[c.key];
-                  if (!t) return;
-                  router.push({
-                    pathname: `/(app)/user/${t.user_id}`,
-                    params: { category: c.key },
-                  } as never);
-                }}
-              />
-            ))}
-          </View>
+          {/* Loading vs rows */}
+          {loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={ACCENT.red} />
+            </View>
+          ) : (
+            <View style={styles.rows}>
+              {CATS.map((c) => {
+                const s = stats[c.key];
+                return (
+                  <TwinRow
+                    key={c.key}
+                    cat={c}
+                    twin={s.twin}
+                    myCount={s.myCount}
+                    onPress={() => {
+                      if (!s.twin) return;
+                      router.push({
+                        pathname: `/(app)/user/${s.twin.user_id}`,
+                        params: { category: c.key },
+                      } as never);
+                    }}
+                  />
+                );
+              })}
+            </View>
+          )}
 
           {/* Footnote */}
           <View style={styles.footnote}>
@@ -158,13 +177,20 @@ export default function TwinsScreen() {
 function TwinRow({
   cat,
   twin,
+  myCount,
   onPress,
 }: {
   cat: CategoryDef;
   twin: Twin | null;
+  myCount: number;
   onPress: () => void;
 }) {
   if (!twin) {
+    const need = Math.max(0, MIN_OVERLAP - myCount);
+    const message =
+      myCount < MIN_OVERLAP
+        ? `rank ${need} more to find your twin.`
+        : 'no friend overlap yet.';
     return (
       <View style={[styles.row, styles.rowEmpty]}>
         <View style={[styles.swatch, { backgroundColor: PALETTE.zone2 }]}>
@@ -172,15 +198,13 @@ function TwinRow({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowLabel}>your {cat.label.replace(/s$/, '')}-twin</Text>
-          <Text style={styles.rowEmptyText}>
-            rank {Math.max(0, 5 - cat.yourCount)} more to find them.
-          </Text>
+          <Text style={styles.rowEmptyText}>{message}</Text>
         </View>
       </View>
     );
   }
 
-  const friendColor = FRIEND_COLOR[twin.username] ?? ACCENT.red;
+  const friendColor = colorForUserId(twin.user_id);
   const initials = twin.display_name
     .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
@@ -223,6 +247,141 @@ function TwinRow({
       </View>
     </TouchableOpacity>
   );
+}
+
+// ─── Computation ────────────────────────────────────────────────────────
+
+async function computeTwins(userId: string): Promise<Record<CatKey, CatStats>> {
+  const stats: Record<CatKey, CatStats> = {
+    cafes:       { twin: null, myCount: 0 },
+    food:        { twin: null, myCount: 0 },
+    bars:        { twin: null, myCount: 0 },
+    shops:       { twin: null, myCount: 0 },
+    experiences: { twin: null, myCount: 0 },
+  };
+
+  // 1. My rankings (all categories — we'll bucket below).
+  const { data: myRanks } = await supabase
+    .from('rankings')
+    .select('place_id, category, position')
+    .eq('user_id', userId);
+
+  const myByCat = new Map<CatKey, Map<string, number>>();
+  for (const r of (myRanks ?? []) as any[]) {
+    if (!isCatKey(r.category)) continue;
+    const cat = r.category as CatKey;
+    if (!myByCat.has(cat)) myByCat.set(cat, new Map());
+    myByCat.get(cat)!.set(r.place_id, r.position);
+    stats[cat].myCount += 1;
+  }
+
+  // 2. People I follow.
+  const { data: follows } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', userId)
+    .eq('status', 'active');
+  const friendIds = (follows ?? []).map((f: any) => f.following_id);
+  if (friendIds.length === 0) return stats;
+
+  // 3. Friends' rankings + their display info, in a single query.
+  const { data: friendRanks } = await supabase
+    .from('rankings')
+    .select('user_id, place_id, category, position, users!inner(username, display_name, avatar_url)')
+    .in('user_id', friendIds);
+
+  type FriendInfo = { username: string; display_name: string; avatar_url: string | null };
+  const friendInfo = new Map<string, FriendInfo>();
+  // friendId → category → place_id → position
+  const friendByCat = new Map<string, Map<CatKey, Map<string, number>>>();
+
+  for (const r of (friendRanks ?? []) as any[]) {
+    if (!isCatKey(r.category)) continue;
+    const cat = r.category as CatKey;
+    const fid = r.user_id;
+    const u = Array.isArray(r.users) ? r.users[0] : r.users;
+    if (u && !friendInfo.has(fid)) {
+      friendInfo.set(fid, {
+        username: u.username,
+        display_name: u.display_name,
+        avatar_url: u.avatar_url ?? null,
+      });
+    }
+    if (!friendByCat.has(fid)) friendByCat.set(fid, new Map());
+    const fcm = friendByCat.get(fid)!;
+    if (!fcm.has(cat)) fcm.set(cat, new Map());
+    fcm.get(cat)!.set(r.place_id, r.position);
+  }
+
+  // 4. For each category, score every friend; keep the highest.
+  for (const cat of CATS) {
+    const myMap = myByCat.get(cat.key);
+    if (!myMap || myMap.size < MIN_OVERLAP) continue;
+
+    let bestTwin: Twin | null = null;
+    let bestPct = -1;
+
+    for (const [fid, fcm] of friendByCat) {
+      const fMap = fcm.get(cat.key);
+      if (!fMap) continue;
+
+      // Build the overlap as paired positions.
+      const pairs: Array<[number, number]> = [];
+      for (const [pid, myPos] of myMap) {
+        const fPos = fMap.get(pid);
+        if (fPos !== undefined) pairs.push([myPos, fPos]);
+      }
+      if (pairs.length < MIN_OVERLAP) continue;
+
+      const pct = spearmanPct(pairs);
+      if (pct > bestPct) {
+        const info = friendInfo.get(fid)!;
+        bestPct = pct;
+        bestTwin = {
+          user_id: fid,
+          username: info.username,
+          display_name: info.display_name,
+          avatar_url: info.avatar_url,
+          match: pct,
+        };
+      }
+    }
+
+    stats[cat.key].twin = bestTwin;
+  }
+
+  return stats;
+}
+
+/** Spearman rank correlation expressed as a 0–100 percentage.
+ *
+ * The raw `position` values come from arbitrary-length category lists,
+ * so we re-rank both sides within the overlap subset before computing
+ * the standard `1 - 6·Σd² / (n·(n²-1))` formula. Negative correlations
+ * (anti-twins) clamp to 0%. Rankings are unique per (user, category)
+ * so no tie-correction is needed. */
+function spearmanPct(pairs: Array<[number, number]>): number {
+  const n = pairs.length;
+  if (n < 2) return 0;
+
+  const myAbsSorted = pairs.map((p) => p[0]).sort((a, b) => a - b);
+  const fAbsSorted  = pairs.map((p) => p[1]).sort((a, b) => a - b);
+
+  let sumD2 = 0;
+  for (const [m, f] of pairs) {
+    const myR = myAbsSorted.indexOf(m) + 1;
+    const fR  = fAbsSorted.indexOf(f) + 1;
+    const d = myR - fR;
+    sumD2 += d * d;
+  }
+  const denom = n * (n * n - 1);
+  if (denom === 0) return 0;
+  const rho = 1 - (6 * sumD2) / denom;
+  return Math.max(0, Math.min(100, Math.round(rho * 100)));
+}
+
+function isCatKey(c: unknown): c is CatKey {
+  return c === 'cafes' || c === 'food' || c === 'bars' || c === 'shops' || c === 'experiences';
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────
@@ -268,6 +427,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: PALETTE.inkSoft,
     marginTop: 2,
+  },
+
+  // Loading
+  loadingWrap: {
+    paddingTop: 40,
+    paddingBottom: 20,
+    alignItems: 'center',
   },
 
   // Rows

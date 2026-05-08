@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   Pressable,
 } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 import {
   PALETTE,
   ACCENT,
@@ -21,20 +22,28 @@ import {
 } from '../../constants/theme';
 
 /**
- * DISCOVER — five typographic cards in a 2-column grid. No images, no
- * glyphs, no halos. Just kicker / Fraunces title / count pill on a clean
- * sticker card. Category chips at the top scope all five queries.
+ * DISCOVER — five typographic cards in a 2-column grid. Counts are live
+ * Supabase queries scoped to the active category. Category chips swap
+ * the active category and trigger a refetch of all five counts in
+ * parallel.
  *
- * The five queries (always in this order):
- *   1. {cat} near you            — most-pinned, all of campus
- *   2. {cat} by your circle      — pins from people you follow
- *   3. by your {cat}-twins       — FOR YOU (the killer query, red border)
- *   4. by {cat} experts          — friends with 20+ ranks in this cat
- *   5. wishlist overlap          — on your circle's want-list
+ * Rows:
+ *   01 most pinned       — distinct places near Columbia (~5km box)
+ *                          with at least one pin in this category
+ *   02 by your circle    — pin count from users you follow, this cat
+ *   03 by your twins     — distinct places ranked by users whose
+ *                          rankings overlap with yours in this cat
+ *   04 by experts        — distinct places ranked by users with 10+
+ *                          rankings in this cat
+ *   05 wishlist overlap  — places where 2+ people in your circle have
+ *                          status='want_to_go' in this cat
  *
- * Data wiring lives in hooks/useDiscover.ts (TODO step 4.5). For now this
- * renders structurally with placeholder counts so the layout is real and
- * the wiring drops in cleanly.
+ * Vocabulary note: rankings.category uses the discover vocab directly
+ * (cafes/food/bars/shops/experiences). pins join through places, whose
+ * `category` column uses the MapPin vocab (food/bar/beauty/experience/
+ * retail). The DISCOVER_TO_PLACE_CATEGORIES map translates between the
+ * two — this is the same mismatch flagged earlier and is worth a
+ * unification pass when convenient.
  */
 
 type CatKey = 'cafes' | 'food' | 'bars' | 'shops' | 'experiences';
@@ -47,6 +56,18 @@ const CATEGORIES: { key: CatKey; label: string }[] = [
   { key: 'experiences', label: 'experiences' },
 ];
 
+/** Maps the discover-vocab category to the corresponding places.category
+ *  values. cafes/food both currently map to the same places.category
+ *  ('food') so their pin-based counts will match — this reflects the
+ *  current schema, not a bug here. */
+const DISCOVER_TO_PLACE_CATEGORIES: Record<CatKey, string[]> = {
+  cafes:       ['food'],
+  food:        ['food'],
+  bars:        ['bar'],
+  shops:       ['retail'],
+  experiences: ['experience'],
+};
+
 interface QueryDef {
   id: string;
   /** template uses {cat} for the active category label */
@@ -55,8 +76,6 @@ interface QueryDef {
   kicker: string;
   /** is this the highlighted "for you" query? */
   highlight?: boolean;
-  /** mock count for the chip */
-  count: number;
 }
 
 const QUERIES: QueryDef[] = [
@@ -64,49 +83,69 @@ const QUERIES: QueryDef[] = [
     id: 'near-you',
     kicker: '01 · MOST PINNED',
     title: (cat) => ({ plain: cat, italic: 'near you' }),
-    count: 24,
   },
   {
     id: 'circle',
     kicker: '02 · FRIENDS',
     title: (cat) => ({ plain: cat + ' by', italic: 'your circle' }),
-    count: 12,
   },
   {
     id: 'twins',
     kicker: '03 · FOR YOU',
     title: (cat) => ({ plain: 'by your', italic: cat + '-twins' }),
-    count: 8,
     highlight: true,
   },
   {
     id: 'experts',
     kicker: '04 · POWER RANKERS',
     title: (cat) => ({ plain: 'by ' + cat, italic: 'experts' }),
-    count: 5,
   },
   {
     id: 'wishlist',
     kicker: '05 · SAVED BY FRIENDS',
     title: () => ({ plain: 'wishlist', italic: 'overlap' }),
-    count: 17,
   },
 ];
 
-// Two columns, alternating: left col gets indices 0/2/4, right col gets 1/3.
-// 5 queries → 3 left + 2 right, top-loaded — keeps the highlight (idx 2)
-// in the visually balanced middle position.
 const COL_A = [QUERIES[0], QUERIES[2], QUERIES[4]];
 const COL_B = [QUERIES[1], QUERIES[3]];
 
+// Columbia centroid + ~5 km bounding box (lat/lng deltas).
+const COL_LAT = 40.8075;
+const COL_LNG = -73.9626;
+const LAT_DELTA = 0.045;          // ~5km in latitude
+const LNG_DELTA = 0.060;          // ~5km longitude at this latitude
+
+type Counts = Record<string, number | null>;
+const EMPTY_COUNTS: Counts = {
+  'near-you': null, 'circle': null, 'twins': null, 'experts': null, 'wishlist': null,
+};
+
 export default function DiscoverScreen() {
   const [activeCat, setActiveCat] = useState<CatKey>('cafes');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [counts, setCounts] = useState<Counts>(EMPTY_COUNTS);
   const router = useRouter();
 
   const activeLabel = useMemo(
     () => CATEGORIES.find((c) => c.key === activeCat)!.label,
     [activeCat],
   );
+
+  // Resolve auth user once.
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  // Refetch counts whenever active category or auth user changes.
+  useEffect(() => {
+    let cancelled = false;
+    setCounts(EMPTY_COUNTS);
+    fetchDiscoverCounts(userId, activeCat).then((next) => {
+      if (!cancelled) setCounts(next);
+    });
+    return () => { cancelled = true; };
+  }, [userId, activeCat]);
 
   return (
     <View style={styles.safe}>
@@ -156,6 +195,7 @@ export default function DiscoverScreen() {
                   key={q.id}
                   query={q}
                   catLabel={activeLabel}
+                  count={counts[q.id]}
                   onPress={() =>
                     router.push({
                       pathname: '/(app)' as never,
@@ -171,6 +211,7 @@ export default function DiscoverScreen() {
                   key={q.id}
                   query={q}
                   catLabel={activeLabel}
+                  count={counts[q.id]}
                   onPress={() =>
                     router.push({
                       pathname: '/(app)' as never,
@@ -210,14 +251,17 @@ export default function DiscoverScreen() {
 function DiscoverCard({
   query,
   catLabel,
+  count,
   onPress,
 }: {
   query: QueryDef;
   catLabel: string;
+  count: number | null;
   onPress: () => void;
 }) {
   const { plain, italic } = query.title(catLabel);
   const highlight = !!query.highlight;
+  const display = count == null ? '—' : String(count);
 
   return (
     <Pressable
@@ -238,7 +282,7 @@ function DiscoverCard({
       <View style={styles.cardFooter}>
         <View style={[styles.countPill, highlight && styles.countPillHighlight]}>
           <Text style={[styles.countPillText, highlight && styles.countPillTextHighlight]}>
-            {query.count}
+            {display}
           </Text>
         </View>
         {highlight && (
@@ -249,6 +293,157 @@ function DiscoverCard({
       </View>
     </Pressable>
   );
+}
+
+// ─── Queries ────────────────────────────────────────────────────────────
+
+async function fetchDiscoverCounts(
+  userId: string | null,
+  discoverCat: CatKey,
+): Promise<Counts> {
+  const placesCats = DISCOVER_TO_PLACE_CATEGORIES[discoverCat] ?? [];
+  const result: Counts = {
+    'near-you': 0, 'circle': 0, 'twins': 0, 'experts': 0, 'wishlist': 0,
+  };
+
+  const minLat = COL_LAT - LAT_DELTA, maxLat = COL_LAT + LAT_DELTA;
+  const minLng = COL_LNG - LNG_DELTA, maxLng = COL_LNG + LNG_DELTA;
+
+  // Resolve circle once (rows 02 + 05 share it).
+  let circleIds: string[] = [];
+  if (userId) {
+    const { data: follows } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', userId)
+      .eq('status', 'active');
+    circleIds = (follows ?? []).map((f: any) => f.following_id);
+  }
+
+  // Run independent queries in parallel.
+  const [r1, r2, r3, r4, r5] = await Promise.all([
+    countNearYou(placesCats, minLat, maxLat, minLng, maxLng),
+    userId ? countCircle(circleIds, placesCats) : Promise.resolve(0),
+    userId ? countTwins(userId, discoverCat) : Promise.resolve(0),
+    countExperts(discoverCat),
+    userId ? countWishlistOverlap(circleIds, placesCats) : Promise.resolve(0),
+  ]);
+
+  result['near-you'] = r1;
+  result['circle']   = r2;
+  result['twins']    = r3;
+  result['experts']  = r4;
+  result['wishlist'] = r5;
+
+  return result;
+}
+
+/** Row 01 — distinct places near Columbia (5km box) with any pin in this category. */
+async function countNearYou(
+  placesCats: string[],
+  minLat: number, maxLat: number, minLng: number, maxLng: number,
+): Promise<number> {
+  if (placesCats.length === 0) return 0;
+  const { data, error } = await supabase
+    .from('pins')
+    .select('place_id, places!inner(category, lat, lng)')
+    .in('places.category', placesCats)
+    .gte('places.lat', minLat).lte('places.lat', maxLat)
+    .gte('places.lng', minLng).lte('places.lng', maxLng);
+  if (error || !data) return 0;
+  return new Set((data as any[]).map((r) => r.place_id)).size;
+}
+
+/** Row 02 — pin count from users you follow in this category. */
+async function countCircle(circleIds: string[], placesCats: string[]): Promise<number> {
+  if (circleIds.length === 0 || placesCats.length === 0) return 0;
+  const { count, error } = await supabase
+    .from('pins')
+    .select('id, places!inner(category)', { count: 'exact', head: true })
+    .in('user_id', circleIds)
+    .in('places.category', placesCats);
+  if (error) return 0;
+  return count ?? 0;
+}
+
+/** Row 03 — distinct places ranked by users whose rankings overlap with mine. */
+async function countTwins(userId: string, cat: CatKey): Promise<number> {
+  // 1. My ranked place_ids in this category
+  const { data: mine } = await supabase
+    .from('rankings')
+    .select('place_id')
+    .eq('user_id', userId)
+    .eq('category', cat);
+  const myPlaceIds = (mine ?? []).map((r: any) => r.place_id);
+  if (myPlaceIds.length === 0) return 0;
+
+  // 2. Other users who also rank any of those places (this category)
+  const { data: overlap } = await supabase
+    .from('rankings')
+    .select('user_id')
+    .in('place_id', myPlaceIds)
+    .eq('category', cat)
+    .neq('user_id', userId);
+  const overlapUsers = Array.from(
+    new Set((overlap ?? []).map((r: any) => r.user_id)),
+  );
+  if (overlapUsers.length === 0) return 0;
+
+  // 3. Distinct places those users have ranked in this category
+  const { data: theirs } = await supabase
+    .from('rankings')
+    .select('place_id')
+    .in('user_id', overlapUsers)
+    .eq('category', cat);
+  return new Set((theirs ?? []).map((r: any) => r.place_id)).size;
+}
+
+/** Row 04 — distinct places ranked by users with 10+ rankings in this category. */
+async function countExperts(cat: CatKey): Promise<number> {
+  const { data: ranks } = await supabase
+    .from('rankings')
+    .select('user_id, place_id')
+    .eq('category', cat);
+  if (!ranks || ranks.length === 0) return 0;
+
+  const perUser = new Map<string, Set<string>>();
+  for (const r of ranks as any[]) {
+    if (!perUser.has(r.user_id)) perUser.set(r.user_id, new Set());
+    perUser.get(r.user_id)!.add(r.place_id);
+  }
+  const expertIds = new Set<string>();
+  for (const [uid, places] of perUser) {
+    if (places.size >= 10) expertIds.add(uid);
+  }
+  if (expertIds.size === 0) return 0;
+
+  const expertPlaces = new Set<string>();
+  for (const r of ranks as any[]) {
+    if (expertIds.has(r.user_id)) expertPlaces.add(r.place_id);
+  }
+  return expertPlaces.size;
+}
+
+/** Row 05 — places where 2+ people in your circle have status='want_to_go'. */
+async function countWishlistOverlap(
+  circleIds: string[],
+  placesCats: string[],
+): Promise<number> {
+  if (circleIds.length === 0 || placesCats.length === 0) return 0;
+  const { data } = await supabase
+    .from('pins')
+    .select('place_id, places!inner(category)')
+    .in('user_id', circleIds)
+    .eq('status', 'want_to_go')
+    .in('places.category', placesCats);
+  if (!data) return 0;
+  const placeCount = new Map<string, number>();
+  for (const r of data as any[]) {
+    placeCount.set(r.place_id, (placeCount.get(r.place_id) ?? 0) + 1);
+  }
+  let overlap = 0;
+  for (const c of placeCount.values()) if (c > 1) overlap++;
+  return overlap;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────
