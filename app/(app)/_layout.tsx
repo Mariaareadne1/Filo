@@ -120,6 +120,7 @@ export default function AppLayout() {
 
         <Tabs.Screen name="directory" options={{ href: null }} />
         <Tabs.Screen name="twins" options={{ href: null }} />
+        <Tabs.Screen name="rankings" options={{ href: null }} />
         <Tabs.Screen name="board/[id]" options={{ href: null }} />
         <Tabs.Screen name="user/[id]" options={{ href: null }} />
       </Tabs>

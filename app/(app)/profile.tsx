@@ -40,6 +40,14 @@ interface Profile {
   campus: string;
 }
 
+const RANKING_CATEGORIES: { key: string; label: string }[] = [
+  { key: 'cafes',       label: 'cafes'       },
+  { key: 'food',        label: 'food'        },
+  { key: 'bars',        label: 'bars'        },
+  { key: 'shops',       label: 'shops'       },
+  { key: 'experiences', label: 'experiences' },
+];
+
 const BOARD_ACCENTS = [ACCENT.red, ACCENT.electric, '#f4c542', '#2ec27e', '#7d5fff', '#e6739f'];
 
 function boardAccentColor(name: string): string {
@@ -214,6 +222,32 @@ export default function ProfileScreen() {
               </View>
             </TouchableOpacity>
           </View>
+
+          {/* Rankings */}
+          <View style={styles.rankingsHeader}>
+            <Text style={styles.metaLabel}>YOUR RANKINGS</Text>
+            <Text style={styles.boardsTitle}>
+              <Text style={styles.boardsTitleItalic}>taste.</Text>
+            </Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.rankingsScroll}
+          >
+            {RANKING_CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                style={styles.rankingsPill}
+                onPress={() =>
+                  router.push(`/(app)/rankings?category=${c.key}` as never)
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.rankingsPillText}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Boards */}
           <View style={styles.boardsHeader}>
@@ -494,6 +528,32 @@ const styles = StyleSheet.create({
   },
 
   // Boards
+  rankingsHeader: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  rankingsScroll: {
+    paddingHorizontal: SCREEN_PAD,
+    paddingBottom: 24,
+    gap: 8,
+  },
+  rankingsPill: {
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    borderRadius: RADII.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    ...STICKER_SHADOW,
+  },
+  rankingsPillText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: PALETTE.ink,
+  },
+
   boardsHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',

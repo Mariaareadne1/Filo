@@ -21,13 +21,14 @@ import {
 } from '../../constants/theme';
 
 /**
- * DISCOVER — five typographic rows, no images. Category chips at the top
- * scope all five queries.
+ * DISCOVER — five typographic cards in a 2-column grid. No images, no
+ * glyphs, no halos. Just kicker / Fraunces title / count pill on a clean
+ * sticker card. Category chips at the top scope all five queries.
  *
  * The five queries (always in this order):
  *   1. {cat} near you            — most-pinned, all of campus
  *   2. {cat} by your circle      — pins from people you follow
- *   3. by your {cat}-twins       — FOR YOU (the killer query)
+ *   3. by your {cat}-twins       — FOR YOU (the killer query, red border)
  *   4. by {cat} experts          — friends with 20+ ranks in this cat
  *   5. wishlist overlap          — on your circle's want-list
  *
@@ -92,6 +93,12 @@ const QUERIES: QueryDef[] = [
   },
 ];
 
+// Two columns, alternating: left col gets indices 0/2/4, right col gets 1/3.
+// 5 queries → 3 left + 2 right, top-loaded — keeps the highlight (idx 2)
+// in the visually balanced middle position.
+const COL_A = [QUERIES[0], QUERIES[2], QUERIES[4]];
+const COL_B = [QUERIES[1], QUERIES[3]];
+
 export default function DiscoverScreen() {
   const [activeCat, setActiveCat] = useState<CatKey>('cafes');
   const router = useRouter();
@@ -137,24 +144,43 @@ export default function DiscoverScreen() {
           })}
         </ScrollView>
 
-        {/* Stacked rows */}
+        {/* 2-column card grid */}
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {QUERIES.map((q) => (
-            <DiscoverRow
-              key={q.id}
-              query={q}
-              catLabel={activeLabel}
-              onPress={() =>
-                router.push({
-                  pathname: '/(app)' as never,
-                  params: { discover: q.id, cat: activeCat },
-                } as never)
-              }
-            />
-          ))}
+          <View style={styles.grid}>
+            <View style={styles.column}>
+              {COL_A.map((q) => (
+                <DiscoverCard
+                  key={q.id}
+                  query={q}
+                  catLabel={activeLabel}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(app)' as never,
+                      params: { discover: q.id, cat: activeCat },
+                    } as never)
+                  }
+                />
+              ))}
+            </View>
+            <View style={styles.column}>
+              {COL_B.map((q) => (
+                <DiscoverCard
+                  key={q.id}
+                  query={q}
+                  catLabel={activeLabel}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(app)' as never,
+                      params: { discover: q.id, cat: activeCat },
+                    } as never)
+                  }
+                />
+              ))}
+            </View>
+          </View>
 
           {/* Twins teaser footer — leads to /twins */}
           <TouchableOpacity
@@ -179,9 +205,9 @@ export default function DiscoverScreen() {
   );
 }
 
-// ─── Row ────────────────────────────────────────────────────────────────
+// ─── Card ───────────────────────────────────────────────────────────────
 
-function DiscoverRow({
+function DiscoverCard({
   query,
   catLabel,
   onPress,
@@ -197,33 +223,29 @@ function DiscoverRow({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.row,
-        highlight && styles.rowHighlight,
+        styles.card,
+        highlight && styles.cardHighlight,
         { opacity: pressed ? 0.85 : 1 },
       ]}
     >
-      <View style={{ flex: 1, gap: 6 }}>
-        <Text style={[styles.rowKicker, highlight && styles.rowKickerHighlight]}>
-          {query.kicker}
-        </Text>
-        <Text style={styles.rowTitle}>
-          {plain ? <>{plain}{' '}</> : null}
-          <Text style={styles.rowTitleItalic}>{italic}</Text>
-        </Text>
-        {highlight && (
-          <View style={styles.forYouBadge}>
-            <Text style={styles.forYouBadgeText}>FOR YOU</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.rowRight}>
+      <Text style={[styles.cardKicker, highlight && styles.cardKickerHighlight]}>
+        {query.kicker}
+      </Text>
+      <Text style={styles.cardTitle}>
+        {plain ? <>{plain}{' '}</> : null}
+        <Text style={styles.cardTitleItalic}>{italic}</Text>
+      </Text>
+      <View style={styles.cardFooter}>
         <View style={[styles.countPill, highlight && styles.countPillHighlight]}>
           <Text style={[styles.countPillText, highlight && styles.countPillTextHighlight]}>
             {query.count}
           </Text>
         </View>
-        <Text style={[styles.rowArrow, highlight && styles.rowArrowHighlight]}>→</Text>
+        {highlight && (
+          <View style={styles.forYouBadge}>
+            <Text style={styles.forYouBadgeText}>FOR YOU</Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -292,52 +314,87 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: SCREEN_PAD,
     paddingBottom: TAB_CLEARANCE,
+  },
+
+  // Grid
+  grid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  column: {
+    flex: 1,
     gap: 10,
   },
 
-  // Row
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  // Card
+  card: {
     backgroundColor: PALETTE.surface,
     borderWidth: 1,
     borderColor: PALETTE.ink,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 140,
     ...STICKER_SHADOW_LG,
   },
-  rowHighlight: {
+  cardHighlight: {
     borderColor: ACCENT.red,
-    backgroundColor: '#fff7f6',
   },
-  rowKicker: {
+  cardKicker: {
     fontFamily: FONTS.mono,
     fontSize: 9,
     letterSpacing: 2,
     color: PALETTE.inkSoft,
     textTransform: 'uppercase',
   },
-  rowKickerHighlight: {
+  cardKickerHighlight: {
     color: ACCENT.red,
   },
-  rowTitle: {
+  cardTitle: {
     fontFamily: FONTS.display,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 22,
     color: PALETTE.ink,
     fontWeight: '400',
+    marginTop: 8,
   },
-  rowTitleItalic: {
+  cardTitleItalic: {
     fontStyle: 'italic',
   },
-
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 'auto',
+    paddingTop: 12,
+  },
+  countPill: {
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 32,
+    alignItems: 'center',
+    ...STICKER_SHADOW,
+  },
+  countPillHighlight: {
+    borderColor: ACCENT.red,
+  },
+  countPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: PALETTE.ink,
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
+  countPillTextHighlight: {
+    color: ACCENT.red,
+  },
   forYouBadge: {
-    alignSelf: 'flex-start',
     backgroundColor: ACCENT.red,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    marginTop: 2,
   },
   forYouBadgeText: {
     fontFamily: FONTS.mono,
@@ -347,50 +404,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Right column
-  rowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  countPill: {
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    backgroundColor: PALETTE.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    minWidth: 38,
-    alignItems: 'center',
-    ...STICKER_SHADOW,
-  },
-  countPillHighlight: {
-    borderColor: ACCENT.red,
-  },
-  countPillText: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: PALETTE.ink,
-    letterSpacing: 0.5,
-    fontWeight: '600',
-  },
-  countPillTextHighlight: {
-    color: ACCENT.red,
-  },
-  rowArrow: {
-    fontFamily: FONTS.body,
-    fontSize: 18,
-    color: PALETTE.ink,
-  },
-  rowArrowHighlight: {
-    color: ACCENT.red,
-  },
-
   // Twins teaser footer
   twinsFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 8,
+    marginTop: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
     backgroundColor: PALETTE.surface,

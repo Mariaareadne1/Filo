@@ -44,6 +44,14 @@ const CATEGORY_GLYPH: Record<string, string> = {
   food: '◆', bar: '○', beauty: '◇', experience: '✦', retail: '◉',
 };
 
+const RANKING_CATEGORIES: { key: string; label: string }[] = [
+  { key: 'cafes',       label: 'cafes'       },
+  { key: 'food',        label: 'food'        },
+  { key: 'bars',        label: 'bars'        },
+  { key: 'shops',       label: 'shops'       },
+  { key: 'experiences', label: 'experiences' },
+];
+
 const BOARD_ACCENTS = [ACCENT.red, ACCENT.electric, '#f4c542', '#2ec27e', '#7d5fff', '#e6739f'];
 function boardAccentColor(name: string): string {
   let hash = 0;
@@ -237,6 +245,32 @@ export default function UserProfileScreen() {
               <Text style={styles.editBtnText}>sign out</Text>
             </TouchableOpacity>
           )}
+
+          {/* Rankings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionMeta}>RANKINGS</Text>
+            <Text style={styles.sectionTitle}>
+              their <Text style={styles.sectionTitleItalic}>taste.</Text>
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.rankingsScroll}
+            >
+              {RANKING_CATEGORIES.map((c) => (
+                <TouchableOpacity
+                  key={c.key}
+                  style={styles.rankingsPill}
+                  onPress={() =>
+                    router.push(`/(app)/rankings?category=${c.key}&userId=${id}` as never)
+                  }
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.rankingsPillText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
           {/* Recent pins */}
           {recentPins.length > 0 && (
@@ -512,6 +546,27 @@ const styles = StyleSheet.create({
   sectionTitleItalic: {
     fontStyle: 'italic',
     color: ACCENT.red,
+  },
+
+  // Rankings pills
+  rankingsScroll: {
+    paddingTop: 4,
+    gap: 8,
+  },
+  rankingsPill: {
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    borderRadius: RADII.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    ...STICKER_SHADOW,
+  },
+  rankingsPillText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: PALETTE.ink,
   },
 
   // Pin list
