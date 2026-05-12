@@ -366,3 +366,43 @@ AS $$
   ORDER BY p.created_at DESC
   LIMIT 50;
 $$;
+
+-- ============================================================
+-- RANKINGS (discover “twins”, pin review, profile — apply if missing)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS rankings (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  place_id   uuid NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  category   text NOT NULL,
+  position   integer NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, category, position),
+  UNIQUE(user_id, place_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS rankings_user_id_idx ON rankings(user_id);
+CREATE INDEX IF NOT EXISTS rankings_place_id_idx ON rankings(place_id);
+
+ALTER TABLE rankings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read rankings"
+  ON rankings FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Users insert own rankings"
+  ON rankings FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users update own rankings"
+  ON rankings FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users delete own rankings"
+  ON rankings FOR DELETE
+  TO authenticated
+  USING (user_id = auth.uid());

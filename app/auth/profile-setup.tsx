@@ -11,7 +11,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +29,11 @@ export default function ProfileSetupScreen() {
   const [displayNameError, setDisplayNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+  }, []);
 
   const checkUsername = useCallback(async (value: string) => {
     const lower = value.trim().toLowerCase();
@@ -40,7 +45,7 @@ export default function ProfileSetupScreen() {
     }
     setUsernameStatus('checking');
     setUsernameError('');
-    const { data } = await supabase.from('users').select('id').eq('username', lower).single();
+    const { data } = await supabase.from('users').select('id').eq('username', lower).maybeSingle();
     if (data) {
       setUsernameStatus('taken');
       setUsernameError('That username is already taken.');
@@ -50,14 +55,13 @@ export default function ProfileSetupScreen() {
     }
   }, []);
 
-  let usernameDebounce: ReturnType<typeof setTimeout>;
   function handleUsernameChange(value: string) {
     const lower = value.toLowerCase();
     setUsername(lower);
     setUsernameStatus('idle');
     setUsernameError('');
-    clearTimeout(usernameDebounce);
-    usernameDebounce = setTimeout(() => checkUsername(lower), 500);
+    if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+    usernameDebounceRef.current = setTimeout(() => checkUsername(lower), 500);
   }
 
   async function pickAvatar() {
@@ -103,7 +107,7 @@ export default function ProfileSetupScreen() {
       setUsernameError('3–20 chars: lowercase letters, numbers, underscores only.');
       valid = false;
     }
-    if (usernameStatus === 'taken' || usernameStatus === 'invalid') valid = false;
+    if (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'checking') valid = false;
     if (!valid) return;
 
     setLoading(true);
@@ -114,12 +118,21 @@ export default function ProfileSetupScreen() {
       return;
     }
 
+    const uname = username.trim().toLowerCase();
+    const { data: existingUser } = await supabase.from('users').select('id').eq('username', uname).maybeSingle();
+    if (existingUser) {
+      setLoading(false);
+      setUsernameStatus('taken');
+      setUsernameError('That username is already taken.');
+      return;
+    }
+
     const avatarUrl = await uploadAvatar(user.id);
 
     const { error: insertError } = await supabase.from('users').insert({
       id: user.id,
       email: user.email,
-      username,
+      username: uname,
       display_name: trimmedDisplay,
       avatar_url: avatarUrl,
       campus: 'columbia',
@@ -149,6 +162,7 @@ export default function ProfileSetupScreen() {
   const canSubmit =
     username.length >= 3 &&
     displayName.trim().length > 0 &&
+    usernameStatus !== 'checking' &&
     (usernameStatus === 'available' || usernameStatus === 'idle') &&
     !loading;
 

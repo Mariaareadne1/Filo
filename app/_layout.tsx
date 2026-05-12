@@ -16,7 +16,8 @@ SplashScreen.preventAutoHideAsync().catch(() => { /* no-op on web/simulator */ }
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -57,7 +58,13 @@ function AppCore({ session, loading }: { session: Session | null; loading: boole
       .select('onboarding_complete')
       .eq('id', session.user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          // Fail open so a flaky network doesn't strand signed-in users with no navigation.
+          console.warn('[filo] onboarding flag fetch failed', error.message);
+          setOnboardingComplete(false);
+          return;
+        }
         setOnboardingComplete(data?.onboarding_complete ?? false);
       });
   }, [session?.user?.id]);

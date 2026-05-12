@@ -34,10 +34,13 @@ export function useFollow(currentUserId: string | null, targetUserId: string | n
       setStatus(followStatus);
       // Fire push notification via SECURITY DEFINER RPC (uses pg_net server-side)
       if (!isPrivate) {
-        await supabase.rpc('notify_new_follow', {
+        const { error: rpcErr } = await supabase.rpc('notify_new_follow', {
           p_follower_id: currentUserId,
           p_following_id: targetUserId,
         });
+        if (rpcErr) {
+          /* optional — demo works without pg_net / notify function */
+        }
       }
     }
     setLoading(false);

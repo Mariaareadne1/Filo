@@ -87,7 +87,13 @@ export default function FindFriendsScreen() {
     } else {
       await supabase.from('follows').insert({ follower_id: currentUserId, following_id: targetId, status: 'active' });
       setFollowedIds((prev) => new Set(prev).add(targetId));
-      await supabase.rpc('notify_new_follow', { p_follower_id: currentUserId, p_following_id: targetId });
+      const { error: rpcErr } = await supabase.rpc('notify_new_follow', {
+        p_follower_id: currentUserId,
+        p_following_id: targetId,
+      });
+      if (rpcErr) {
+        /* optional — demo works without push RPC */
+      }
     }
     setTogglingId(null);
   }, [currentUserId, followedIds, togglingId]);

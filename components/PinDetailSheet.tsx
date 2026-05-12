@@ -30,6 +30,8 @@ import {
   TAB_CLEARANCE,
 } from '../constants/theme';
 
+const FRIEND_COLOR_CYCLE = Object.values(FRIEND_COLORS);
+
 interface Props {
   pin: MapPin | null;
   onClose: () => void;
@@ -221,7 +223,7 @@ export function PinDetailSheet({ pin, onClose }: Props) {
                   contentContainerStyle={styles.friendStrip}
                 >
                   {friendRanks.map((f, i) => {
-                    const color = FRIEND_COLORS[i % FRIEND_COLORS.length];
+                    const color = FRIEND_COLOR_CYCLE[i % FRIEND_COLOR_CYCLE.length];
                     return (
                       <TouchableOpacity
                         key={(f.user_id ?? f.username) + i}

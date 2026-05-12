@@ -8,7 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -23,8 +23,35 @@ import {
 
 const OTP_LENGTH = 6;
 
+function normalizeEmailParam(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim().toLowerCase();
+  if (Array.isArray(raw) && raw[0]) return String(raw[0]).trim().toLowerCase();
+  return '';
+}
+
+/** After OTP success: profile missing → setup; else honour onboarding flag. */
+async function routeAfterSignIn(userId: string, router: { replace: (href: string) => void }) {
+  const { data: row } = await supabase
+    .from('users')
+    .select('id, onboarding_complete')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!row) {
+    router.replace('/auth/profile-setup');
+    return;
+  }
+  if (!row.onboarding_complete) {
+    router.replace('/onboarding/welcome');
+    return;
+  }
+  router.replace('/(app)/discover');
+}
+
 export default function OTPScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const params = useLocalSearchParams<{ email?: string | string[] }>();
+  const email = useMemo(() => normalizeEmailParam(params.email), [params.email]);
+
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,6 +67,10 @@ export default function OTPScreen() {
 
   async function handleVerify() {
     setError('');
+    if (!email) {
+      setError('missing email. go back and sign in again.');
+      return;
+    }
     if (otp.length !== OTP_LENGTH) { setError('enter the 6-digit code.'); return; }
     setLoading(true);
     const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
@@ -53,12 +84,15 @@ export default function OTPScreen() {
     }
     const userId = data.user?.id;
     if (!userId) { setError('something went wrong. try again.'); return; }
-    const { data: profile } = await supabase.from('users').select('id').eq('id', userId).single();
-    if (profile) router.replace('/(app)/discover'); else router.replace('/auth/profile-setup');
+    await routeAfterSignIn(userId, router);
   }
 
   async function handleVerifyWithValue(value: string) {
     setError('');
+    if (!email) {
+      setError('missing email. go back and sign in again.');
+      return;
+    }
     setLoading(true);
     const { data, error: verifyError } = await supabase.auth.verifyOtp({ email, token: value, type: 'email' });
     setLoading(false);
@@ -71,15 +105,34 @@ export default function OTPScreen() {
     }
     const userId = data.user?.id;
     if (!userId) { setError('something went wrong. try again.'); return; }
-    const { data: profile } = await supabase.from('users').select('id').eq('id', userId).single();
-    if (profile) router.replace('/(app)/discover'); else router.replace('/auth/profile-setup');
+    await routeAfterSignIn(userId, router);
   }
 
   async function handleResend() {
     setError('');
     setOtp('');
+    if (!email) {
+      setError('missing email. go back and sign in again.');
+      return;
+    }
     const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
     if (otpError) setError(otpError.message.toLowerCase()); else setResendCooldown(60);
+  }
+
+  if (!email) {
+    return (
+      <View style={styles.safe}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={[styles.container, { justifyContent: 'center', gap: 16 }]}>
+            <Text style={styles.title}>something went wrong</Text>
+            <Text style={styles.subtitle}>go back and enter your email again.</Text>
+            <TouchableOpacity style={styles.button} onPress={() => router.back()} activeOpacity={0.85}>
+              <Text style={styles.buttonText}>← back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (
