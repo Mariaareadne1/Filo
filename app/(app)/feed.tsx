@@ -9,34 +9,59 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
+import { enrichWithMyRanks } from '../../hooks/usePins';
 import {
   PALETTE,
   ACCENT,
   FONTS,
   RADII,
   STICKER_SHADOW,
+  STICKER_SHADOW_LG,
   TAB_CLEARANCE,
-  SCREEN_PAD,
 } from '../../constants/theme';
 
 /**
- * FEED — Pinterest-style masonry. Pins flow into two columns by
- * alternating index (col 0 / col 1 / col 0 / …); columns stack
- * independently so photo cards (tall) sit naturally next to no-photo
- * cards (short), giving uneven masonry rhythm.
+ * FEED — single-column, full-width cards with varied height and visual
+ * weight based on content richness. Four variants chosen per pin:
  *
- * Long impressions (>80 chars) escape the column flow and render as
- * full-width breakouts. The escape flushes any in-progress 2-up batch
- * first so the chronological order stays correct.
+ *   A "photo"      — pin.photo_url set; photo headlines, place name
+ *                    overlaid in italic white on an ink scrim.
+ *   D "rank"       — no photo but pin has a viewer rank; the rank
+ *                    number is the hero, optional impression below.
+ *   B "impression" — no photo, no rank, but a substantive impression
+ *                    (> 40 chars); pull-quote treatment with a soft
+ *                    open-quote watermark.
+ *   C "minimal"    — everything else; place name + meta + status pill,
+ *                    tight padding. If a (short) impression exists it
+ *                    renders as a single line for added context.
+ *
+ * Red is reserved: the only ACCENT.red elements on any card are the
+ * rank chip (A, B, C bottom strip), the rank-card accent bar (D), and
+ * the page header italic accent. Place names in non-photo variants are
+ * always PALETTE.ink — never red.
+ *
+ * Feed pins come from the get_friends_feed RPC, which doesn't carry
+ * the viewer's rank inline. We decorate the result with the shared
+ * enrichWithMyRanks helper so the rank-chip / rank-card path lights up
+ * the same way it does for the map's "my" mode.
  */
 
-const LONG_IMPRESSION_CHARS = 80;
+const CARD_HORIZONTAL_PAD = 16;
+const IMPRESSION_HERO_THRESHOLD = 40;
+
+const CATEGORY_LABEL_RANK: Record<string, string> = {
+  food: 'food',
+  bar: 'bars',
+  beauty: 'beauty',
+  experience: 'experiences',
+  retail: 'shops',
+};
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -50,48 +75,50 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ─── Block layout ──────────────────────────────────────────────────────
-
-type FeedBlock =
-  | { kind: 'full';    key: string; pin: MapPin }
-  | { kind: 'columns'; key: string; col0: MapPin[]; col1: MapPin[] };
-
-function buildBlocks(pins: MapPin[]): FeedBlock[] {
-  const blocks: FeedBlock[] = [];
-  let col0: MapPin[] = [];
-  let col1: MapPin[] = [];
-  let altIdx = 0;
-
-  const flushColumns = () => {
-    if (col0.length || col1.length) {
-      blocks.push({
-        kind: 'columns',
-        key: `cols-${blocks.length}`,
-        col0,
-        col1,
-      });
-      col0 = [];
-      col1 = [];
-      altIdx = 0;
-    }
-  };
-
-  for (const pin of pins) {
-    const isLong = (pin.impression?.length ?? 0) > LONG_IMPRESSION_CHARS;
-    if (isLong) {
-      flushColumns();
-      blocks.push({ kind: 'full', key: pin.pin_id, pin });
-    } else {
-      if (altIdx % 2 === 0) col0.push(pin);
-      else col1.push(pin);
-      altIdx++;
-    }
+/** Tolerant of both stored values ('visited' | 'want_to_go') and the
+ *  UI vocabulary ('been' | 'going_again' | 'want'). The DB collapses
+ *  'been' and 'going_again' into 'visited', so the 'went back to' case
+ *  doesn't actually fire today — kept for forward-compat. */
+function verbFor(status: string): string {
+  switch (status) {
+    case 'visited':
+    case 'been':
+      return 'visited';
+    case 'going_again':
+      return 'went back to';
+    case 'want_to_go':
+    case 'want':
+      return 'saved';
+    default:
+      return 'pinned';
   }
-  flushColumns();
-  return blocks;
 }
 
-// ─── Screen ────────────────────────────────────────────────────────────
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'visited':
+    case 'been':
+      return 'been';
+    case 'going_again':
+      return 'going again';
+    case 'want_to_go':
+    case 'want':
+      return 'want to go';
+    default:
+      return status;
+  }
+}
+
+type CardKind = 'photo' | 'rank' | 'impression' | 'minimal';
+
+function pickCardKind(pin: MapPin): CardKind {
+  if (pin.photo_url) return 'photo';
+  const hasRank =
+    typeof pin.myRank === 'number' && typeof pin.myCategoryTotal === 'number';
+  if (hasRank) return 'rank';
+  if ((pin.impression?.length ?? 0) > IMPRESSION_HERO_THRESHOLD) return 'impression';
+  return 'minimal';
+}
 
 export default function FeedScreen() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -106,13 +133,22 @@ export default function FeedScreen() {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  const loadFeed = useCallback(async (uid: string | null = userId) => {
-    if (!uid) return;
-    const { data, error } = await supabase.rpc('get_friends_feed', { p_user_id: uid });
-    if (!error && data) setPins(data as MapPin[]);
-    setLoading(false);
-    setRefreshing(false);
-  }, [userId]);
+  const loadFeed = useCallback(
+    async (uid: string | null = userId) => {
+      if (!uid) return;
+      const { data, error } = await supabase.rpc('get_friends_feed', { p_user_id: uid });
+      if (!error && data) {
+        // Decorate with the viewer's myRank / myCategoryTotal so the
+        // rank-chip / rank-card paths can light up. Same helper the
+        // map's 'my' mode uses.
+        const enriched = await enrichWithMyRanks(data as MapPin[], uid);
+        setPins(enriched);
+      }
+      setLoading(false);
+      setRefreshing(false);
+    },
+    [userId],
+  );
 
   useEffect(() => { if (userId) loadFeed(userId); }, [userId]);
   useFocusEffect(useCallback(() => { if (userId) loadFeed(userId); }, [userId]));
@@ -131,64 +167,36 @@ export default function FeedScreen() {
       )
     : pins;
 
-  const blocks = useMemo(() => buildBlocks(filteredPins), [filteredPins]);
+  const renderItem = ({ item }: { item: MapPin }) => {
+    const kind = pickCardKind(item);
+    const onPressCard = () => setSelectedPin(item);
+    const onPressUser = () => router.push(`/(app)/user/${item.user_id}` as never);
 
-  const renderBlock = ({ item }: { item: FeedBlock }) => {
-    if (item.kind === 'full') {
-      return (
-        <FeedCard
-          pin={item.pin}
-          variant="full"
-          onPressCard={() => setSelectedPin(item.pin)}
-          onPressUser={() => router.push(`/(app)/user/${item.pin.user_id}` as never)}
-        />
-      );
+    switch (kind) {
+      case 'photo':
+        return <PhotoCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
+      case 'rank':
+        return <RankCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
+      case 'impression':
+        return <ImpressionCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
+      case 'minimal':
+      default:
+        return <MinimalCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
     }
-    return (
-      <View style={styles.columnsRow}>
-        <View style={styles.column}>
-          {item.col0.map((p) => (
-            <FeedCard
-              key={p.pin_id}
-              pin={p}
-              variant="column"
-              onPressCard={() => setSelectedPin(p)}
-              onPressUser={() => router.push(`/(app)/user/${p.user_id}` as never)}
-            />
-          ))}
-        </View>
-        <View style={styles.column}>
-          {item.col1.map((p) => (
-            <FeedCard
-              key={p.pin_id}
-              pin={p}
-              variant="column"
-              onPressCard={() => setSelectedPin(p)}
-              onPressUser={() => router.push(`/(app)/user/${p.user_id}` as never)}
-            />
-          ))}
-        </View>
-      </View>
-    );
   };
 
   return (
     <View style={styles.safe}>
       <SafeAreaView style={{ flex: 1 }}>
-        {/* Header */}
+        {/* Header — unchanged */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.metaLabel}>YOUR FEED</Text>
-            <Text style={styles.wordmark}>
-              filo<Text style={styles.wordmarkDot}>.</Text>
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
-            <Text style={styles.bellIcon}>◌</Text>
-          </TouchableOpacity>
+          <Text style={styles.metaLabel}>YOUR FEED</Text>
+          <Text style={styles.title}>
+            what's <Text style={styles.titleItalic}>new.</Text>
+          </Text>
         </View>
 
-        {/* Search bar */}
+        {/* Search bar — unchanged */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
             <Text style={styles.searchIcon}>⌕</Text>
@@ -202,7 +210,7 @@ export default function FeedScreen() {
               autoCorrect={false}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7} hitSlop={8}>
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
                 <Text style={styles.searchClear}>×</Text>
               </TouchableOpacity>
             )}
@@ -215,16 +223,19 @@ export default function FeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={blocks}
-            keyExtractor={(b) => b.key}
-            renderItem={renderBlock}
-            ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+            data={filteredPins}
+            keyExtractor={(p) => p.pin_id}
+            renderItem={renderItem}
             contentContainerStyle={
-              blocks.length === 0 ? styles.emptyContainer : styles.list
+              filteredPins.length === 0 ? styles.emptyContainer : styles.list
             }
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT.red} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={ACCENT.red}
+              />
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
@@ -260,65 +271,183 @@ export default function FeedScreen() {
   );
 }
 
-// ─── Card ──────────────────────────────────────────────────────────────
+// ─── Shared sub-components ──────────────────────────────────────────
 
-/** One card. `variant: 'column'` is half-width inside a 2-up row;
- *  `variant: 'full'` is full-width for long-impression breakouts. The
- *  layout is otherwise identical — photo (if any) on top, then mono
- *  "@username pinned" kicker, italic red Fraunces place name, and an
- *  optional body-italic impression. */
-function FeedCard({
-  pin,
-  variant,
-  onPressCard,
-  onPressUser,
-}: {
+interface CardProps {
   pin: MapPin;
-  variant: 'column' | 'full';
   onPressCard: () => void;
   onPressUser: () => void;
+}
+
+function CategoryPill({ pin }: { pin: MapPin }) {
+  return (
+    <View style={styles.categoryPill}>
+      <Text style={styles.categoryPillText}>
+        {CATEGORY_LABEL_RANK[pin.category] ?? pin.category}
+      </Text>
+    </View>
+  );
+}
+
+function StatusPill({ pin }: { pin: MapPin }) {
+  return (
+    <View style={styles.statusPill}>
+      <Text style={styles.statusPillText}>{statusLabel(pin.status)}</Text>
+    </View>
+  );
+}
+
+function RankChip({ pin }: { pin: MapPin }) {
+  if (typeof pin.myRank !== 'number' || typeof pin.myCategoryTotal !== 'number') {
+    return null;
+  }
+  return (
+    <View style={styles.rankChip}>
+      <Text style={styles.rankChipText}>
+        #{pin.myRank} / {pin.myCategoryTotal}{' '}
+        {CATEGORY_LABEL_RANK[pin.category] ?? pin.category}
+      </Text>
+    </View>
+  );
+}
+
+function MetaRow({
+  pin,
+  includeVerb = true,
+}: {
+  pin: MapPin;
+  includeVerb?: boolean;
 }) {
-  const isFull = variant === 'full';
+  const parts = [`@${pin.username}`];
+  if (includeVerb) parts.push(verbFor(pin.status));
+  parts.push(timeAgo(pin.created_at));
+  return <Text style={styles.meta}>{parts.join(' · ')}</Text>;
+}
+
+// ─── TYPE A — photo card ────────────────────────────────────────────
+
+function PhotoCard({ pin, onPressCard, onPressUser }: CardProps) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
-      {pin.photo_url ? (
-        <Image source={{ uri: pin.photo_url }} style={styles.photo} />
-      ) : null}
-      <View style={styles.cardBody}>
-        <TouchableOpacity onPress={onPressUser} hitSlop={6}>
-          <Text style={styles.cardKicker} numberOfLines={1}>
-            @{pin.username} pinned · {timeAgo(pin.created_at)}
-          </Text>
-        </TouchableOpacity>
-        <Text
-          style={[styles.cardPlace, isFull && styles.cardPlaceFull]}
-          numberOfLines={isFull ? 2 : 2}
-        >
+      <View style={styles.photoWrap}>
+        <Image source={{ uri: pin.photo_url ?? undefined }} style={styles.photo} />
+        <View style={styles.photoScrim} pointerEvents="none" />
+        <Text style={styles.photoName} numberOfLines={2}>
           {pin.place_name}
         </Text>
+      </View>
+      <View style={styles.cardBody}>
+        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+          <MetaRow pin={pin} />
+        </TouchableOpacity>
         {pin.impression ? (
-          <Text
-            style={styles.cardImpression}
-            numberOfLines={isFull ? 6 : 3}
-          >
+          <Text style={styles.impression} numberOfLines={2}>
             "{pin.impression}"
           </Text>
         ) : null}
+        <View style={styles.bottomStrip}>
+          <CategoryPill pin={pin} />
+          <RankChip pin={pin} />
+        </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────
+// ─── TYPE D — rank card ─────────────────────────────────────────────
+
+function RankCard({ pin, onPressCard, onPressUser }: CardProps) {
+  const catLabel = CATEGORY_LABEL_RANK[pin.category] ?? pin.category;
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+      <View style={styles.rankAccentBar} />
+      <View style={styles.rankCardBody}>
+        <Text style={styles.placeName} numberOfLines={2}>
+          {pin.place_name}
+        </Text>
+        <View style={styles.bigRankRow}>
+          <Text style={styles.bigRankNum}>#{pin.myRank}</Text>
+          <Text style={styles.bigRankSub}>
+            / {pin.myCategoryTotal} {catLabel}
+          </Text>
+        </View>
+        {pin.impression ? (
+          <Text style={styles.impression} numberOfLines={2}>
+            "{pin.impression}"
+          </Text>
+        ) : null}
+        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+          <MetaRow pin={pin} />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── TYPE B — impression card ───────────────────────────────────────
+
+function ImpressionCard({ pin, onPressCard, onPressUser }: CardProps) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+      <View style={styles.cardBody}>
+        {/* Soft watermark — sits behind the flow content via source order */}
+        <Text style={styles.impressionWatermark} pointerEvents="none">
+          {'“'}
+        </Text>
+
+        <Text style={styles.placeName} numberOfLines={2}>
+          {pin.place_name}
+        </Text>
+        <Text style={styles.impressionHero} numberOfLines={4}>
+          {pin.impression}
+        </Text>
+        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+          <MetaRow pin={pin} includeVerb={false} />
+        </TouchableOpacity>
+        <View style={styles.bottomStrip}>
+          <CategoryPill pin={pin} />
+          <RankChip pin={pin} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── TYPE C — minimal card ──────────────────────────────────────────
+
+function MinimalCard({ pin, onPressCard, onPressUser }: CardProps) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+      <View style={styles.cardBody}>
+        <Text style={styles.placeName} numberOfLines={1}>
+          {pin.place_name}
+        </Text>
+        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+          <MetaRow pin={pin} />
+        </TouchableOpacity>
+        {pin.impression ? (
+          <Text style={styles.impression} numberOfLines={1}>
+            "{pin.impression}"
+          </Text>
+        ) : null}
+        <View style={styles.bottomStrip}>
+          <CategoryPill pin={pin} />
+          <StatusPill pin={pin} />
+          <RankChip pin={pin} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: PALETTE.bg },
 
+  // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: SCREEN_PAD,
+    paddingHorizontal: CARD_HORIZONTAL_PAD,
     paddingTop: 8,
     paddingBottom: 12,
   },
@@ -327,32 +456,19 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 2,
     color: PALETTE.inkSoft,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  wordmark: {
+  title: {
     fontFamily: FONTS.display,
-    fontSize: 38,
+    fontSize: 32,
+    lineHeight: 34,
     color: PALETTE.ink,
     fontWeight: '400',
-    fontStyle: 'italic',
-    letterSpacing: -1,
   },
-  wordmarkDot: {
-    color: ACCENT.red,
-  },
-  bellBtn: {
-    width: 36,
-    height: 36,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    backgroundColor: PALETTE.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...STICKER_SHADOW,
-  },
-  bellIcon: { fontSize: 16, color: PALETTE.ink },
+  titleItalic: { fontStyle: 'italic', color: ACCENT.red },
 
-  searchWrap: { paddingHorizontal: SCREEN_PAD, paddingBottom: 14 },
+  // Search
+  searchWrap: { paddingHorizontal: CARD_HORIZONTAL_PAD, paddingBottom: 14 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -365,10 +481,7 @@ const styles = StyleSheet.create({
     gap: 8,
     ...STICKER_SHADOW,
   },
-  searchIcon: {
-    fontSize: 14,
-    color: PALETTE.inkSoft,
-  },
+  searchIcon: { fontSize: 14, color: PALETTE.inkSoft },
   searchInput: {
     flex: 1,
     fontFamily: FONTS.body,
@@ -376,79 +489,190 @@ const styles = StyleSheet.create({
     color: PALETTE.ink,
     padding: 0,
   },
-  searchClear: {
-    fontSize: 18,
-    color: PALETTE.inkSoft,
-    lineHeight: 18,
-  },
+  searchClear: { fontSize: 18, color: PALETTE.inkSoft, lineHeight: 18 },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: {
-    paddingHorizontal: SCREEN_PAD,
+    paddingHorizontal: CARD_HORIZONTAL_PAD,
     paddingTop: 4,
     paddingBottom: TAB_CLEARANCE,
   },
   emptyContainer: { flex: 1 },
 
-  // Block containers
-  columnsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  column: {
-    flex: 1,
-    gap: 12,
-  },
-
-  // Card chrome — used by both column and full variants.
+  // ─── Card shell (all variants) ────────────────────────────────────
   card: {
     backgroundColor: PALETTE.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: PALETTE.ink,
+    marginBottom: 14,
     overflow: 'hidden',
-    ...STICKER_SHADOW,
-  },
-  photo: {
-    width: '100%',
-    height: 180,
-    resizeMode: 'cover',
+    ...STICKER_SHADOW_LG,
   },
   cardBody: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 12,
-    gap: 4,
+    padding: 14,
+    position: 'relative',
   },
-  cardKicker: {
+
+  // ─── Photo card ───────────────────────────────────────────────────
+  photoWrap: { height: 180, position: 'relative' },
+  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  photoName: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 12,
+    fontFamily: FONTS.display,
+    fontStyle: 'italic',
+    fontSize: 20,
+    lineHeight: 24,
+    color: '#ffffff',
+    fontWeight: '400',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  // ─── Shared text ──────────────────────────────────────────────────
+  placeName: {
+    fontFamily: FONTS.display,
+    fontSize: 20,
+    lineHeight: 24,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  meta: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: PALETTE.inkMute,
+    textTransform: 'lowercase',
+    marginTop: 6,
+  },
+  impression: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    lineHeight: 19,
+    color: PALETTE.ink,
+    marginTop: 8,
+  },
+
+  // ─── Impression card (Type B) ─────────────────────────────────────
+  impressionWatermark: {
+    position: 'absolute',
+    top: 4,
+    right: 12,
+    fontFamily: FONTS.display,
+    fontSize: 72,
+    lineHeight: 72,
+    fontStyle: 'italic',
+    color: PALETTE.zone1,
+    fontWeight: '400',
+    includeFontPadding: false,
+  },
+  impressionHero: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 22,
+    fontStyle: 'italic',
+    color: PALETTE.ink,
+    marginTop: 8,
+  },
+
+  // ─── Rank card (Type D) ───────────────────────────────────────────
+  rankAccentBar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 3,
+    backgroundColor: ACCENT.red,
+  },
+  rankCardBody: {
+    padding: 14,
+    paddingLeft: 18,
+  },
+  bigRankRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 6,
+  },
+  bigRankNum: {
+    fontFamily: FONTS.display,
+    fontSize: 36,
+    lineHeight: 38,
+    color: PALETTE.ink,
+    fontWeight: '400',
+  },
+  bigRankSub: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    color: PALETTE.inkMute,
+    marginLeft: 6,
+    textTransform: 'lowercase',
+  },
+
+  // ─── Bottom strip (A, B, C) ───────────────────────────────────────
+  bottomStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 6,
+  },
+  categoryPill: {
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  categoryPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: PALETTE.ink,
+    textTransform: 'lowercase',
+  },
+  statusPill: {
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: PALETTE.ink,
+    textTransform: 'lowercase',
+  },
+  rankChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: ACCENT.red,
+    backgroundColor: PALETTE.surface,
+  },
+  rankChipText: {
     fontFamily: FONTS.mono,
     fontSize: 10,
     letterSpacing: 0.5,
-    color: PALETTE.inkSoft,
+    color: ACCENT.red,
+    fontWeight: '700',
     textTransform: 'lowercase',
   },
-  cardPlace: {
-    fontFamily: FONTS.display,
-    fontStyle: 'italic',
-    fontSize: 18,
-    lineHeight: 22,
-    color: ACCENT.red,
-    fontWeight: '400',
-  },
-  cardPlaceFull: {
-    fontSize: 24,
-    lineHeight: 28,
-  },
-  cardImpression: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: PALETTE.inkSoft,
-    fontStyle: 'italic',
-    lineHeight: 17,
-    marginTop: 2,
-  },
 
-  // Empty state
+  // ─── Empty state ──────────────────────────────────────────────────
   emptyState: {
     flex: 1,
     alignItems: 'center',
@@ -479,7 +703,7 @@ const styles = StyleSheet.create({
     borderColor: PALETTE.ink,
     paddingHorizontal: 22,
     paddingVertical: 11,
-    ...STICKER_SHADOW,
+    ...STICKER_SHADOW_LG,
   },
   findBtnText: {
     fontFamily: FONTS.body,

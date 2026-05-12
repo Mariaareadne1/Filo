@@ -114,7 +114,7 @@ function normalizeRow(row: any): MapPin {
  * ranking the caller has, then index in memory. Cheap as long as the
  * caller's ranking count stays in the low thousands.
  */
-async function enrichWithMyRanks(pins: MapPin[], userId: string): Promise<MapPin[]> {
+export async function enrichWithMyRanks(pins: MapPin[], userId: string): Promise<MapPin[]> {
   if (pins.length === 0) return pins;
 
   const { data: rankings, error } = await supabase
