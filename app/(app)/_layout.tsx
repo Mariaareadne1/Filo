@@ -1,6 +1,8 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Text, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UploadProvider } from '../../contexts/UploadContext';
+import { UploadProgressOverlay } from '../../components/UploadProgressOverlay';
 import {
   PALETTE,
   ACCENT,
@@ -65,6 +67,7 @@ export default function AppLayout() {
   const bottomPad = Math.max(insets.bottom, 12);
 
   return (
+    <UploadProvider>
     <View style={{ flex: 1, backgroundColor: PALETTE.bg }}>
       <Tabs
         initialRouteName="discover"
@@ -134,7 +137,12 @@ export default function AppLayout() {
       >
         <CenterFab />
       </View>
+
+      {/* Photo-upload progress bar + toasts. Lives above all content so
+          users can keep navigating while a background upload runs. */}
+      <UploadProgressOverlay />
     </View>
+    </UploadProvider>
   );
 }
 

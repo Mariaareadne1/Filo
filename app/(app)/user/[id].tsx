@@ -88,7 +88,7 @@ export default function UserProfileScreen() {
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id).eq('status', 'active'),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id).eq('status', 'active'),
       supabase.from('pins').select(`
-        id, user_id, status, impression, created_at,
+        id, user_id, status, impression, photo_url, created_at,
         users!inner(username, display_name, avatar_url),
         places!inner(id, name, category, address, lat, lng, photo_url)
       `).eq('user_id', id).eq('is_public', true).order('created_at', { ascending: false }).limit(6),
@@ -109,7 +109,8 @@ export default function UserProfileScreen() {
         category: (place?.category ?? 'food') as Category,
         address: place?.address ?? '',
         lat: place?.lat ?? 0, lng: place?.lng ?? 0,
-        photo_url: place?.photo_url ?? null,
+        // Prefer the pin author's own photo over the shared place photo.
+        photo_url: row.photo_url ?? place?.photo_url ?? null,
         status: row.status, impression: row.impression ?? null,
         created_at: row.created_at,
       } as MapPin;

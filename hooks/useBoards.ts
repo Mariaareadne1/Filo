@@ -22,6 +22,9 @@ export interface BoardPin {
   status: string;
   lat: number;
   lng: number;
+  /** Coalesced photo: pin author's own photo, falling back to the
+   *  shared place photo when the pin has none. */
+  photo_url: string | null;
 }
 
 export function useBoards(userId: string | null) {
@@ -61,7 +64,8 @@ export async function fetchBoardPins(boardId: string): Promise<BoardPin[]> {
       pins!inner(
         status,
         impression,
-        places!inner(name, category, address, lat, lng)
+        photo_url,
+        places!inner(name, category, address, lat, lng, photo_url)
       )
     `)
     .eq('board_id', boardId)
@@ -81,6 +85,8 @@ export async function fetchBoardPins(boardId: string): Promise<BoardPin[]> {
       status: pin?.status ?? 'visited',
       lat: place?.lat ?? 0,
       lng: place?.lng ?? 0,
+      // Prefer the pin author's own photo over the shared place photo.
+      photo_url: pin?.photo_url ?? place?.photo_url ?? null,
     };
   });
 }

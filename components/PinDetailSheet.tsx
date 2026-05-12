@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { MapPin, CATEGORY_LABELS } from '../types';
 import { supabase } from '../lib/supabase';
+import { useUploads } from '../contexts/UploadContext';
 import {
   PALETTE,
   ACCENT,
@@ -54,6 +55,13 @@ export function PinDetailSheet({ pin, onClose }: Props) {
   const [newBoardName, setNewBoardName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const { uploads, retryUpload } = useUploads();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
 
   useEffect(() => {
     if (pin) {
@@ -273,6 +281,30 @@ export function PinDetailSheet({ pin, onClose }: Props) {
               </View>
               <Text style={styles.userRowChevron}>→</Text>
             </TouchableOpacity>
+
+            {/* Retry chip — surfaces only for the pin owner when an
+                upload attempt is sitting in failed state with the local
+                URI still in memory. After app kill the upload record is
+                lost and the chip stays hidden; the user re-picks via
+                editing the pin. */}
+            {(() => {
+              const upload = uploads.get(pin.pin_id);
+              const isOwner = pin.user_id === currentUserId;
+              const canRetry =
+                pin.photo_url == null &&
+                isOwner &&
+                upload?.status === 'failed';
+              if (!canRetry) return null;
+              return (
+                <TouchableOpacity
+                  style={styles.retryChip}
+                  onPress={() => retryUpload(pin.pin_id)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.retryChipText}>↻ retry photo upload</Text>
+                </TouchableOpacity>
+              );
+            })()}
 
             <TouchableOpacity style={styles.addToBoardBtn} onPress={openBoardPicker} activeOpacity={0.85}>
               <Text style={styles.addToBoardText}>+ add to board</Text>
@@ -640,6 +672,27 @@ export function PinDetailSheet({ pin, onClose }: Props) {
     fontFamily: FONTS.body,
     fontSize: 16,
     color: PALETTE.ink,
+  },
+
+  // Photo-retry chip — shown only when the pin owner's upload failed.
+  retryChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ACCENT.red,
+    backgroundColor: PALETTE.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 12,
+    ...STICKER_SHADOW,
+  },
+  retryChipText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: ACCENT.red,
+    fontWeight: '700',
   },
   username: {
     fontFamily: FONTS.body,

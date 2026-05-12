@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { CATEGORY_LABELS } from '../../types';
+import { useUploads } from '../../contexts/UploadContext';
 import {
   PALETTE,
   ACCENT,
@@ -75,6 +76,7 @@ export default function PinConfirmScreen() {
   const [rating, setRating] = useState(0);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { startUpload } = useUploads();
 
   const label = CATEGORY_LABELS[params.category as keyof typeof CATEGORY_LABELS] ?? params.category;
   const glyph = CATEGORY_GLYPH[params.category] ?? '◉';
@@ -164,6 +166,13 @@ export default function PinConfirmScreen() {
           return;
         }
         pinId = newPin.id;
+      }
+
+      // Fire-and-forget photo upload. UploadContext owns progress + retry
+      // from here; the user is free to navigate away and the overlay
+      // toast will surface success/failure wherever they end up.
+      if (photoUri) {
+        startUpload(pinId, user.id, photoUri);
       }
 
       router.replace({
