@@ -47,7 +47,7 @@
       [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsDownloadToken": "sk.eyJ1IjoibWFyaWFhcmVhZG5lMSIsImEiOiJjbW5xemlqdnUwY3V1MnBtdm9haWc4N3EwIn0.cUL68aH6EgYv5lwEYYVaDw"
+          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "sk.eyJ1IjoibWFyaWFhcmVhZG5lMSIsImEiOiJjbW5xemlqdnUwY3V1MnBtdm9haWc4N3EwIn0.cUL68aH6EgYv5lwEYYVaDw"
         }
       ],
       "expo-font"
