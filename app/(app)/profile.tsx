@@ -342,6 +342,19 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Find friends — permanent entry point to the directory,
+              which is otherwise unreachable from the tab bar. */}
+          <TouchableOpacity
+            style={styles.findFriendsRow}
+            onPress={() => router.push('/(app)/directory' as never)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.findFriendsKicker}>WHO'S PINNING</Text>
+            <Text style={styles.findFriendsCta}>
+              find <Text style={styles.findFriendsCtaItalic}>friends</Text> →
+            </Text>
+          </TouchableOpacity>
+
           {/* Action buttons */}
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85}>
@@ -914,6 +927,39 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT.red,
     borderWidth: 1,
     borderColor: PALETTE.surface,
+  },
+
+  // Find friends row
+  findFriendsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: SCREEN_PAD,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: PALETTE.surface,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    ...STICKER_SHADOW_LG,
+  },
+  findFriendsKicker: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: PALETTE.inkSoft,
+    flexShrink: 1,
+  },
+  findFriendsCta: {
+    fontFamily: FONTS.display,
+    fontSize: 18,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    textAlign: 'right',
+  },
+  findFriendsCtaItalic: {
+    fontStyle: 'italic',
+    color: ACCENT.red,
   },
 
   // Actions
