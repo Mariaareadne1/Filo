@@ -88,7 +88,7 @@ export default function AppLayout() {
           }}
         />
         <Tabs.Screen
-          name="index"
+          name="map"
           options={{
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="◉" label="map" focused={focused} />
@@ -118,6 +118,7 @@ export default function AppLayout() {
           }}
         />
 
+        <Tabs.Screen name="index" options={{ href: null }} />
         <Tabs.Screen name="directory" options={{ href: null }} />
         <Tabs.Screen name="twins" options={{ href: null }} />
         <Tabs.Screen name="rankings" options={{ href: null }} />
