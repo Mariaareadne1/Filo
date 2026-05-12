@@ -21,11 +21,10 @@ import {
   SCREEN_PAD,
 } from '../../constants/theme';
 
-const ALLOWED_DOMAINS = ['columbia.edu', 'barnard.edu'];
-
-function isValidCampusEmail(email: string): boolean {
-  const lower = email.trim().toLowerCase();
-  return ALLOWED_DOMAINS.some((domain) => lower.endsWith(`@${domain}`));
+/** Loose format check — any real inbox works for demo / OTP (no campus-only gate). */
+function isValidEmailFormat(email: string): boolean {
+  const trimmed = email.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 }
 
 export default function EmailScreen() {
@@ -38,8 +37,8 @@ export default function EmailScreen() {
     setError('');
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) { setError('please enter your email address.'); return; }
-    if (!isValidCampusEmail(trimmed)) {
-      setError('use a @columbia.edu or @barnard.edu email.');
+    if (!isValidEmailFormat(trimmed)) {
+      setError('please enter a valid email address.');
       return;
     }
     setLoading(true);
@@ -75,7 +74,7 @@ export default function EmailScreen() {
             <Text style={styles.fieldKicker}>EMAIL</Text>
             <TextInput
               style={[styles.input, error ? styles.inputError : null]}
-              placeholder="you@columbia.edu"
+              placeholder="you@email.com"
               placeholderTextColor={PALETTE.inkMute}
               value={email}
               onChangeText={(t) => { setEmail(t); setError(''); }}
@@ -103,7 +102,7 @@ export default function EmailScreen() {
           </View>
 
           <Text style={styles.fine}>
-            invite-only for columbia and barnard students.
+            built at columbia & barnard — sign in with any email for this demo.
           </Text>
         </KeyboardAvoidingView>
       </SafeAreaView>

@@ -173,7 +173,7 @@ export default function ProfileSetupScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.title}>Set up your profile</Text>
-            <Text style={styles.subtitle}>How other Columbia students will find you.</Text>
+            <Text style={styles.subtitle}>How friends find you — Filo started at Columbia & Barnard.</Text>
 
             {/* Avatar */}
             <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar} activeOpacity={0.8}>
