@@ -160,6 +160,9 @@ export default function OTPScreen() {
               style={styles.otpRow}
               onPress={() => inputRef.current?.focus()}
               activeOpacity={1}
+              accessibilityRole="button"
+              accessibilityLabel="Enter 6-digit verification code"
+              importantForAccessibility="no-hide-descendants"
             >
               {Array.from({ length: OTP_LENGTH }).map((_, i) => (
                 <View
@@ -190,6 +193,8 @@ export default function OTPScreen() {
               maxLength={OTP_LENGTH}
               style={styles.hiddenInput}
               autoFocus
+              accessibilityLabel="6-digit verification code"
+              accessibilityValue={{ text: `${otp.length} of ${OTP_LENGTH} digits entered` }}
             />
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -201,7 +206,7 @@ export default function OTPScreen() {
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color={PALETTE.surface} />
+                <ActivityIndicator color={PALETTE.surface} accessibilityLabel="Verifying code" />
               ) : (
                 <Text style={styles.buttonText}>verify →</Text>
               )}

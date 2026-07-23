@@ -3,13 +3,13 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { Image } from 'expo-image';
+import { useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -36,16 +36,23 @@ export default function DirectoryScreen() {
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
+  const reqIdRef = useRef(0);
+
   const loadDirectory = useCallback(async () => {
-    const { data, error } = await supabase
+    const myReq = ++reqIdRef.current;
+    const { data, error: err } = await supabase
       .from('users')
       .select('id, username, display_name, avatar_url, pins(count)')
       .eq('campus', 'columbia');
 
-    if (!error && data) {
+    if (reqIdRef.current !== myReq) return;
+    if (err) {
+      setError(true);
+    } else if (data) {
       const mapped: DirectoryUser[] = data.map((u: any) => ({
         id: u.id,
         username: u.username,
@@ -54,17 +61,20 @@ export default function DirectoryScreen() {
         pin_count: u.pins?.[0]?.count ?? 0,
       }));
       mapped.sort((a, b) => b.pin_count - a.pin_count);
+      setError(false);
       setUsers(mapped);
     }
     setLoading(false);
     setRefreshing(false);
   }, []);
 
-  useEffect(() => { loadDirectory(); }, [loadDirectory]);
+  // Single effect: fires on first focus and on refocus (loadDirectory is
+  // stable) — no duplicate mount fetch.
   useFocusEffect(useCallback(() => { loadDirectory(); }, [loadDirectory]));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    setError(false);
     loadDirectory();
   }, [loadDirectory]);
 
@@ -92,7 +102,13 @@ export default function DirectoryScreen() {
         </View>
 
         {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          <Image
+            source={{ uri: item.avatar_url }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={item.id}
+          />
         ) : (
           <View style={styles.avatarFallback}>
             <Text style={styles.avatarInitials}>{initials}</Text>
@@ -153,6 +169,18 @@ export default function DirectoryScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={ACCENT.red} size="large" />
+          </View>
+        ) : error ? (
+          <View style={styles.errorState}>
+            <Text style={styles.emptyTitle}>couldn't load the directory.</Text>
+            <Text style={styles.emptySub}>check your connection and try again.</Text>
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => { setLoading(true); loadDirectory(); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.retryBtnText}>retry →</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -253,6 +281,29 @@ const styles = StyleSheet.create({
   },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 10,
+  },
+  retryBtn: {
+    marginTop: 6,
+    backgroundColor: ACCENT.red,
+    borderWidth: 1,
+    borderColor: PALETTE.ink,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    ...STICKER_SHADOW_LG,
+  },
+  retryBtnText: {
+    fontFamily: FONTS.body,
+    color: PALETTE.surface,
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
   list: { paddingBottom: TAB_CLEARANCE },
   emptyContainer: { flex: 1 },
   separator: { height: 1, backgroundColor: PALETTE.inkLine, marginLeft: SCREEN_PAD },

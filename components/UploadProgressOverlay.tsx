@@ -82,7 +82,11 @@ export function UploadProgressOverlay() {
         </View>
       )}
 
-      <View style={styles.toasts} pointerEvents="box-none">
+      <View
+        style={styles.toasts}
+        pointerEvents="box-none"
+        accessibilityLiveRegion="polite"
+      >
         {active.map((u) => {
           if (u.status === 'uploading') {
             return (
@@ -104,6 +108,8 @@ export function UploadProgressOverlay() {
               style={[styles.toast, styles.toastFailed]}
               onPress={() => retryUpload(u.pinId)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Photo upload failed. Tap to retry."
             >
               <Text style={styles.toastText}>PHOTO FAILED · </Text>
               <Text style={styles.retryChipText}>retry ↻</Text>

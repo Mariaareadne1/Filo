@@ -3,17 +3,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   ScrollView,
-  Dimensions,
 } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { Image } from 'expo-image';
+import { useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect, Redirect } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import { useFollow } from '../../../hooks/useFollow';
 import { useBoards, Board } from '../../../hooks/useBoards';
+import { useCurrentUserId } from '../../../hooks/useCurrentUserId';
+import { parseIdParam } from '../../../lib/params';
 import { CATEGORY_LABELS, Category, MapPin } from '../../../types';
 import { PinDetailSheet } from '../../../components/PinDetailSheet';
 import {
@@ -27,9 +28,6 @@ import {
   VISIBILITY_COLOR,
   VISIBILITY_LABEL,
 } from '../../../constants/theme';
-
-const { width } = Dimensions.get('window');
-const BOARD_CARD_SIZE = (width - SCREEN_PAD * 2 - 12) / 2;
 
 interface UserProfile {
   id: string;
@@ -60,28 +58,27 @@ function boardAccentColor(name: string): string {
 }
 
 export default function UserProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string; from?: string }>();
+  const params = useLocalSearchParams<{ id: string; from?: string }>();
+  const id = parseIdParam(params.id);
   const router = useRouter();
 
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const currentUserId = useCurrentUserId() ?? null;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [recentPins, setRecentPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
+  const reqIdRef = useRef(0);
 
-  const { boards } = useBoards(id ?? null);
-  const { status, loading: followLoading, follow, unfollow } = useFollow(currentUserId, id ?? null);
+  const { boards } = useBoards(id);
+  const { status, loading: followLoading, follow, unfollow } = useFollow(currentUserId, id);
 
   const isOwnProfile = currentUserId === id;
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
-  }, []);
-
   const loadProfile = useCallback(async () => {
     if (!id) return;
+    const myReq = ++reqIdRef.current;
     setLoading(true);
     const [profileRes, followerRes, followingRes, pinsRes] = await Promise.all([
       supabase.from('users').select('id, username, display_name, avatar_url, campus, is_private').eq('id', id).single(),
@@ -94,6 +91,7 @@ export default function UserProfileScreen() {
       `).eq('user_id', id).eq('is_public', true).order('created_at', { ascending: false }).limit(6),
     ]);
 
+    if (reqIdRef.current !== myReq) return;
     setProfile(profileRes.data ?? null);
     setFollowerCount(followerRes.count ?? 0);
     setFollowingCount(followingRes.count ?? 0);
@@ -139,6 +137,10 @@ export default function UserProfileScreen() {
     if (status === 'pending') return 'requested';
     return '+ follow';
   };
+
+  // Malformed/duplicated deep link — redirect cleanly. All hooks above run
+  // unconditionally first.
+  if (!id) return <Redirect href="/(app)/discover" />;
 
   if (loading) {
     return (
@@ -194,7 +196,13 @@ export default function UserProfileScreen() {
           <View style={styles.header}>
             <Text style={styles.metaLabel}>PROFILE · @{profile.username.toUpperCase()}</Text>
             {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={profile.id}
+              />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitials}>{initials}</Text>

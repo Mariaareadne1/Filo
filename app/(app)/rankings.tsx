@@ -16,8 +16,6 @@ import {
   ACCENT,
   FONTS,
   RADII,
-  STICKER_SHADOW,
-  STICKER_SHADOW_LG,
   SCREEN_PAD,
   TAB_CLEARANCE,
 } from '../../constants/theme';

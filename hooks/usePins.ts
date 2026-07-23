@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { CATEGORY_LABELS, FriendRank, MapPin } from '../types';
 
@@ -8,9 +8,14 @@ export function usePins(userId: string | null, mode: MapMode) {
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Monotonic request id: only the newest in-flight fetch may commit state,
+  // so a slow response can't clobber a newer one and a resolve-after-unmount
+  // is ignored.
+  const reqIdRef = useRef(0);
 
   const fetchPins = useCallback(async () => {
     if (!userId) return;
+    const myReq = ++reqIdRef.current;
     setLoading(true);
     setError(null);
 
@@ -68,16 +73,22 @@ export function usePins(userId: string | null, mode: MapMode) {
         data = await enrichWithFriendRanks(data, userId);
       }
 
+      if (reqIdRef.current !== myReq) return; // superseded
       setPins(data);
     } catch (e: any) {
+      if (reqIdRef.current !== myReq) return;
       setError(e.message ?? 'Failed to load pins.');
     } finally {
-      setLoading(false);
+      if (reqIdRef.current === myReq) setLoading(false);
     }
   }, [userId, mode]);
 
   useEffect(() => {
     fetchPins();
+    return () => {
+      // Invalidate any in-flight fetch on unmount / dependency change.
+      reqIdRef.current++;
+    };
   }, [fetchPins]);
 
   return { pins, loading, error, refetch: fetchPins };

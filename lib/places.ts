@@ -23,6 +23,18 @@ function inferCategory(types: string[]): string {
   return 'experience'; // fallback
 }
 
+/**
+ * Rewrites a stored Google Places photo URL (always saved at maxwidth=800) to
+ * request a smaller variant where the image renders small — markers, list
+ * thumbnails, avatars — so we don't download an 800px JPEG for a 44px circle.
+ * Returns non-Places URLs (or null) unchanged.
+ */
+export function resizePlacePhoto(url: string | null, width: number): string | null {
+  if (!url) return url;
+  if (!url.includes('maps.googleapis.com/maps/api/place/photo')) return url;
+  return url.replace(/maxwidth=\d+/, `maxwidth=${width}`);
+}
+
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   if (!query.trim()) return [];
 

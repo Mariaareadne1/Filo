@@ -8,15 +8,15 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
-import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
+import { ACCENT, PALETTE, GLASS_STYLE_SM } from '../../constants/theme';
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
@@ -83,7 +83,9 @@ export default function ProfileSetupScreen() {
     if (!avatarUri) return null;
     try {
       const ext = avatarUri.split('.').pop() ?? 'jpg';
-      const path = `avatars/${userId}.${ext}`;
+      // Folder-per-user path so the avatars-bucket RLS can gate writes on
+      // (storage.foldername(name))[1] = auth.uid(), mirroring pin-photos.
+      const path = `${userId}/avatar.${ext}`;
       const response = await fetch(avatarUri);
       const blob = await response.blob();
       const { error } = await supabase.storage
@@ -172,7 +174,7 @@ export default function ProfileSetupScreen() {
     (usernameStatus === 'taken' || usernameStatus === 'invalid') ? '✕' : '';
 
   const usernameIndicatorColor =
-    usernameStatus === 'available' ? '#22c55e' : COLORS.primary;
+    usernameStatus === 'available' ? '#22c55e' : ACCENT.red;
 
   const initials = displayName.trim().split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
@@ -192,7 +194,12 @@ export default function ProfileSetupScreen() {
             {/* Avatar */}
             <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar} activeOpacity={0.8}>
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   {initials ? (
@@ -211,7 +218,7 @@ export default function ProfileSetupScreen() {
             </TouchableOpacity>
 
             {/* Display name */}
-            <View style={[styles.fieldCard, GLASS_SM]}>
+            <View style={[styles.fieldCard, GLASS_STYLE_SM]}>
               <Text style={styles.label}>Display name</Text>
               <TextInput
                 style={[styles.input, displayNameError ? styles.inputError : null]}
@@ -226,7 +233,7 @@ export default function ProfileSetupScreen() {
             </View>
 
             {/* Username */}
-            <View style={[styles.fieldCard, GLASS_SM]}>
+            <View style={[styles.fieldCard, GLASS_STYLE_SM]}>
               <Text style={styles.label}>Username</Text>
               <View style={styles.usernameRow}>
                 <TextInput
@@ -278,53 +285,53 @@ export default function ProfileSetupScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
   container: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48, gap: 20 },
-  title: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: -12 },
+  title: { fontSize: 28, fontWeight: '800', color: PALETTE.ink, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: PALETTE.inkSoft, marginTop: -12 },
 
   avatarContainer: { alignItems: 'center', gap: 10, position: 'relative', paddingVertical: 4 },
   avatar: { width: 88, height: 88, borderRadius: 44 },
   avatarPlaceholder: {
     width: 88, height: 88, borderRadius: 44,
     backgroundColor: 'rgba(230,57,70,0.15)',
-    borderWidth: 1.5, borderColor: COLORS.primary + '44',
+    borderWidth: 1.5, borderColor: ACCENT.red + '44',
     borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { fontSize: 28, fontWeight: '700', color: COLORS.primary },
-  avatarPlaceholderText: { fontSize: 28, color: COLORS.primary },
+  avatarInitials: { fontSize: 28, fontWeight: '700', color: ACCENT.red },
+  avatarPlaceholderText: { fontSize: 28, color: ACCENT.red },
   avatarEditBadge: {
     position: 'absolute',
     bottom: 32, right: '31%',
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: COLORS.primary,
+    backgroundColor: ACCENT.red,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarEditIcon: { fontSize: 12, color: COLORS.textPrimary },
-  avatarLabel: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  avatarEditIcon: { fontSize: 12, color: PALETTE.ink },
+  avatarLabel: { fontSize: 13, color: ACCENT.red, fontWeight: '600' },
 
   fieldCard: { padding: 16, gap: 8 },
-  label: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: 0.2 },
+  label: { fontSize: 13, fontWeight: '700', color: PALETTE.ink, letterSpacing: 0.2 },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#E8E8E8',
     borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 16, color: COLORS.textPrimary,
+    fontSize: 16, color: PALETTE.ink,
   },
-  inputError: { borderColor: COLORS.primary },
+  inputError: { borderColor: ACCENT.red },
   inputValid: { borderColor: '#22c55e' },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   usernameInput: { flex: 1 },
   usernameIndicator: { fontSize: 20, fontWeight: '700', width: 24, textAlign: 'center' },
-  errorText: { fontSize: 13, color: COLORS.primary },
-  hint: { fontSize: 12, color: COLORS.textMuted },
+  errorText: { fontSize: 13, color: ACCENT.red },
+  hint: { fontSize: 12, color: PALETTE.inkMute },
 
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: ACCENT.red,
     borderRadius: 14, paddingVertical: 17,
     alignItems: 'center', marginTop: 8,
   },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  buttonText: { color: PALETTE.ink, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 });

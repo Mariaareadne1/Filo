@@ -3,7 +3,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Modal,
   Animated,
   Pressable,
@@ -13,11 +12,13 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { MapPin, CATEGORY_LABELS } from '../types';
 import { supabase } from '../lib/supabase';
 import { useUploads } from '../contexts/UploadContext';
+import { useCurrentUserId } from '../hooks/useCurrentUserId';
 import {
   PALETTE,
   ACCENT,
@@ -57,13 +58,9 @@ export function PinDetailSheet({ pin, onClose }: Props) {
   const [newBoardName, setNewBoardName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const currentUserId = useCurrentUserId();
 
   const { uploads, retryUpload } = useUploads();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
-  }, []);
 
   useEffect(() => {
     if (pin) {
@@ -175,8 +172,16 @@ export function PinDetailSheet({ pin, onClose }: Props) {
 
   return (
     <Modal transparent animationType="none" visible={!!pin} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
+      <Animated.View
+        style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+        accessibilityViewIsModal
+      >
         <View style={styles.handle} />
 
         {!showBoardPicker ? (
@@ -271,7 +276,13 @@ export function PinDetailSheet({ pin, onClose }: Props) {
               activeOpacity={0.7}
             >
               {pin.avatar_url ? (
-                <Image source={{ uri: pin.avatar_url }} style={styles.avatar} />
+                <Image
+                  source={{ uri: pin.avatar_url }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={pin.user_id}
+                />
               ) : (
                 <View style={styles.avatarFallback}>
                   <Text style={styles.avatarInitials}>{initials}</Text>

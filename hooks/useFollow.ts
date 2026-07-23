@@ -24,11 +24,13 @@ export function useFollow(currentUserId: string | null, targetUserId: string | n
   const follow = useCallback(async (isPrivate: boolean) => {
     if (!currentUserId || !targetUserId) return;
     setLoading(true);
+    // `status` is intentionally omitted: a BEFORE INSERT trigger sets it from
+    // the target's privacy flag server-side, so a client can't self-approve
+    // into a private account.
     const followStatus = isPrivate ? 'pending' : 'active';
     const { error } = await supabase.from('follows').insert({
       follower_id: currentUserId,
       following_id: targetUserId,
-      status: followStatus,
     });
     if (!error) {
       setStatus(followStatus);

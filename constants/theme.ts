@@ -22,7 +22,7 @@ export interface Palette {
   surface: string;
   ink: string;
   inkSoft: string;   // ink @ 0.6
-  inkMute: string;   // ink @ 0.4
+  inkMute: string;   // ink @ 0.55 — meets ~4.5:1 for muted text
   inkLine: string;   // ink @ 0.18 — borders
   zone1: string;
   zone2: string;
@@ -38,7 +38,7 @@ export const PALETTES: Record<PaletteName, Palette> = {
     surface: '#ffffff',
     ink:     '#0a0a0a',
     inkSoft: 'rgba(10,10,10,0.6)',
-    inkMute: 'rgba(10,10,10,0.4)',
+    inkMute: 'rgba(10,10,10,0.55)',
     inkLine: 'rgba(10,10,10,0.18)',
     zone1: '#f5f3ee',
     zone2: '#efece5',
@@ -52,7 +52,7 @@ export const PALETTES: Record<PaletteName, Palette> = {
     surface: '#f5f5f5',
     ink:     '#2a1f2e',
     inkSoft: 'rgba(42,31,46,0.6)',
-    inkMute: 'rgba(42,31,46,0.4)',
+    inkMute: 'rgba(42,31,46,0.55)',
     inkLine: 'rgba(42,31,46,0.18)',
     zone1: '#e6e6e6',
     zone2: '#dedede',
@@ -66,7 +66,7 @@ export const PALETTES: Record<PaletteName, Palette> = {
     surface: '#26262d',
     ink:     '#f1efea',
     inkSoft: 'rgba(241,239,234,0.65)',
-    inkMute: 'rgba(241,239,234,0.45)',
+    inkMute: 'rgba(241,239,234,0.55)',
     inkLine: 'rgba(241,239,234,0.18)',
     zone1: '#1f1f25',
     zone2: '#23232a',
@@ -80,7 +80,7 @@ export const PALETTES: Record<PaletteName, Palette> = {
     surface: '#edf1f5',
     ink:     '#1f2233',
     inkSoft: 'rgba(31,34,51,0.6)',
-    inkMute: 'rgba(31,34,51,0.4)',
+    inkMute: 'rgba(31,34,51,0.55)',
     inkLine: 'rgba(31,34,51,0.18)',
     zone1: '#dae1e9',
     zone2: '#d2dae4',
@@ -264,42 +264,5 @@ export const VISIBILITY_LABEL: Record<string, string> = {
   private: 'Private',
 };
 
-// ─── Legacy aliases (DO NOT USE in new code) ────────────────────────────
-// These let existing screens keep compiling while we migrate.
-
-export const COLORS = {
-  bg:            PALETTE.bg,
-  primary:       ACCENT.red,        // was '#E63946'
-  accent:        ACCENT.electric,   // was '#4361EE' — secondary now
-  white:         PALETTE.surface,
-  textPrimary:   PALETTE.ink,
-  textSecondary: PALETTE.inkSoft,
-  textMuted:     PALETTE.inkMute,
-  glass:         'rgba(255,255,255,0.85)',
-  glassBorder:   PALETTE.inkLine,
-  tabBg:         'rgba(250,250,248,0.95)',
-  separator:     'rgba(10,10,10,0.08)',
-  inputBg:       'rgba(255,255,255,0.85)',
-  inputBorder:   PALETTE.inkLine,
-};
-
-export const GLASS: ViewStyle = {
-  backgroundColor: 'rgba(255,255,255,0.85)',
-  borderWidth: 1,
-  borderColor: PALETTE.inkLine,
-  borderRadius: 24,
-};
-
-export const GLASS_SM: ViewStyle = {
-  backgroundColor: 'rgba(255,255,255,0.85)',
-  borderWidth: 1,
-  borderColor: PALETTE.inkLine,
-  borderRadius: 16,
-};
-
-export const INPUT_STYLE: ViewStyle = {
-  backgroundColor: 'rgba(255,255,255,0.85)',
-  borderWidth: 1.5,
-  borderColor: PALETTE.inkLine,
-  borderRadius: 14,
-};
+// Legacy COLORS/GLASS/GLASS_SM/INPUT_STYLE aliases were removed once the last
+// three screens migrated to PALETTE/ACCENT/GLASS_STYLE. Use those directly.

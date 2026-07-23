@@ -1,6 +1,14 @@
 -- ============================================================
 -- FILO — Supabase SQL Schema
--- MVP v1.0
+-- MVP v1.0  (initial baseline)
+-- ============================================================
+-- NOTE: This file is the original v1.0 baseline. Deltas layer on top via
+-- supabase/migrations/. The policies/RPCs below are SUPERSEDED by:
+--   • 20260512031200_photo_upload.sql   — pins.photo_url + storage
+--   • 20260723000000_security_hardening.sql — RLS/RPC hardening, campus
+--     allowlist, private-account enforcement, avatars bucket RLS, indexes
+-- Apply every migration in order for the current, secure schema. Do not
+-- treat the policies in this file as the deployed state.
 -- ============================================================
 
 -- ============================================================
