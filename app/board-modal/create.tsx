@@ -19,7 +19,6 @@ import {
   ACCENT,
   FONTS,
   STICKER_SHADOW,
-  STICKER_SHADOW_LG,
   SCREEN_PAD,
   VISIBILITY_COLOR,
 } from '../../constants/theme';

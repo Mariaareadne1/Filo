@@ -10,6 +10,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useCurrentUserId } from '../../hooks/useCurrentUserId';
 import {
   PALETTE,
   ACCENT,
@@ -109,7 +110,7 @@ const EMPTY_COUNTS: Counts = {
 
 export default function DiscoverScreen() {
   const [activeCat, setActiveCat] = useState<CatKey>('cafes');
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useCurrentUserId() ?? null;
   const [counts, setCounts] = useState<Counts>(EMPTY_COUNTS);
   const router = useRouter();
 
@@ -117,11 +118,6 @@ export default function DiscoverScreen() {
     () => CATEGORIES.find((c) => c.key === activeCat)!.label,
     [activeCat],
   );
-
-  // Resolve auth user once.
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-  }, []);
 
   // Refetch counts whenever active category or auth user changes.
   useEffect(() => {

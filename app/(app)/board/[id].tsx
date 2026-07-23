@@ -6,10 +6,9 @@ import {
   Share,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocalSearchParams, useRouter, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, {
   RenderItemParams,
@@ -19,11 +18,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '../../../lib/supabase';
 import { fetchBoardPins, BoardPin } from '../../../hooks/useBoards';
 import { CATEGORY_LABELS } from '../../../types';
+import { parseIdParam } from '../../../lib/params';
+import { useCurrentUserId } from '../../../hooks/useCurrentUserId';
 import {
   PALETTE,
   ACCENT,
   FONTS,
-  RADII,
   STICKER_SHADOW,
   STICKER_SHADOW_LG,
   SCREEN_PAD,
@@ -45,21 +45,20 @@ const CATEGORY_GLYPH: Record<string, string> = {
 };
 
 export default function BoardDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = parseIdParam(params.id);
   const router = useRouter();
+  const currentUserId = useCurrentUserId() ?? null;
 
   const [board, setBoard] = useState<BoardMeta | null>(null);
   const [pins, setPins] = useState<BoardPin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
+  const reqIdRef = useRef(0);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
-    load();
-  }, [id]);
-
-  async function load() {
+  const load = useCallback(async () => {
+    if (!id) return;
+    const myReq = ++reqIdRef.current;
     setLoading(true);
     const [{ data: boardData }, boardPins] = await Promise.all([
       supabase
@@ -69,10 +68,13 @@ export default function BoardDetailScreen() {
         .single(),
       fetchBoardPins(id),
     ]);
+    if (reqIdRef.current !== myReq) return;
     setBoard(boardData);
     setPins(boardPins);
     setLoading(false);
-  }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function handleReorder(newPins: BoardPin[]) {
     setPins(newPins);
@@ -159,6 +161,10 @@ export default function BoardDetailScreen() {
     },
     [isOwner]
   );
+
+  // Malformed/duplicated deep link — redirect cleanly instead of querying
+  // with a bad id. All hooks above run unconditionally first.
+  if (!id) return <Redirect href="/(app)/discover" />;
 
   if (loading) {
     return (

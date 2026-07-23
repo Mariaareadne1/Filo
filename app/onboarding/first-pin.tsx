@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   Animated,
   ActivityIndicator,
-} from 'react-native';
+ Image } from 'react-native';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,6 @@ import { usePins } from '../../hooks/usePins';
 import { CATEGORY_COLORS, MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import { COLORS } from '../../constants/theme';
-import { Image } from 'react-native';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 

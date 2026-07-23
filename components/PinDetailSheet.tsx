@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { MapPin, CATEGORY_LABELS } from '../types';
 import { supabase } from '../lib/supabase';
 import { useUploads } from '../contexts/UploadContext';
+import { useCurrentUserId } from '../hooks/useCurrentUserId';
 import {
   PALETTE,
   ACCENT,
@@ -57,13 +58,9 @@ export function PinDetailSheet({ pin, onClose }: Props) {
   const [newBoardName, setNewBoardName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const currentUserId = useCurrentUserId();
 
   const { uploads, retryUpload } = useUploads();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
-  }, []);
 
   useEffect(() => {
     if (pin) {

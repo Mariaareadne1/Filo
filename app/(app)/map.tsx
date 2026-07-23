@@ -7,12 +7,12 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
 import * as Location from 'expo-location';
-import { supabase } from '../../lib/supabase';
 import { usePins, MapMode } from '../../hooks/usePins';
+import { useCurrentUserId } from '../../hooks/useCurrentUserId';
 import { MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import { useFocusEffect } from 'expo-router';
@@ -148,7 +148,7 @@ const EMPTY_MESSAGES: Record<MapMode, { title: string; italic: string; sub: stri
 };
 
 export default function MapScreen() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useCurrentUserId() ?? null;
   const [mode, setMode] = useState<MapMode>('my');
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
@@ -184,15 +184,24 @@ export default function MapScreen() {
     return n;
   }, [pins, categoryFilter, trimmedSearch, filterActive]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    if (userId) refetch();
-  }, [userId, mode]));
+  // Refetch only when returning to the screen. usePins already owns the
+  // initial load and mode/userId reactivity via its own effect, so we skip
+  // the first focus to avoid a duplicate fetch on mount and on every mode
+  // toggle. A ref holds the latest refetch so the focus effect stays stable.
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const skipFirstFocusRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFirstFocusRef.current) {
+        skipFirstFocusRef.current = false;
+        return;
+      }
+      if (userIdRef.current) refetchRef.current();
+    }, []),
+  );
 
   useEffect(() => {
     (async () => {

@@ -7,10 +7,9 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState , useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   PALETTE,
@@ -326,7 +325,7 @@ async function computeTwins(userId: string): Promise<Record<CatKey, CatStats>> {
       if (!fMap) continue;
 
       // Build the overlap as paired positions.
-      const pairs: Array<[number, number]> = [];
+      const pairs: [number, number][] = [];
       for (const [pid, myPos] of myMap) {
         const fPos = fMap.get(pid);
         if (fPos !== undefined) pairs.push([myPos, fPos]);
@@ -360,7 +359,7 @@ async function computeTwins(userId: string): Promise<Record<CatKey, CatStats>> {
  * the standard `1 - 6·Σd² / (n·(n²-1))` formula. Negative correlations
  * (anti-twins) clamp to 0%. Rankings are unique per (user, category)
  * so no tie-correction is needed. */
-function spearmanPct(pairs: Array<[number, number]>): number {
+function spearmanPct(pairs: [number, number][]): number {
   const n = pairs.length;
   if (n < 2) return 0;
 

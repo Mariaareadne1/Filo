@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import { enrichWithMyRanks } from '../../hooks/usePins';
+import { useCurrentUserId } from '../../hooks/useCurrentUserId';
 import {
   PALETTE,
   ACCENT,
@@ -121,40 +122,46 @@ function pickCardKind(pin: MapPin): CardKind {
 }
 
 export default function FeedScreen() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useCurrentUserId() ?? null;
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-  }, []);
+  // Monotonic request id so a slow response can't clobber a newer one or
+  // set state after unmount.
+  const reqIdRef = useRef(0);
 
-  const loadFeed = useCallback(
-    async (uid: string | null = userId) => {
-      if (!uid) return;
-      const { data, error } = await supabase.rpc('get_friends_feed', { p_user_id: uid });
-      if (!error && data) {
-        // Decorate with the viewer's myRank / myCategoryTotal so the
-        // rank-chip / rank-card paths can light up. Same helper the
-        // map's 'my' mode uses.
-        const enriched = await enrichWithMyRanks(data as MapPin[], uid);
-        setPins(enriched);
-      }
-      setLoading(false);
-      setRefreshing(false);
-    },
-    [userId],
-  );
+  const loadFeed = useCallback(async () => {
+    if (!userId) return;
+    const myReq = ++reqIdRef.current;
+    const { data, error: err } = await supabase.rpc('get_friends_feed', { p_user_id: userId });
+    if (reqIdRef.current !== myReq) return;
+    if (err) {
+      setError(true);
+    } else if (data) {
+      // Decorate with the viewer's myRank / myCategoryTotal so the
+      // rank-chip / rank-card paths can light up. Same helper the
+      // map's 'my' mode uses.
+      const enriched = await enrichWithMyRanks(data as MapPin[], userId);
+      if (reqIdRef.current !== myReq) return;
+      setError(false);
+      setPins(enriched);
+    }
+    setLoading(false);
+    setRefreshing(false);
+  }, [userId]);
 
-  useEffect(() => { if (userId) loadFeed(userId); }, [userId]);
-  useFocusEffect(useCallback(() => { if (userId) loadFeed(userId); }, [userId]));
+  // Single source of truth: fires on first focus, on userId change (the
+  // callback identity changes), and on refocus — no duplicate mount fetch.
+  useFocusEffect(useCallback(() => { loadFeed(); }, [loadFeed]));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    setError(false);
     loadFeed();
   }, [loadFeed]);
 
@@ -220,6 +227,20 @@ export default function FeedScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={ACCENT.red} size="large" />
+          </View>
+        ) : error ? (
+          <View style={styles.errorState}>
+            <Text style={styles.errorTitle}>
+              couldn't load your <Text style={styles.emptyTitleItalic}>feed.</Text>
+            </Text>
+            <Text style={styles.emptySub}>check your connection and try again.</Text>
+            <TouchableOpacity
+              style={styles.findBtn}
+              onPress={() => { setLoading(true); loadFeed(); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.findBtnText}>retry →</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -492,6 +513,20 @@ const styles = StyleSheet.create({
   searchClear: { fontSize: 18, color: PALETTE.inkSoft, lineHeight: 18 },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 10,
+  },
+  errorTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 24,
+    color: PALETTE.ink,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
   list: {
     paddingHorizontal: CARD_HORIZONTAL_PAD,
     paddingTop: 4,
