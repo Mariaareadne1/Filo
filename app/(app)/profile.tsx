@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import MapboxGL from '@rnmapbox/maps';
 import { supabase } from '../../lib/supabase';
+import { computeStreak } from '../../lib/streak';
 import { useBoards, Board } from '../../hooks/useBoards';
 import { useCurrentUserId } from '../../hooks/useCurrentUserId';
 import { Category, MapPin } from '../../types';
@@ -75,32 +76,7 @@ const ANNUAL_CHALLENGE_GOAL = 50;
 
 /** Monday 00:00 of the week containing `d`, in local time. ISO weeks
  *  start on Monday; Sunday counts as the previous week. */
-function startOfWeek(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  const day = x.getDay(); // 0 = Sun, 1 = Mon, … 6 = Sat
-  const diff = day === 0 ? -6 : 1 - day;
-  x.setDate(x.getDate() + diff);
-  return x;
-}
-
-/** Count consecutive weeks ending at the current week that contain at
- *  least one pin. Returns 0 if the current week has no pin. */
-function computeStreak(pins: { created_at: string }[]): number {
-  if (pins.length === 0) return 0;
-  const key = (d: Date) => d.toISOString().slice(0, 10);
-  const weeksWithPin = new Set<string>();
-  for (const p of pins) {
-    weeksWithPin.add(key(startOfWeek(new Date(p.created_at))));
-  }
-  let streak = 0;
-  const cursor = startOfWeek(new Date());
-  while (weeksWithPin.has(key(cursor))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 7);
-  }
-  return streak;
-}
+// startOfWeek + computeStreak now live in lib/streak.ts (unit-tested).
 
 interface Profile {
   id: string;

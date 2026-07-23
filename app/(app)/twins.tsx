@@ -11,6 +11,7 @@ import { useEffect, useState , useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { spearmanPct, MIN_OVERLAP } from '../../lib/tasteMatch';
 import {
   PALETTE,
   ACCENT,
@@ -51,9 +52,6 @@ const CATS: CategoryDef[] = [
   { key: 'shops',       label: 'shops',       glyph: '◇' },
   { key: 'experiences', label: 'experiences', glyph: '✦' },
 ];
-
-/** Spearman needs at least this many overlapping places to be meaningful. */
-const MIN_OVERLAP = 3;
 
 interface Twin {
   user_id: string;
@@ -358,32 +356,7 @@ async function computeTwins(userId: string): Promise<Record<CatKey, CatStats>> {
   return stats;
 }
 
-/** Spearman rank correlation expressed as a 0–100 percentage.
- *
- * The raw `position` values come from arbitrary-length category lists,
- * so we re-rank both sides within the overlap subset before computing
- * the standard `1 - 6·Σd² / (n·(n²-1))` formula. Negative correlations
- * (anti-twins) clamp to 0%. Rankings are unique per (user, category)
- * so no tie-correction is needed. */
-function spearmanPct(pairs: [number, number][]): number {
-  const n = pairs.length;
-  if (n < 2) return 0;
-
-  const myAbsSorted = pairs.map((p) => p[0]).sort((a, b) => a - b);
-  const fAbsSorted  = pairs.map((p) => p[1]).sort((a, b) => a - b);
-
-  let sumD2 = 0;
-  for (const [m, f] of pairs) {
-    const myR = myAbsSorted.indexOf(m) + 1;
-    const fR  = fAbsSorted.indexOf(f) + 1;
-    const d = myR - fR;
-    sumD2 += d * d;
-  }
-  const denom = n * (n * n - 1);
-  if (denom === 0) return 0;
-  const rho = 1 - (6 * sumD2) / denom;
-  return Math.max(0, Math.min(100, Math.round(rho * 100)));
-}
+// spearmanPct + MIN_OVERLAP now live in lib/tasteMatch.ts (unit-tested).
 
 function isCatKey(c: unknown): c is CatKey {
   return c === 'cafes' || c === 'food' || c === 'bars' || c === 'shops' || c === 'experiences';

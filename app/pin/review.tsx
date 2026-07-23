@@ -12,6 +12,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { nextCompareState, CompareAnswer } from '../../lib/rankInsert';
 import {
   PALETTE,
   ACCENT,
@@ -116,23 +117,17 @@ export default function ReviewScreen() {
   const mid = Math.floor((lo + hi) / 2);
   const candidate = pool[mid];
 
-  function answerCompare(answer: 'better' | 'worse' | 'tie' | 'skip') {
+  function answerCompare(answer: CompareAnswer) {
     if (!candidate) return;
-    let nextLo = lo;
-    let nextHi = hi;
-
-    if (answer === 'better')      nextHi = mid;
-    else if (answer === 'worse')  nextLo = mid + 1;
-    else if (answer === 'tie')    { setFinalRank(mid + 1); setStep('done'); return; }
-    else if (answer === 'skip')   { nextLo = mid + 1; }
-
-    if (nextLo >= nextHi) {
-      setFinalRank(nextLo + 1);
+    // Pure binary-search step (unit-tested in lib/rankInsert.ts).
+    const res = nextCompareState(lo, hi, answer);
+    if (res.done) {
+      setFinalRank(res.rank);
       setStep('done');
       return;
     }
-    setLo(nextLo);
-    setHi(nextHi);
+    setLo(res.window.lo);
+    setHi(res.window.hi);
   }
 
   const saveRanking = useCallback(async (): Promise<{ ok: boolean; message?: string }> => {
