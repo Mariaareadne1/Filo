@@ -140,78 +140,16 @@ export default function ReviewScreen() {
     if (!params.placeId)   return { ok: false, message: 'Missing place id.' };
     if (!userId)           return { ok: false, message: 'Not signed in.' };
 
-    // Idempotent re-rank: if this place is already ranked in this category,
-    // delete the old row and shift everything below it up by one before we
-    // bump for the new insert. Otherwise the second rank attempt would hit
-    // a unique-constraint error or leave duplicate place rows.
-    const { data: existing, error: existingErr } = await supabase
-      .from('rankings')
-      .select('id, position')
-      .eq('user_id', userId)
-      .eq('place_id', params.placeId)
-      .eq('category', category)
-      .maybeSingle();
-
-    if (existingErr && existingErr.code !== 'PGRST116') {
-      return { ok: false, message: existingErr.message };
-    }
-
-    if (existing) {
-      const { error: delErr } = await supabase
-        .from('rankings')
-        .delete()
-        .eq('id', existing.id);
-      if (delErr) return { ok: false, message: delErr.message };
-
-      const { data: laterRows } = await supabase
-        .from('rankings')
-        .select('id, position')
-        .eq('user_id', userId)
-        .eq('category', category)
-        .gt('position', existing.position)
-        .order('position', { ascending: true });
-
-      // Shift down ascending — each row vacates its slot before the next
-      // row claims it, so we never collide with the unique constraint on
-      // (user_id, category, position).
-      for (const row of laterRows ?? []) {
-        const { error } = await supabase
-          .from('rankings')
-          .update({ position: row.position - 1 })
-          .eq('id', row.id);
-        if (error) return { ok: false, message: error.message };
-      }
-    }
-
-    // Bump existing rankings >= finalRank by +1, in DESCENDING order so
-    // the highest position moves first and never collides with a row
-    // we're about to update.
-    const { data: bumpRows, error: bumpErr } = await supabase
-      .from('rankings')
-      .select('id, position')
-      .eq('user_id', userId)
-      .eq('category', category)
-      .gte('position', finalRank)
-      .order('position', { ascending: false });
-
-    if (bumpErr) return { ok: false, message: bumpErr.message };
-
-    for (const row of bumpRows ?? []) {
-      const { error } = await supabase
-        .from('rankings')
-        .update({ position: row.position + 1 })
-        .eq('id', row.id);
-      if (error) return { ok: false, message: error.message };
-    }
-
-    // Insert new ranking at finalRank.
-    const { error: insertErr } = await supabase.from('rankings').insert({
-      user_id: userId,
-      place_id: params.placeId,
-      category,
-      position: finalRank,
+    // Atomic re-rank: the whole delete/renumber/insert happens server-side in
+    // one transaction under an advisory lock (rerank_place RPC). Replaces the
+    // former N sequential REST updates, which were non-atomic and could leave
+    // gapped/duplicate positions if interrupted or run concurrently.
+    const { error } = await supabase.rpc('rerank_place', {
+      p_place_id: params.placeId,
+      p_category: category,
+      p_position: finalRank,
     });
-    if (insertErr) return { ok: false, message: insertErr.message };
+    if (error) return { ok: false, message: error.message };
 
     return { ok: true };
   }, [finalRank, params.placeId, userId, category]);

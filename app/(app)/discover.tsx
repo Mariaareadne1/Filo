@@ -56,17 +56,9 @@ const CATEGORIES: { key: CatKey; label: string }[] = [
   { key: 'experiences', label: 'experiences' },
 ];
 
-/** Maps the discover-vocab category to the corresponding places.category
- *  values. cafes/food both currently map to the same places.category
- *  ('food') so their pin-based counts will match — this reflects the
- *  current schema, not a bug here. */
-const DISCOVER_TO_PLACE_CATEGORIES: Record<CatKey, string[]> = {
-  cafes:       ['food'],
-  food:        ['food'],
-  bars:        ['bar'],
-  shops:       ['retail'],
-  experiences: ['experience'],
-};
+// Vocabulary note: the discover→places category bridge (cafes/food→food,
+// bars→bar, shops→retail, experiences→experience) now lives server-side in
+// the get_discover_counts RPC.
 
 interface QueryDef {
   id: string;
@@ -109,12 +101,6 @@ const QUERIES: QueryDef[] = [
 
 const COL_A = [QUERIES[0], QUERIES[2], QUERIES[4]];
 const COL_B = [QUERIES[1], QUERIES[3]];
-
-// Columbia centroid + ~5 km bounding box (lat/lng deltas).
-const COL_LAT = 40.8075;
-const COL_LNG = -73.9626;
-const LAT_DELTA = 0.045;          // ~5km in latitude
-const LNG_DELTA = 0.060;          // ~5km longitude at this latitude
 
 type Counts = Record<string, number | null>;
 const EMPTY_COUNTS: Counts = {
@@ -297,153 +283,39 @@ function DiscoverCard({
 
 // ─── Queries ────────────────────────────────────────────────────────────
 
+/**
+ * All five lens counts in one round trip via the get_discover_counts RPC,
+ * which computes them as SQL aggregates server-side (was ~9 client requests
+ * per tap, several shipping whole tables to count in JS). The RPC reads the
+ * caller from auth.uid(); `userId` here only tells us whether to bother.
+ */
 async function fetchDiscoverCounts(
   userId: string | null,
   discoverCat: CatKey,
 ): Promise<Counts> {
-  const placesCats = DISCOVER_TO_PLACE_CATEGORIES[discoverCat] ?? [];
-  const result: Counts = {
-    'near-you': 0, 'circle': 0, 'twins': 0, 'experts': 0, 'wishlist': 0,
-  };
-
-  const minLat = COL_LAT - LAT_DELTA, maxLat = COL_LAT + LAT_DELTA;
-  const minLng = COL_LNG - LNG_DELTA, maxLng = COL_LNG + LNG_DELTA;
-
-  // Resolve circle once (rows 02 + 05 share it).
-  let circleIds: string[] = [];
-  if (userId) {
-    const { data: follows } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', userId)
-      .eq('status', 'active');
-    circleIds = (follows ?? []).map((f: any) => f.following_id);
-  }
-
-  // Run independent queries in parallel.
-  const [r1, r2, r3, r4, r5] = await Promise.all([
-    countNearYou(placesCats, minLat, maxLat, minLng, maxLng),
-    userId ? countCircle(circleIds, placesCats) : Promise.resolve(0),
-    userId ? countTwins(userId, discoverCat) : Promise.resolve(0),
-    countExperts(discoverCat),
-    userId ? countWishlistOverlap(circleIds, placesCats) : Promise.resolve(0),
-  ]);
-
-  result['near-you'] = r1;
-  result['circle']   = r2;
-  result['twins']    = r3;
-  result['experts']  = r4;
-  result['wishlist'] = r5;
-
-  return result;
-}
-
-/** Row 01 — distinct places near Columbia (5km box) with any pin in this category. */
-async function countNearYou(
-  placesCats: string[],
-  minLat: number, maxLat: number, minLng: number, maxLng: number,
-): Promise<number> {
-  if (placesCats.length === 0) return 0;
   const { data, error } = await supabase
-    .from('pins')
-    .select('place_id, places!inner(category, lat, lng)')
-    .in('places.category', placesCats)
-    .gte('places.lat', minLat).lte('places.lat', maxLat)
-    .gte('places.lng', minLng).lte('places.lng', maxLng);
-  if (error || !data) return 0;
-  return new Set((data as any[]).map((r) => r.place_id)).size;
+    .rpc('get_discover_counts', { p_discover_cat: discoverCat })
+    .maybeSingle<{
+      near_you: number;
+      circle: number;
+      twins: number;
+      experts: number;
+      wishlist: number;
+    }>();
+
+  if (error || !data) return { ...EMPTY_COUNTS, ...zeroCounts() };
+
+  return {
+    'near-you': data.near_you ?? 0,
+    'circle':   userId ? data.circle ?? 0 : 0,
+    'twins':    userId ? data.twins ?? 0 : 0,
+    'experts':  data.experts ?? 0,
+    'wishlist': userId ? data.wishlist ?? 0 : 0,
+  };
 }
 
-/** Row 02 — pin count from users you follow in this category. */
-async function countCircle(circleIds: string[], placesCats: string[]): Promise<number> {
-  if (circleIds.length === 0 || placesCats.length === 0) return 0;
-  const { count, error } = await supabase
-    .from('pins')
-    .select('id, places!inner(category)', { count: 'exact', head: true })
-    .in('user_id', circleIds)
-    .in('places.category', placesCats);
-  if (error) return 0;
-  return count ?? 0;
-}
-
-/** Row 03 — distinct places ranked by users whose rankings overlap with mine. */
-async function countTwins(userId: string, cat: CatKey): Promise<number> {
-  // 1. My ranked place_ids in this category
-  const { data: mine } = await supabase
-    .from('rankings')
-    .select('place_id')
-    .eq('user_id', userId)
-    .eq('category', cat);
-  const myPlaceIds = (mine ?? []).map((r: any) => r.place_id);
-  if (myPlaceIds.length === 0) return 0;
-
-  // 2. Other users who also rank any of those places (this category)
-  const { data: overlap } = await supabase
-    .from('rankings')
-    .select('user_id')
-    .in('place_id', myPlaceIds)
-    .eq('category', cat)
-    .neq('user_id', userId);
-  const overlapUsers = Array.from(
-    new Set((overlap ?? []).map((r: any) => r.user_id)),
-  );
-  if (overlapUsers.length === 0) return 0;
-
-  // 3. Distinct places those users have ranked in this category
-  const { data: theirs } = await supabase
-    .from('rankings')
-    .select('place_id')
-    .in('user_id', overlapUsers)
-    .eq('category', cat);
-  return new Set((theirs ?? []).map((r: any) => r.place_id)).size;
-}
-
-/** Row 04 — distinct places ranked by users with 10+ rankings in this category. */
-async function countExperts(cat: CatKey): Promise<number> {
-  const { data: ranks } = await supabase
-    .from('rankings')
-    .select('user_id, place_id')
-    .eq('category', cat);
-  if (!ranks || ranks.length === 0) return 0;
-
-  const perUser = new Map<string, Set<string>>();
-  for (const r of ranks as any[]) {
-    if (!perUser.has(r.user_id)) perUser.set(r.user_id, new Set());
-    perUser.get(r.user_id)!.add(r.place_id);
-  }
-  const expertIds = new Set<string>();
-  for (const [uid, places] of perUser) {
-    if (places.size >= 10) expertIds.add(uid);
-  }
-  if (expertIds.size === 0) return 0;
-
-  const expertPlaces = new Set<string>();
-  for (const r of ranks as any[]) {
-    if (expertIds.has(r.user_id)) expertPlaces.add(r.place_id);
-  }
-  return expertPlaces.size;
-}
-
-/** Row 05 — places where 2+ people in your circle have status='want_to_go'. */
-async function countWishlistOverlap(
-  circleIds: string[],
-  placesCats: string[],
-): Promise<number> {
-  if (circleIds.length === 0 || placesCats.length === 0) return 0;
-  const { data } = await supabase
-    .from('pins')
-    .select('place_id, places!inner(category)')
-    .in('user_id', circleIds)
-    .eq('status', 'want_to_go')
-    .in('places.category', placesCats);
-  if (!data) return 0;
-  const placeCount = new Map<string, number>();
-  for (const r of data as any[]) {
-    placeCount.set(r.place_id, (placeCount.get(r.place_id) ?? 0) + 1);
-  }
-  let overlap = 0;
-  for (const c of placeCount.values()) if (c > 1) overlap++;
-  return overlap;
+function zeroCounts(): Counts {
+  return { 'near-you': 0, 'circle': 0, 'twins': 0, 'experts': 0, 'wishlist': 0 };
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────
