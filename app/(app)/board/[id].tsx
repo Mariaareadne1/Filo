@@ -128,6 +128,8 @@ export default function BoardDetailScreen() {
             delayLongPress={200}
             activeOpacity={0.92}
             style={[styles.pinRow, isActive && styles.pinRowActive]}
+            accessibilityLabel={`${item.place_name}, ${label}`}
+            accessibilityHint={isOwner ? 'Long press to reorder' : undefined}
           >
             <View style={styles.pinIcon}>
               <Text style={styles.pinGlyph}>{glyph}</Text>
@@ -149,11 +151,18 @@ export default function BoardDetailScreen() {
             </View>
             <View style={styles.pinRight}>
               {isOwner && (
-                <TouchableOpacity onPress={() => handleRemovePin(item.id)} hitSlop={12}>
+                <TouchableOpacity
+                  onPress={() => handleRemovePin(item.id)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${item.place_name} from board`}
+                >
                   <Text style={styles.removeText}>×</Text>
                 </TouchableOpacity>
               )}
-              {isOwner && <Text style={styles.dragHandle}>⠿</Text>}
+              {isOwner && (
+                <Text style={styles.dragHandle} accessibilityElementsHidden importantForAccessibility="no">⠿</Text>
+              )}
             </View>
           </TouchableOpacity>
         </ScaleDecorator>

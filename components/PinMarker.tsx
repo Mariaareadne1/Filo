@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { CATEGORY_COLORS, Category } from '../types';
+import { CATEGORY_COLORS, CATEGORY_LABELS, Category } from '../types';
 import {
   PALETTE,
   ACCENT,
@@ -39,7 +39,11 @@ export function PinMarker({ category, selected = false, pinId }: Props) {
   const glyphColor = selected ? ACCENT.red : (CATEGORY_COLORS[category] ?? PALETTE.ink);
 
   return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
+    <View
+      style={{ alignItems: 'center', gap: 4 }}
+      accessibilityRole="image"
+      accessibilityLabel={`${CATEGORY_LABELS[category] ?? category} pin`}
+    >
       <View
         style={[
           styles.outer,

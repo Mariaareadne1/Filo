@@ -13,7 +13,7 @@ import MapboxGL from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import { usePins, MapMode } from '../../hooks/usePins';
 import { useCurrentUserId } from '../../hooks/useCurrentUserId';
-import { MapPin } from '../../types';
+import { MapPin, CATEGORY_LABELS } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -156,7 +156,13 @@ const MarkerItem = memo(function MarkerItem({
 }) {
   return (
     <MapboxGL.MarkerView coordinate={[pin.lng, pin.lat]}>
-      <TouchableOpacity onPress={() => onSelect(pin)} activeOpacity={0.85}>
+      <TouchableOpacity
+        onPress={() => onSelect(pin)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`${pin.place_name}, ${CATEGORY_LABELS[pin.category] ?? pin.category}`}
+        accessibilityState={{ selected }}
+      >
         <View style={matches ? undefined : styles.dimmed}>
           <StickerPin pin={pin} selected={selected} visitCount={visitCount} />
         </View>
@@ -343,7 +349,12 @@ export default function MapScreen() {
               autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
                 <Text style={styles.searchClear}>×</Text>
               </TouchableOpacity>
             )}

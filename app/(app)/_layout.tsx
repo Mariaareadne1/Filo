@@ -54,9 +54,11 @@ function CenterFab() {
         activeOpacity={0.85}
         onPress={() => router.push('/pin/search')}
         style={styles.fab}
+        accessibilityRole="button"
+        accessibilityLabel="Add a new pin"
       >
-        <Text style={styles.fabPlus}>＋</Text>
-        <Text style={styles.fabLabel}>pin</Text>
+        <Text style={styles.fabPlus} accessibilityElementsHidden importantForAccessibility="no">＋</Text>
+        <Text style={styles.fabLabel} accessibilityElementsHidden importantForAccessibility="no">pin</Text>
       </TouchableOpacity>
     </View>
   );
@@ -85,6 +87,7 @@ export default function AppLayout() {
         <Tabs.Screen
           name="discover"
           options={{
+            tabBarAccessibilityLabel: 'Find',
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="✦" label="find" focused={focused} />
             ),
@@ -93,6 +96,7 @@ export default function AppLayout() {
         <Tabs.Screen
           name="map"
           options={{
+            tabBarAccessibilityLabel: 'Map',
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="◉" label="map" focused={focused} />
             ),
@@ -107,6 +111,7 @@ export default function AppLayout() {
         <Tabs.Screen
           name="feed"
           options={{
+            tabBarAccessibilityLabel: 'Feed',
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph="☰" label="feed" focused={focused} />
             ),
@@ -115,6 +120,7 @@ export default function AppLayout() {
         <Tabs.Screen
           name="profile"
           options={{
+            tabBarAccessibilityLabel: 'You',
             tabBarIcon: ({ focused }) => (
               <TabSlot glyph={'○'} label="you" focused={focused} />
             ),

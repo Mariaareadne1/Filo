@@ -17,7 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { usePins } from '../../hooks/usePins';
 import { CATEGORY_COLORS, MapPin } from '../../types';
 import { PinDetailSheet } from '../../components/PinDetailSheet';
-import { COLORS } from '../../constants/theme';
+import { ACCENT, PALETTE } from '../../constants/theme';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 
@@ -176,7 +176,7 @@ export default function FirstPinScreen() {
 
       {loading && (
         <View style={styles.loadingOverlay} pointerEvents="none">
-          <ActivityIndicator color={COLORS.primary} size="small" />
+          <ActivityIndicator color={ACCENT.red} size="small" />
         </View>
       )}
 
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#F0F0F0',
   },
   stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(26,26,26,0.18)' },
-  stepDotActive: { backgroundColor: COLORS.primary, width: 18, borderRadius: 3 },
+  stepDotActive: { backgroundColor: ACCENT.red, width: 18, borderRadius: 3 },
 
   tooltip: {
     position: 'absolute', alignSelf: 'center',
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 10,
   },
   tooltipText: {
-    color: COLORS.textPrimary, fontSize: 14, fontWeight: '600',
+    color: PALETTE.ink, fontSize: 14, fontWeight: '600',
     textAlign: 'center', lineHeight: 21,
   },
   tooltipArrow: {
@@ -230,12 +230,12 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute', alignSelf: 'center',
     width: 58, height: 58, borderRadius: 29,
-    backgroundColor: COLORS.primary,
+    backgroundColor: ACCENT.red,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowColor: ACCENT.red, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.55, shadowRadius: 12, elevation: 10,
   },
-  fabText: { fontSize: 28, color: COLORS.textPrimary, fontWeight: '300', lineHeight: 32 },
+  fabText: { fontSize: 28, color: PALETTE.ink, fontWeight: '300', lineHeight: 32 },
   loadingOverlay: {
     position: 'absolute', top: '50%', alignSelf: 'center',
     backgroundColor: 'rgba(242,237,232,0.97)', borderRadius: 20, padding: 12,

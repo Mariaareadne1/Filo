@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useOnboarding } from '../../contexts/onboarding';
-import { COLORS, GLASS, GLASS_SM } from '../../constants/theme';
+import { ACCENT, PALETTE, GLASS_STYLE_SM } from '../../constants/theme';
 
 interface DirectoryUser {
   id: string;
@@ -114,7 +114,7 @@ export default function FindFriendsScreen() {
     const initials    = item.display_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
     return (
-      <View style={[styles.row, GLASS_SM]}>
+      <View style={[styles.row, GLASS_STYLE_SM]}>
         {item.avatar_url ? (
           <Image
             source={{ uri: item.avatar_url }}
@@ -124,8 +124,8 @@ export default function FindFriendsScreen() {
             recyclingKey={item.id}
           />
         ) : (
-          <View style={[styles.avatarFallback, { backgroundColor: COLORS.primary + '22' }]}>
-            <Text style={[styles.avatarInitials, { color: COLORS.primary }]}>{initials}</Text>
+          <View style={[styles.avatarFallback, { backgroundColor: ACCENT.red + '22' }]}>
+            <Text style={[styles.avatarInitials, { color: ACCENT.red }]}>{initials}</Text>
           </View>
         )}
         <View style={styles.info}>
@@ -142,7 +142,7 @@ export default function FindFriendsScreen() {
           activeOpacity={0.75}
         >
           {isToggling ? (
-            <ActivityIndicator size="small" color={isFollowing ? COLORS.textSecondary : '#fff'} />
+            <ActivityIndicator size="small" color={isFollowing ? PALETTE.inkSoft : '#fff'} />
           ) : (
             <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
               {isFollowing ? 'Following' : 'Follow'}
@@ -177,7 +177,7 @@ export default function FindFriendsScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
+            <ActivityIndicator color={ACCENT.red} size="large" />
           </View>
         ) : (
           <Animated.View style={[styles.listWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -227,16 +227,16 @@ const styles = StyleSheet.create({
   },
   stepRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(26,26,26,0.18)' },
-  stepDotActive: { backgroundColor: COLORS.primary, width: 20, borderRadius: 3 },
-  headline: { fontSize: 26, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.3 },
-  subtext:  { fontSize: 15, color: COLORS.textSecondary },
+  stepDotActive: { backgroundColor: ACCENT.red, width: 20, borderRadius: 3 },
+  headline: { fontSize: 26, fontWeight: '800', color: PALETTE.ink, letterSpacing: -0.3 },
+  subtext:  { fontSize: 15, color: PALETTE.inkSoft },
   followCountBadge: {
     alignSelf: 'flex-start', marginTop: 6,
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: ACCENT.red + '20',
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: COLORS.primary + '44',
+    borderWidth: 1, borderColor: ACCENT.red + '44',
   },
-  followCountText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  followCountText: { fontSize: 12, fontWeight: '700', color: ACCENT.red },
 
   listWrap: { flex: 1 },
   list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, gap: 8 },
@@ -249,12 +249,12 @@ const styles = StyleSheet.create({
   avatarFallback: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   avatarInitials: { fontSize: 16, fontWeight: '700' },
   info: { flex: 1, gap: 1 },
-  displayName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  username:    { fontSize: 12, color: COLORS.textSecondary },
-  pinCount:    { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  displayName: { fontSize: 15, fontWeight: '700', color: PALETTE.ink },
+  username:    { fontSize: 12, color: PALETTE.inkSoft },
+  pinCount:    { fontSize: 11, color: PALETTE.inkMute, marginTop: 1 },
 
   followBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: ACCENT.red,
     borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8,
     minWidth: 84, alignItems: 'center', justifyContent: 'center',
   },
@@ -263,14 +263,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#E8E8E8',
   },
   followBtnText:    { fontSize: 13, fontWeight: '700', color: '#fff' },
-  followingBtnText: { color: COLORS.textSecondary },
+  followingBtnText: { color: PALETTE.inkSoft },
 
   footer: {
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24,
     borderTopWidth: 1, borderTopColor: 'rgba(26,26,26,0.08)',
   },
   doneBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
+    backgroundColor: ACCENT.red, borderRadius: 14,
     paddingVertical: 17, alignItems: 'center',
   },
   doneBtnDisabled: { opacity: 0.6 },
@@ -279,8 +279,8 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyRing: {
     width: 50, height: 50, borderRadius: 25,
-    borderWidth: 1.5, borderColor: COLORS.primary + '40',
+    borderWidth: 1.5, borderColor: ACCENT.red + '40',
     marginBottom: 4,
   },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary },
+  emptyText: { fontSize: 14, color: PALETTE.inkSoft },
 });

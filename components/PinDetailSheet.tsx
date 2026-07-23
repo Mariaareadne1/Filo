@@ -172,8 +172,16 @@ export function PinDetailSheet({ pin, onClose }: Props) {
 
   return (
     <Modal transparent animationType="none" visible={!!pin} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
+      <Animated.View
+        style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+        accessibilityViewIsModal
+      >
         <View style={styles.handle} />
 
         {!showBoardPicker ? (

@@ -68,7 +68,7 @@ export default function CreateBoardScreen() {
   }
 
   return (
-    <View style={styles.safe}>
+    <View style={styles.safe} accessibilityViewIsModal>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
