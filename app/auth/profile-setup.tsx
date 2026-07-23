@@ -83,7 +83,9 @@ export default function ProfileSetupScreen() {
     if (!avatarUri) return null;
     try {
       const ext = avatarUri.split('.').pop() ?? 'jpg';
-      const path = `avatars/${userId}.${ext}`;
+      // Folder-per-user path so the avatars-bucket RLS can gate writes on
+      // (storage.foldername(name))[1] = auth.uid(), mirroring pin-photos.
+      const path = `${userId}/avatar.${ext}`;
       const response = await fetch(avatarUri);
       const blob = await response.blob();
       const { error } = await supabase.storage

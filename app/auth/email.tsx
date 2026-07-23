@@ -21,10 +21,29 @@ import {
   SCREEN_PAD,
 } from '../../constants/theme';
 
-/** Loose format check — any real inbox works for demo / OTP (no campus-only gate). */
+/** Loose RFC-ish format check. */
 function isValidEmailFormat(email: string): boolean {
   const trimmed = email.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+/**
+ * Check the email domain against the server-side allowlist so we can reject a
+ * non-campus address before sending an OTP. The `auth_allowed_domains` table
+ * is the source of truth and a BEFORE INSERT trigger on `users` enforces it
+ * server-side regardless — this is only early UX. Fails open (returns true) if
+ * the lookup errors, letting the server be the authority.
+ */
+async function isAllowedDomain(email: string): Promise<boolean> {
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return false;
+  const { data, error } = await supabase
+    .from('auth_allowed_domains')
+    .select('domain')
+    .eq('domain', domain)
+    .maybeSingle();
+  if (error) return true; // fail open — server enforces
+  return !!data;
 }
 
 export default function EmailScreen() {
@@ -42,6 +61,11 @@ export default function EmailScreen() {
       return;
     }
     setLoading(true);
+    if (!(await isAllowedDomain(trimmed))) {
+      setLoading(false);
+      setError('filo is invite-only for columbia & barnard email addresses.');
+      return;
+    }
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { shouldCreateUser: true },
@@ -102,7 +126,7 @@ export default function EmailScreen() {
           </View>
 
           <Text style={styles.fine}>
-            built at columbia & barnard — sign in with any email for this demo.
+            built at columbia & barnard — invite-only for campus email addresses.
           </Text>
         </KeyboardAvoidingView>
       </SafeAreaView>
