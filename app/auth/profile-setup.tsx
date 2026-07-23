@@ -8,9 +8,9 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -194,7 +194,12 @@ export default function ProfileSetupScreen() {
             {/* Avatar */}
             <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar} activeOpacity={0.8}>
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   {initials ? (

@@ -3,11 +3,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   ScrollView,
   Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -311,7 +311,13 @@ export default function ProfileScreen() {
           {/* Avatar + name */}
           <View style={styles.profileSection}>
             {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={profile?.id}
+              />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitials}>{initials}</Text>

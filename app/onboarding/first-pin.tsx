@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   Animated,
   ActivityIndicator,
- Image } from 'react-native';
+} from 'react-native';
+import { Image } from 'expo-image';
+import { resizePlacePhoto } from '../../lib/places';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,7 +39,13 @@ function PhotoPin({ pin, color, selected }: { pin: MapPin; color: string; select
         shadowColor: color, shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.5, shadowRadius: 4, elevation: 5,
       }}>
-        <Image source={{ uri: pin.photo_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        <Image
+          source={{ uri: resizePlacePhoto(pin.photo_url, 200) ?? undefined }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={pin.pin_id}
+        />
       </View>
     );
   }

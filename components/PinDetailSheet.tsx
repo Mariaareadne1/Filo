@@ -3,7 +3,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Modal,
   Animated,
   Pressable,
@@ -13,6 +12,7 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { MapPin, CATEGORY_LABELS } from '../types';
@@ -268,7 +268,13 @@ export function PinDetailSheet({ pin, onClose }: Props) {
               activeOpacity={0.7}
             >
               {pin.avatar_url ? (
-                <Image source={{ uri: pin.avatar_url }} style={styles.avatar} />
+                <Image
+                  source={{ uri: pin.avatar_url }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={pin.user_id}
+                />
               ) : (
                 <View style={styles.avatarFallback}>
                   <Text style={styles.avatarInitials}>{initials}</Text>

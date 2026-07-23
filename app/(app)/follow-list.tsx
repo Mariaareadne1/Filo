@@ -4,9 +4,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -155,7 +155,13 @@ export default function FollowListScreen() {
                   activeOpacity={0.85}
                 >
                   {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                    <Image
+                      source={{ uri: item.avatar_url }}
+                      style={styles.avatar}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={item.id}
+                    />
                   ) : (
                     <View style={styles.avatarFallback}>
                       <Text style={styles.avatarInitials}>{initials}</Text>

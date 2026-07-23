@@ -4,9 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useState , useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -219,7 +219,13 @@ function TwinRow({
       <View style={styles.body}>
         <View style={styles.bodyTopRow}>
           {twin.avatar_url ? (
-            <Image source={{ uri: twin.avatar_url }} style={styles.avatar} />
+            <Image
+              source={{ uri: twin.avatar_url }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={twin.user_id}
+            />
           ) : (
             <View style={[styles.avatarFallback, { backgroundColor: friendColor }]}>
               <Text style={styles.avatarInitials}>{initials}</Text>

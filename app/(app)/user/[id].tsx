@@ -3,10 +3,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect, Redirect } from 'expo-router';
@@ -196,7 +196,13 @@ export default function UserProfileScreen() {
           <View style={styles.header}>
             <Text style={styles.metaLabel}>PROFILE · @{profile.username.toUpperCase()}</Text>
             {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={profile.id}
+              />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitials}>{initials}</Text>

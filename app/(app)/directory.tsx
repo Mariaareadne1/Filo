@@ -3,12 +3,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -102,7 +102,13 @@ export default function DirectoryScreen() {
         </View>
 
         {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          <Image
+            source={{ uri: item.avatar_url }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={item.id}
+          />
         ) : (
           <View style={styles.avatarFallback}>
             <Text style={styles.avatarInitials}>{initials}</Text>

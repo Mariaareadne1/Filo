@@ -3,13 +3,13 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useState, useCallback, useRef } from 'react';
+import { Image } from 'expo-image';
+import { memo, useMemo, useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -165,32 +165,42 @@ export default function FeedScreen() {
     loadFeed();
   }, [loadFeed]);
 
-  const filteredPins = searchQuery.trim()
-    ? pins.filter(
-        (p) =>
-          p.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.username.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : pins;
+  const filteredPins = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return pins;
+    return pins.filter(
+      (p) =>
+        p.place_name.toLowerCase().includes(q) ||
+        p.display_name.toLowerCase().includes(q) ||
+        p.username.toLowerCase().includes(q),
+    );
+  }, [pins, searchQuery]);
 
-  const renderItem = ({ item }: { item: MapPin }) => {
-    const kind = pickCardKind(item);
-    const onPressCard = () => setSelectedPin(item);
-    const onPressUser = () => router.push(`/(app)/user/${item.user_id}` as never);
+  // Stable, pin-parameterized handlers so the memoized cards don't re-render
+  // on every keystroke / list change.
+  const handlePressCard = useCallback((pin: MapPin) => setSelectedPin(pin), []);
+  const handlePressUser = useCallback(
+    (pin: MapPin) => router.push(`/(app)/user/${pin.user_id}` as never),
+    [router],
+  );
 
-    switch (kind) {
-      case 'photo':
-        return <PhotoCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
-      case 'rank':
-        return <RankCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
-      case 'impression':
-        return <ImpressionCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
-      case 'minimal':
-      default:
-        return <MinimalCard pin={item} onPressCard={onPressCard} onPressUser={onPressUser} />;
-    }
-  };
+  const renderItem = useCallback(
+    ({ item }: { item: MapPin }) => {
+      const kind = pickCardKind(item);
+      switch (kind) {
+        case 'photo':
+          return <PhotoCard pin={item} onPressCard={handlePressCard} onPressUser={handlePressUser} />;
+        case 'rank':
+          return <RankCard pin={item} onPressCard={handlePressCard} onPressUser={handlePressUser} />;
+        case 'impression':
+          return <ImpressionCard pin={item} onPressCard={handlePressCard} onPressUser={handlePressUser} />;
+        case 'minimal':
+        default:
+          return <MinimalCard pin={item} onPressCard={handlePressCard} onPressUser={handlePressUser} />;
+      }
+    },
+    [handlePressCard, handlePressUser],
+  );
 
   return (
     <View style={styles.safe}>
@@ -296,8 +306,8 @@ export default function FeedScreen() {
 
 interface CardProps {
   pin: MapPin;
-  onPressCard: () => void;
-  onPressUser: () => void;
+  onPressCard: (pin: MapPin) => void;
+  onPressUser: (pin: MapPin) => void;
 }
 
 function CategoryPill({ pin }: { pin: MapPin }) {
@@ -347,18 +357,24 @@ function MetaRow({
 
 // ─── TYPE A — photo card ────────────────────────────────────────────
 
-function PhotoCard({ pin, onPressCard, onPressUser }: CardProps) {
+const PhotoCard = memo(function PhotoCard({ pin, onPressCard, onPressUser }: CardProps) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+    <TouchableOpacity style={styles.card} onPress={() => onPressCard(pin)} activeOpacity={0.94}>
       <View style={styles.photoWrap}>
-        <Image source={{ uri: pin.photo_url ?? undefined }} style={styles.photo} />
+        <Image
+          source={{ uri: pin.photo_url ?? undefined }}
+          style={styles.photo}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={pin.pin_id}
+        />
         <View style={styles.photoScrim} pointerEvents="none" />
         <Text style={styles.photoName} numberOfLines={2}>
           {pin.place_name}
         </Text>
       </View>
       <View style={styles.cardBody}>
-        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+        <TouchableOpacity onPress={() => onPressUser(pin)} hitSlop={4}>
           <MetaRow pin={pin} />
         </TouchableOpacity>
         {pin.impression ? (
@@ -373,14 +389,14 @@ function PhotoCard({ pin, onPressCard, onPressUser }: CardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── TYPE D — rank card ─────────────────────────────────────────────
 
-function RankCard({ pin, onPressCard, onPressUser }: CardProps) {
+const RankCard = memo(function RankCard({ pin, onPressCard, onPressUser }: CardProps) {
   const catLabel = CATEGORY_LABEL_RANK[pin.category] ?? pin.category;
   return (
-    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+    <TouchableOpacity style={styles.card} onPress={() => onPressCard(pin)} activeOpacity={0.94}>
       <View style={styles.rankAccentBar} />
       <View style={styles.rankCardBody}>
         <Text style={styles.placeName} numberOfLines={2}>
@@ -397,19 +413,19 @@ function RankCard({ pin, onPressCard, onPressUser }: CardProps) {
             "{pin.impression}"
           </Text>
         ) : null}
-        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+        <TouchableOpacity onPress={() => onPressUser(pin)} hitSlop={4}>
           <MetaRow pin={pin} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── TYPE B — impression card ───────────────────────────────────────
 
-function ImpressionCard({ pin, onPressCard, onPressUser }: CardProps) {
+const ImpressionCard = memo(function ImpressionCard({ pin, onPressCard, onPressUser }: CardProps) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+    <TouchableOpacity style={styles.card} onPress={() => onPressCard(pin)} activeOpacity={0.94}>
       <View style={styles.cardBody}>
         {/* Soft watermark — sits behind the flow content via source order */}
         <Text style={styles.impressionWatermark} pointerEvents="none">
@@ -422,7 +438,7 @@ function ImpressionCard({ pin, onPressCard, onPressUser }: CardProps) {
         <Text style={styles.impressionHero} numberOfLines={4}>
           {pin.impression}
         </Text>
-        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+        <TouchableOpacity onPress={() => onPressUser(pin)} hitSlop={4}>
           <MetaRow pin={pin} includeVerb={false} />
         </TouchableOpacity>
         <View style={styles.bottomStrip}>
@@ -432,18 +448,18 @@ function ImpressionCard({ pin, onPressCard, onPressUser }: CardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── TYPE C — minimal card ──────────────────────────────────────────
 
-function MinimalCard({ pin, onPressCard, onPressUser }: CardProps) {
+const MinimalCard = memo(function MinimalCard({ pin, onPressCard, onPressUser }: CardProps) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPressCard} activeOpacity={0.94}>
+    <TouchableOpacity style={styles.card} onPress={() => onPressCard(pin)} activeOpacity={0.94}>
       <View style={styles.cardBody}>
         <Text style={styles.placeName} numberOfLines={1}>
           {pin.place_name}
         </Text>
-        <TouchableOpacity onPress={onPressUser} hitSlop={4}>
+        <TouchableOpacity onPress={() => onPressUser(pin)} hitSlop={4}>
           <MetaRow pin={pin} />
         </TouchableOpacity>
         {pin.impression ? (
@@ -459,7 +475,7 @@ function MinimalCard({ pin, onPressCard, onPressUser }: CardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
@@ -550,7 +566,7 @@ const styles = StyleSheet.create({
 
   // ─── Photo card ───────────────────────────────────────────────────
   photoWrap: { height: 180, position: 'relative' },
-  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photo: { width: '100%', height: '100%' },
   photoScrim: {
     position: 'absolute',
     left: 0,

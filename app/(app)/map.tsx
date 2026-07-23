@@ -7,7 +7,7 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapboxGL from '@rnmapbox/maps';
 import * as Location from 'expo-location';
@@ -90,7 +90,7 @@ function pinMatches(
  * a slightly thicker border (no other tint). When `visitCount > 1`, a
  * small red count pill rides the bottom-right corner of the marker.
  */
-function StickerPin({
+const StickerPin = memo(function StickerPin({
   pin,
   selected,
   visitCount,
@@ -104,28 +104,23 @@ function StickerPin({
   const showCount = visitCount > 1;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={[styles.pinWrap, { width: size, height: size }]}>
       <View
         style={[
-          {
-            width: size,
-            height: size,
-            borderWidth,
-            borderColor: PALETTE.ink,
-            backgroundColor: PALETTE.surface,
-            alignItems: 'center',
-            justifyContent: 'center',
-          },
+          styles.pinBox,
+          { width: size, height: size, borderWidth },
           selected ? STICKER_SHADOW_LG : STICKER_SHADOW,
         ]}
       >
         <Text
           allowFontScaling={false}
-          style={{
-            fontSize: selected ? 18 : 15,
-            color: selected ? ACCENT.red : PALETTE.inkSoft,
-            includeFontPadding: false,
-          }}
+          style={[
+            styles.pinGlyph,
+            {
+              fontSize: selected ? 18 : 15,
+              color: selected ? ACCENT.red : PALETTE.inkSoft,
+            },
+          ]}
         >
           {CATEGORY_GLYPH[pin.category] ?? '◉'}
         </Text>
@@ -139,7 +134,36 @@ function StickerPin({
       )}
     </View>
   );
-}
+});
+
+/**
+ * One map marker. Memoized so a filter/search/selection change only re-renders
+ * the markers whose props actually changed — not all of them on every keystroke.
+ * `onSelect` is a stable callback, so the per-marker press handler doesn't churn.
+ */
+const MarkerItem = memo(function MarkerItem({
+  pin,
+  selected,
+  visitCount,
+  matches,
+  onSelect,
+}: {
+  pin: MapPin;
+  selected: boolean;
+  visitCount: number;
+  matches: boolean;
+  onSelect: (pin: MapPin) => void;
+}) {
+  return (
+    <MapboxGL.MarkerView coordinate={[pin.lng, pin.lat]}>
+      <TouchableOpacity onPress={() => onSelect(pin)} activeOpacity={0.85}>
+        <View style={matches ? undefined : styles.dimmed}>
+          <StickerPin pin={pin} selected={selected} visitCount={visitCount} />
+        </View>
+      </TouchableOpacity>
+    </MapboxGL.MarkerView>
+  );
+});
 
 const EMPTY_MESSAGES: Record<MapMode, { title: string; italic: string; sub: string }> = {
   my:      { title: 'no pins',  italic: 'yet.',     sub: 'tap + to pin your first place.' },
@@ -170,8 +194,19 @@ export default function MapScreen() {
     return m;
   }, [pins]);
 
-  const trimmedSearch = searchQuery.trim().toLowerCase();
+  // Debounce the search text before it drives marker filtering so typing a
+  // query doesn't re-render every marker on each keystroke. The input stays
+  // bound to `searchQuery` for immediate responsiveness.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const trimmedSearch = debouncedSearch.trim().toLowerCase();
   const filterActive = categoryFilter !== null || trimmedSearch.length > 0;
+
+  const handleSelectPin = useCallback((pin: MapPin) => setSelectedPin(pin), []);
 
   // Count of pins matching the active filter/search — drives the
   // overlay chip text. When neither is active we don't show the chip.
@@ -239,22 +274,16 @@ export default function MapScreen() {
           defaultSettings={{ centerCoordinate: MORNINGSIDE, zoomLevel: 14 }}
         />
         {locationGranted && <MapboxGL.UserLocation visible animated />}
-        {pins.map((pin) => {
-          const matches = !filterActive || pinMatches(pin, categoryFilter, trimmedSearch);
-          return (
-            <MapboxGL.MarkerView key={pin.pin_id} coordinate={[pin.lng, pin.lat]}>
-              <TouchableOpacity onPress={() => setSelectedPin(pin)} activeOpacity={0.85}>
-                <View style={{ opacity: matches ? 1 : 0.3 }}>
-                  <StickerPin
-                    pin={pin}
-                    selected={selectedPin?.pin_id === pin.pin_id}
-                    visitCount={visitCounts.get(pin.place_id) ?? 1}
-                  />
-                </View>
-              </TouchableOpacity>
-            </MapboxGL.MarkerView>
-          );
-        })}
+        {pins.map((pin) => (
+          <MarkerItem
+            key={pin.pin_id}
+            pin={pin}
+            selected={selectedPin?.pin_id === pin.pin_id}
+            visitCount={visitCounts.get(pin.place_id) ?? 1}
+            matches={!filterActive || pinMatches(pin, categoryFilter, trimmedSearch)}
+            onSelect={handleSelectPin}
+          />
+        ))}
       </MapboxGL.MapView>
 
       {/* Top stack: mode toggle → category chips → search → count overlay */}
@@ -357,6 +386,16 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PALETTE.bg },
+
+  pinWrap: { alignItems: 'center', justifyContent: 'center' },
+  pinBox: {
+    borderColor: PALETTE.ink,
+    backgroundColor: PALETTE.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinGlyph: { includeFontPadding: false },
+  dimmed: { opacity: 0.3 },
 
   selectedBar: {
     position: 'absolute',

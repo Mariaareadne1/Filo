@@ -3,11 +3,11 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -116,7 +116,13 @@ export default function FindFriendsScreen() {
     return (
       <View style={[styles.row, GLASS_SM]}>
         {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          <Image
+            source={{ uri: item.avatar_url }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={item.id}
+          />
         ) : (
           <View style={[styles.avatarFallback, { backgroundColor: COLORS.primary + '22' }]}>
             <Text style={[styles.avatarInitials, { color: COLORS.primary }]}>{initials}</Text>
