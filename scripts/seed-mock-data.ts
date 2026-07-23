@@ -1,31 +1,28 @@
 /**
  * scripts/seed-mock-data.ts
  *
- * Seeds the Filo database with five fake Columbia students, ~24 real
- * Morningside Heights places, ~45 pins, mutual follows that include the
- * real user, and rankings across the discover-screen categories. The
- * goal is to make the feed, friends map, and discover screens feel
- * alive in demos.
+ * Seeds the Filo database with ten fake Columbia students, ~24 real
+ * Morningside Heights places, ~85 pins, mutual follows that include
+ * the real user, ~22 boards (2–3 per user, drawn from their favorite
+ * categories), and rankings across the discover-screen categories.
+ * The goal is to make the feed, friends map, discover screens, and
+ * board surfaces feel alive in demos.
  *
- * Idempotent — re-running deletes the prior seed users (matched by
- * username) before recreating, which cascades to their pins, follows,
- * boards, and board_pins via the FK constraints in schema.sql. Rankings
- * are deleted explicitly first since that table is not in schema.sql
- * and may not have ON DELETE CASCADE wired up.
+ * Idempotent — re-running clears prior seed rows (identified by the
+ * seed.filo.local email domain, NOT by username — usernames can
+ * collide with real accounts) before recreating. Deletion cascades
+ * to pins, follows, board_pins, boards via FK constraints in
+ * schema.sql. Rankings are deleted explicitly first since that table
+ * is not in schema.sql and may not have ON DELETE CASCADE wired up.
  *
  * Requires the SERVICE-ROLE key — RLS blocks INSERT into `users` for
- * any other identity (the policy is `auth.uid() = id`, which fake users
- * can never satisfy). The script will refuse to run with the anon key.
+ * any other identity (the policy is `auth.uid() = id`, which fake
+ * users can never satisfy).
  *
  * Usage:
  *   SUPABASE_URL=https://<project>.supabase.co \
  *   SUPABASE_SERVICE_ROLE_KEY=<service_role_key> \
  *   npx tsx scripts/seed-mock-data.ts
- *
- * If you don't have tsx installed:
- *   npm i -D tsx
- *   # or run via ts-node:
- *   npx ts-node --esm scripts/seed-mock-data.ts
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -57,6 +54,11 @@ if (SERVICE_KEY.length < 100) {
 
 const REAL_USER_ID = '7bed6dfd-8dad-44a1-b993-72bd3153c5af';
 
+/** Cleanup filter — every seed user gets an email at this domain so we
+ *  can wipe prior seed rows without touching real accounts that happen
+ *  to share a username. */
+const SEED_EMAIL_DOMAIN = '@seed.filo.local';
+
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -69,16 +71,20 @@ interface SeedUser {
   username: string;
   display_name: string;
   email: string;
-  /** Categories this persona will rank — drives the rankings seed. */
   favorites: RankingCat[];
 }
 
 const FAKE_USERS: SeedUser[] = [
-  { username: 'mayar',  display_name: 'Maya Rodriguez',  email: 'mayar@seed.filo.local',  favorites: ['cafes', 'food'] },
-  { username: 'amirt',  display_name: 'Amir Tahir',      email: 'amirt@seed.filo.local',  favorites: ['food', 'bars'] },
-  { username: 'julesh', display_name: 'Jules Hartwell',  email: 'julesh@seed.filo.local', favorites: ['cafes', 'shops', 'experiences'] },
-  { username: 'sashak', display_name: 'Sasha Kim',       email: 'sashak@seed.filo.local', favorites: ['bars', 'food'] },
-  { username: 'kaio',   display_name: 'Kai Okonkwo',     email: 'kaio@seed.filo.local',   favorites: ['experiences', 'cafes'] },
+  { username: 'mayar',   display_name: 'Maya Rodriguez', email: 'mayar@seed.filo.local',   favorites: ['cafes', 'food'] },
+  { username: 'amirt',   display_name: 'Amir Tahir',     email: 'amirt@seed.filo.local',   favorites: ['food', 'bars'] },
+  { username: 'julesh',  display_name: 'Jules Hartwell', email: 'julesh@seed.filo.local',  favorites: ['cafes', 'shops', 'experiences'] },
+  { username: 'sashak',  display_name: 'Sasha Kim',      email: 'sashak@seed.filo.local',  favorites: ['bars', 'food'] },
+  { username: 'kaio',    display_name: 'Kai Okonkwo',    email: 'kaio@seed.filo.local',    favorites: ['experiences', 'cafes'] },
+  { username: 'raew',    display_name: 'Rae Williams',   email: 'raew@seed.filo.local',    favorites: ['cafes', 'shops'] },
+  { username: 'tomask',  display_name: 'Tomas Kovac',    email: 'tomask@seed.filo.local',  favorites: ['bars', 'food'] },
+  { username: 'priyap',  display_name: 'Priya Patel',    email: 'priyap@seed.filo.local',  favorites: ['experiences', 'food'] },
+  { username: 'noahf',   display_name: 'Noah Fischer',   email: 'noahf@seed.filo.local',   favorites: ['cafes', 'bars'] },
+  { username: 'linamar', display_name: 'Lina Martin',    email: 'linamar@seed.filo.local', favorites: ['shops', 'experiences'] },
 ];
 
 // ─── Real Morningside places ─────────────────────────────────────────
@@ -89,9 +95,7 @@ interface SeedPlace {
   google_place_id: string;
   name: string;
   address: string;
-  /** Goes into places.category — MapPin vocabulary. */
   category: PlaceCat;
-  /** Goes into rankings.category — discover vocabulary. */
   rankingCategory: RankingCat;
   lat: number;
   lng: number;
@@ -142,6 +146,11 @@ const IMPRESSIONS_BY_CAT: Record<RankingCat, string[]> = {
     'cinnamon morning bun > everything.',
     'corner table by the window, always.',
     'flat white is exactly right.',
+    "wifi's actually fast — take the back room during finals.",
+    'matcha is overrated here, stick with the cortado.',
+    'open till 11 during finals week, literally a lifesaver.',
+    'small but they remember your order by week 2.',
+    'their loose-leaf earl grey changed me.',
   ],
   food: [
     'go for the spaghetti carbonara.',
@@ -149,25 +158,60 @@ const IMPRESSIONS_BY_CAT: Record<RankingCat, string[]> = {
     'sunday brunch ritual.',
     'the burger lives up to the hype.',
     'late-night gyro hits.',
+    'the soup dumplings are dangerous.',
+    "go pre-7pm or it's a line out the door.",
+    'split family-style — order the whole branzino.',
+    'their weekday lunch special is unreal.',
+    'best post-butler sandwich on broadway.',
   ],
   bars: [
     'cheap pitchers, columbia crowd.',
     'best dive on the upper west.',
     'the negroni hits different here.',
     'tuesday trivia is the move.',
+    'happy hour till 8, $5 well drinks, do the math.',
+    'this is where i ended up at 2am freshman year.',
+    'their mezcal flight is sneaky strong.',
+    'jukebox is unhinged in the best way.',
+    "go on a tuesday or you'll wait an hour.",
   ],
   shops: [
     'a real bookstore. browse for hours.',
     'great rare-book section.',
     'staff picks always slap.',
+    'their philosophy section is genuinely good.',
+    'i found a first edition for $8. never recovered.',
+    'small but the buyer has taste.',
+    'staff will let you sit and read for hours, just buy something eventually.',
+    'best $4 vintage tote in nyc.',
   ],
   experiences: [
     'gothic + organ recital = chills.',
     'sunset over the hudson, every time.',
     'underrated walk before dinner.',
     'the stained glass alone is worth it.',
+    'free organ recital on sundays at 5, go.',
+    "walk down to grant's tomb at golden hour.",
+    'the labyrinth out back is meditative as hell.',
+    'get the cheap seats — sightlines are still good.',
+    'sit on the steps with a coffee, watch the dogs.',
   ],
 };
+
+// ─── Board templates by category ─────────────────────────────────────
+
+const BOARD_TEMPLATES: Record<RankingCat, string[]> = {
+  cafes:       ['morning rotation', 'study spots'],
+  food:        ['late night eats', 'sunday brunch spots'],
+  bars:        ['going out', 'dive bar tour'],
+  shops:       ['morningside finds', 'bookshop crawl'],
+  experiences: ['things to do', 'walks worth taking'],
+};
+
+function generateShareToken(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -206,16 +250,19 @@ async function main() {
     console.log(`  ✓ real user found: @${(realUserRow as any).username}`);
   }
 
-  // 2. Wipe prior seed users (cascades to pins, follows, board_pins, boards)
-  const usernames = FAKE_USERS.map((u) => u.username);
+  // 2. Wipe prior seed rows. Match by email domain — usernames can
+  // collide with real accounts (and have), so filtering by the
+  // seed.filo.local pattern is the only safe way to guarantee we
+  // never delete a real user. Deletion cascades to pins, follows,
+  // board_pins, boards via FK constraints.
   const { data: existing } = await supabase
     .from('users')
-    .select('id, username')
-    .in('username', usernames);
+    .select('id, username, email')
+    .like('email', `%${SEED_EMAIL_DOMAIN}`);
 
   if (existing && existing.length > 0) {
     const existingIds = (existing as any[]).map((u) => u.id);
-    // rankings is not in schema.sql, so cascade is unknown — clear explicitly first.
+    // rankings is not in schema.sql — clear explicitly first.
     await supabase.from('rankings').delete().in('user_id', existingIds);
     const { error: delErr } = await supabase.from('users').delete().in('id', existingIds);
     if (delErr) {
@@ -283,20 +330,33 @@ async function main() {
   );
   console.log(`  ✓ upserted ${PLACES.length} places`);
 
-  // 5. Pins — each fake user pins 8–10 places
-  const pinRows: any[] = [];
+  // 5. Pins — each fake user pins 8–10 places. Pre-generate pin IDs
+  // so we can associate boards to them without a follow-up SELECT.
+  type PinDraft = {
+    id: string;
+    user_id: string;
+    place_id: string;
+    status: string;
+    impression: string | null;
+    is_public: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  const pinRows: PinDraft[] = [];
+  const pinsByUser = new Map<string, string[]>();
   for (const u of FAKE_USERS) {
     const userId = userIdByUsername[u.username];
+    pinsByUser.set(userId, []);
     const count = 8 + Math.floor(Math.random() * 3); // 8, 9, or 10
     const picked = pickN(PLACES, count);
     for (const place of picked) {
       const status = Math.random() > 0.35 ? 'visited' : 'want_to_go';
       const includeImpression = status === 'visited' && Math.random() > 0.4;
       const daysAgo = Math.floor(Math.random() * 30);
-      const created_at = new Date(
-        Date.now() - daysAgo * 86_400_000,
-      ).toISOString();
+      const created_at = new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+      const pinId = randomUUID();
       pinRows.push({
+        id: pinId,
         user_id: userId,
         place_id: placeIdByGid[place.google_place_id],
         status,
@@ -307,6 +367,7 @@ async function main() {
         created_at,
         updated_at: created_at,
       });
+      pinsByUser.get(userId)!.push(pinId);
     }
   }
 
@@ -356,7 +417,65 @@ async function main() {
     }
   }
 
-  // 7. Rankings — each user ranks 4–6 places per favorite category
+  // 7. Boards — each user gets 2–3 public boards drawn from their
+  // favorite-category templates, populated with 3–5 of their pins.
+  const boardRows: any[] = [];
+  const boardPinRows: any[] = [];
+  for (const u of FAKE_USERS) {
+    const userId = userIdByUsername[u.username];
+    const userPinIds = pinsByUser.get(userId) ?? [];
+    if (userPinIds.length === 0) continue;
+
+    const namePool: string[] = [];
+    for (const cat of u.favorites) {
+      namePool.push(...BOARD_TEMPLATES[cat]);
+    }
+    if (namePool.length === 0) continue;
+
+    const nBoards = Math.min(namePool.length, 2 + Math.floor(Math.random() * 2)); // 2 or 3
+    const names = pickN(namePool, nBoards);
+
+    for (const name of names) {
+      const boardId = randomUUID();
+      boardRows.push({
+        id: boardId,
+        user_id: userId,
+        name,
+        description: null,
+        visibility: 'public',
+        share_token: generateShareToken(),
+      });
+
+      const nPins = Math.min(
+        userPinIds.length,
+        3 + Math.floor(Math.random() * 3), // 3, 4, or 5
+      );
+      const pinIdsForBoard = pickN(userPinIds, nPins);
+      pinIdsForBoard.forEach((pinId, i) => {
+        boardPinRows.push({
+          board_id: boardId,
+          pin_id: pinId,
+          position: i,
+        });
+      });
+    }
+  }
+
+  const { error: boardsErr } = await supabase.from('boards').insert(boardRows);
+  if (boardsErr) {
+    console.error('boards insert failed:', boardsErr);
+    process.exit(1);
+  }
+  console.log(`  ✓ inserted ${boardRows.length} boards`);
+
+  const { error: bpErr } = await supabase.from('board_pins').insert(boardPinRows);
+  if (bpErr) {
+    console.error('board_pins insert failed:', bpErr);
+    process.exit(1);
+  }
+  console.log(`  ✓ inserted ${boardPinRows.length} board_pins`);
+
+  // 8. Rankings — each user ranks 4–6 places per favorite category
   const rankingRows: any[] = [];
   for (const u of FAKE_USERS) {
     const userId = userIdByUsername[u.username];
