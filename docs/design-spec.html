@@ -1,0 +1,367 @@
+<style>
+  :root {
+    --bg: #fafaf8; --surface: #ffffff; --ink: #0a0a0a;
+    --ink-soft: rgba(10,10,10,0.6); --ink-mute: rgba(10,10,10,0.55);
+    --ink-line: rgba(10,10,10,0.18); --zone: #f5f3ee;
+    --red: #d8423a; --electric: #3a5cff;
+    --font-display: 'Fraunces','Hoefler Text',Georgia,serif;
+    --font-body: 'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono: 'DM Mono','SF Mono',ui-monospace,'Roboto Mono',monospace;
+    --sticker: 2px 2px 0 var(--ink);
+    --sticker-sm: 1.5px 1.5px 0 var(--ink);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1f; --surface: #26262d; --ink: #f1efea;
+      --ink-soft: rgba(241,239,234,0.65); --ink-mute: rgba(241,239,234,0.55);
+      --ink-line: rgba(241,239,234,0.18); --zone: #1f1f25;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #fafaf8; --surface: #ffffff; --ink: #0a0a0a;
+    --ink-soft: rgba(10,10,10,0.6); --ink-mute: rgba(10,10,10,0.55);
+    --ink-line: rgba(10,10,10,0.18); --zone: #f5f3ee;
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1a1f; --surface: #26262d; --ink: #f1efea;
+    --ink-soft: rgba(241,239,234,0.65); --ink-mute: rgba(241,239,234,0.55);
+    --ink-line: rgba(241,239,234,0.18); --zone: #1f1f25;
+  }
+
+  * { box-sizing: border-box; }
+  .filo-doc {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; padding: 0 20px 120px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  .filo-doc .eyebrow {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 10px;
+  }
+  .filo-doc h1, .filo-doc h2, .filo-doc h3 {
+    font-family: var(--font-display); font-weight: 400; text-wrap: balance;
+    color: var(--ink); margin: 0;
+  }
+  .filo-doc h1 { font-size: clamp(2.6rem, 1.8rem + 3vw, 4rem); line-height: 1.02; letter-spacing: -0.5px; }
+  .filo-doc h2 { font-size: clamp(1.6rem, 1.3rem + 1.4vw, 2.2rem); line-height: 1.05; }
+  .filo-doc h3 { font-size: 1.15rem; }
+  .filo-doc .italic { font-style: italic; color: var(--red); }
+  .filo-doc p { color: var(--ink); max-width: 65ch; }
+  .filo-doc a { color: var(--red); }
+  .filo-doc :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+  /* header */
+  .hero { padding: 72px 0 40px; border-bottom: 1px solid var(--ink-line); }
+  .wordmark { font-family: var(--font-display); font-size: clamp(3.4rem,2rem+7vw,6rem);
+    font-style: italic; letter-spacing: -3px; line-height: 1; margin: 0 0 4px; }
+  .wordmark .dot { color: var(--red); font-style: normal; }
+  .signature { font-family: var(--font-display); font-size: 1.35rem; color: var(--ink-soft); margin: 6px 0 0; }
+  .hero .meta { margin-top: 26px; font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 1px; color: var(--ink-mute); }
+
+  section { padding: 48px 0 8px; border-bottom: 1px solid var(--ink-line); }
+  .sectno { font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; color: var(--red); }
+  .lede { color: var(--ink-soft); margin: 8px 0 22px; }
+
+  /* sticker card */
+  .card {
+    background: var(--surface); border: 1px solid var(--ink);
+    box-shadow: var(--sticker); border-radius: 0; padding: 20px;
+  }
+  .grid { display: grid; gap: 14px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 640px) { .g3, .g2 { grid-template-columns: 1fr; } }
+
+  .card .kicker { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--red); margin: 0 0 8px; }
+  .card h3 { margin-bottom: 6px; }
+  .card p { font-size: 0.9rem; color: var(--ink-soft); margin: 0; }
+
+  /* swatches */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 10px; }
+  .swatch { border: 1px solid var(--ink-line); }
+  .swatch .chip { height: 56px; border-bottom: 1px solid var(--ink-line); }
+  .swatch .lbl { padding: 6px 8px; background: var(--surface); }
+  .swatch .name { font-family: var(--font-mono); font-size: 10px; letter-spacing: .5px; display: block; }
+  .swatch .hex { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
+
+  /* type specimen */
+  .spec { border-top: 1px solid var(--ink-line); padding: 14px 0; display: flex;
+    align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .spec .tag { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute);
+    letter-spacing: 1px; white-space: nowrap; }
+  .d32 { font-family: var(--font-display); font-size: 32px; line-height: 1.05; }
+  .d22 { font-family: var(--font-display); font-size: 22px; }
+  .b14 { font-family: var(--font-body); font-size: 14px; }
+  .u11 { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .2px; }
+  .m10 { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; }
+  .m9 { font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-soft); }
+
+  /* demos */
+  .demorow { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .pin { width: 44px; height: 44px; background: var(--surface); border: 2px solid var(--ink);
+    box-shadow: var(--sticker); display: grid; place-items: center; font-size: 20px; position: relative; }
+  .pin::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--red); }
+  .pin.food { color: #E85D04; } .pin.bar { color: #7209B7; } .pin.beauty { color: #F72585; }
+  .pin.exp { color: #4CC9F0; } .pin.retail { color: #4361EE; }
+  .pill { border-radius: 999px; border: 1px solid var(--ink-line); padding: 7px 14px;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600; background: transparent; color: var(--ink); }
+  .pill.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .fab { width: 52px; height: 52px; border-radius: 50%; background: var(--red); color: #fff;
+    display: grid; place-items: center; font-size: 22px; border: 2px solid var(--surface);
+    box-shadow: 0 4px 14px rgba(216,66,58,.45); }
+  .countpill { border: 1px solid var(--ink); background: var(--surface); box-shadow: var(--sticker-sm);
+    min-width: 32px; text-align: center; padding: 2px 8px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+  .rankcard { border: 1px solid var(--red); background: var(--surface); box-shadow: var(--sticker);
+    padding: 14px 16px; max-width: 260px; }
+  .rankcard .num { font-family: var(--font-display); font-style: italic; color: var(--red); font-size: 36px; line-height: 1; }
+  .rankcard .num small { font-family: var(--font-body); font-style: normal; color: var(--ink-soft); font-size: 16px; }
+
+  /* tables */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--ink-line); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; min-width: 520px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--ink-line); }
+  th { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink-soft); background: var(--zone); }
+  td { color: var(--ink); }
+  td.mono, td .mono { font-family: var(--font-mono); font-size: 12px; }
+  tr:last-child td { border-bottom: 0; }
+
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li { padding: 7px 0 7px 22px; position: relative; color: var(--ink-soft); border-bottom: 1px solid var(--ink-line); }
+  ul.clean li::before { content: "—"; position: absolute; left: 0; color: var(--red); }
+  .do li::before { content: "✓"; color: var(--red); }
+  .dont li::before { content: "✕"; color: var(--ink-mute); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="filo-doc">
+  <div class="wrap">
+
+    <header class="hero">
+      <div class="eyebrow">Design system · UI kit · v1.0</div>
+      <div class="wordmark">filo<span class="dot">.</span></div>
+      <p class="signature">different <span class="italic">tastes,</span> same map.</p>
+      <p class="meta">Reverse-engineered from shipped code · constants/theme.ts · Paper palette ships</p>
+    </header>
+
+    <h1>The map your friends would draw, as a system.</h1>
+    <p style="margin-top:16px">Filo's identity rests on three moves — the thread, the sticker shadow, the italic accent word. Every screen uses all three, and nothing is allowed to compete with them. This page is the source of truth for tokens, type, and components, pulled directly from the code.</p>
+
+    <section>
+      <div class="sectno">01 · FOUNDATIONS</div>
+      <h2>Three signatures</h2>
+      <p class="lede">Used together on every screen. If a design breaks one of these, it isn't Filo.</p>
+      <div class="grid g3">
+        <div class="card">
+          <p class="kicker">The thread</p>
+          <h3>One red, used with precision</h3>
+          <p>Red <span class="mono" style="color:var(--red)">#d8423a</span> is the <em>only</em> accent — the FAB, the active rank, save confirmations, the wordmark period, and one italic word per title. Nowhere else.</p>
+        </div>
+        <div class="card">
+          <p class="kicker">Sticker shadow</p>
+          <h3>Hard offset, zero blur</h3>
+          <p>Cards carry a <span class="mono">2px 2px 0</span> ink shadow with a 1px ink border and square corners. They look stuck to the paper — no soft elevation.</p>
+        </div>
+        <div class="card">
+          <p class="kicker">Italic accent word</p>
+          <h3>One word in red</h3>
+          <p>Display titles are Fraunces with a single italic red word: <span style="font-family:var(--font-display)">"different <span class="italic">tastes,</span> same map."</span></p>
+        </div>
+      </div>
+      <div style="margin-top:22px" class="grid g2">
+        <div>
+          <div class="m9">Anti-patterns — never ship</div>
+          <ul class="clean dont" style="margin-top:8px">
+            <li>Star ratings or 0–10 scores — impressions only</li>
+            <li>Sponsored / algorithmic feed content</li>
+            <li>Infinite scroll — the feed stops</li>
+            <li>Gradient backgrounds</li>
+            <li>Emoji in core UI (user content only)</li>
+            <li>More than 4 cards above the fold</li>
+          </ul>
+        </div>
+        <div class="card" style="align-self:start">
+          <p class="kicker">Doc ⇄ code tension</p>
+          <p>The README bans "beige/cream backgrounds," yet Paper ships an off-white <span class="mono">#fafaf8</span> ground. Read it as <em>paper</em>, not beige — it's the intended default. Worth reconciling in the README.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sectno">02 · COLOR</div>
+      <h2>Four palettes, one shape</h2>
+      <p class="lede">Paper ships. All palettes share the same tokens, so a theme swap is one assignment. This page renders in Paper (light) / Midnight (dark) to match.</p>
+
+      <div class="m9">Paper — surfaces &amp; ink</div>
+      <div class="swatches" style="margin:10px 0 22px">
+        <div class="swatch"><div class="chip" style="background:#fafaf8"></div><div class="lbl"><span class="name">bg</span><span class="hex">#fafaf8</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ffffff"></div><div class="lbl"><span class="name">surface</span><span class="hex">#ffffff</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#0a0a0a"></div><div class="lbl"><span class="name">ink</span><span class="hex">#0a0a0a</span></div></div>
+        <div class="swatch"><div class="chip" style="background:rgba(10,10,10,0.6)"></div><div class="lbl"><span class="name">inkSoft</span><span class="hex">10,10,10 / .6</span></div></div>
+        <div class="swatch"><div class="chip" style="background:rgba(10,10,10,0.55)"></div><div class="lbl"><span class="name">inkMute</span><span class="hex">10,10,10 / .55</span></div></div>
+        <div class="swatch"><div class="chip" style="background:rgba(10,10,10,0.18)"></div><div class="lbl"><span class="name">inkLine</span><span class="hex">10,10,10 / .18</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#f5f3ee"></div><div class="lbl"><span class="name">zone1</span><span class="hex">#f5f3ee</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#e5e0d4"></div><div class="lbl"><span class="name">zone4</span><span class="hex">#e5e0d4</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#cdd8c0"></div><div class="lbl"><span class="name">park</span><span class="hex">#cdd8c0</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#c8d2db"></div><div class="lbl"><span class="name">water</span><span class="hex">#c8d2db</span></div></div>
+      </div>
+
+      <div class="m9">The thread &amp; categories</div>
+      <div class="swatches" style="margin:10px 0 22px">
+        <div class="swatch"><div class="chip" style="background:#d8423a"></div><div class="lbl"><span class="name">ACCENT.red</span><span class="hex">#d8423a</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#3a5cff"></div><div class="lbl"><span class="name">electric</span><span class="hex">#3a5cff</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#E85D04"></div><div class="lbl"><span class="name">food</span><span class="hex">#E85D04</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#7209B7"></div><div class="lbl"><span class="name">bar</span><span class="hex">#7209B7</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#F72585"></div><div class="lbl"><span class="name">beauty</span><span class="hex">#F72585</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#4CC9F0"></div><div class="lbl"><span class="name">experience</span><span class="hex">#4CC9F0</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#4361EE"></div><div class="lbl"><span class="name">retail</span><span class="hex">#4361EE</span></div></div>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Token</th><th>Paper</th><th>Concrete</th><th>Midnight</th><th>Sky</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">bg</td><td class="mono">#fafaf8</td><td class="mono">#ececec</td><td class="mono">#1a1a1f</td><td class="mono">#e2e8ee</td></tr>
+            <tr><td class="mono">surface</td><td class="mono">#ffffff</td><td class="mono">#f5f5f5</td><td class="mono">#26262d</td><td class="mono">#edf1f5</td></tr>
+            <tr><td class="mono">ink</td><td class="mono">#0a0a0a</td><td class="mono">#2a1f2e</td><td class="mono">#f1efea</td><td class="mono">#1f2233</td></tr>
+            <tr><td class="mono">inkMute</td><td class="mono">.55α</td><td class="mono">.55α</td><td class="mono">.55α</td><td class="mono">.55α</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:14px;font-size:.9rem;color:var(--ink-soft)"><strong>A11y fix:</strong> <span class="mono">inkMute</span> was raised to <span class="mono">0.55</span> alpha across all palettes (was 0.4/0.45) so muted text clears ~4.5:1. Category is always paired with a glyph — never color alone.</p>
+    </section>
+
+    <section>
+      <div class="sectno">03 · TYPOGRAPHY</div>
+      <h2>Three families, three jobs</h2>
+      <p class="lede">Fraunces for display, Inter for UI/body, DM Mono for meta. Never a fourth.</p>
+      <div class="spec"><span class="d32">Fraunces display</span><span class="tag">pageTitle · 32/34 · 400</span></div>
+      <div class="spec"><span class="d22">Place / card title</span><span class="tag">placeTitle · 22/24 · 400</span></div>
+      <div class="spec"><span class="b14">Inter body copy sets the reading text at fourteen on twenty.</span><span class="tag">body · 14/20</span></div>
+      <div class="spec"><span class="u11">CHIP &amp; BUTTON LABEL</span><span class="tag">uiLabel · 11 · 600 · +.2</span></div>
+      <div class="spec"><span class="m10">DM MONO · N° A3K9 · #3/14</span><span class="tag">monoSm · 10 · +1</span></div>
+      <div class="spec"><span class="m9">Meta eyebrow label</span><span class="tag">metaLabel · 9 · +2 · uppercase</span></div>
+    </section>
+
+    <section>
+      <div class="sectno">04 · RADII · SHADOWS · SPACING</div>
+      <h2>Square by default</h2>
+      <p class="lede">The sticker aesthetic means most cards use radius <span class="mono">0</span>. Rounding is reserved for glass and pills.</p>
+      <div class="grid g2">
+        <div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Radii</th><th>Value</th></tr></thead>
+              <tbody>
+                <tr><td>none — cards, pins</td><td class="mono">0</td></tr>
+                <tr><td>sm</td><td class="mono">4</td></tr>
+                <tr><td>md — toasts</td><td class="mono">14</td></tr>
+                <tr><td>lg — tab bar, glass</td><td class="mono">18</td></tr>
+                <tr><td>pill — chips, toggles</td><td class="mono">999</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Shadow</th><th>Offset / blur</th></tr></thead>
+              <tbody>
+                <tr><td>STICKER</td><td class="mono">1.5,1.5 / 0</td></tr>
+                <tr><td>STICKER_LG</td><td class="mono">2,2 / 0</td></tr>
+                <tr><td>FLOAT (glass)</td><td class="mono">0,8 / 24 · .10α</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:14px;font-size:.9rem;color:var(--ink-soft)">Spacing scale <span class="mono">xs4 · sm8 · md16 · lg24 · xl32 · xxl48</span> · screen pad <span class="mono">20</span> · tab clearance <span class="mono">100</span>.</p>
+    </section>
+
+    <section>
+      <div class="sectno">05 · COMPONENTS</div>
+      <h2>Built from stickers</h2>
+      <p class="lede">Live demos below render with the real tokens — the page is its own proof.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <p class="kicker">Pin marker · selected</p>
+          <div class="demorow">
+            <div class="pin food">◆</div>
+            <div class="pin bar">○</div>
+            <div class="pin beauty">◇</div>
+            <div class="pin exp">✦</div>
+            <div class="pin retail">◉</div>
+          </div>
+          <p style="margin-top:12px">36→44px chip, category glyph, red base-bar + <span class="mono">n° XXXX</span> tag when selected.</p>
+        </div>
+        <div class="card">
+          <p class="kicker">Chips · pills · count</p>
+          <div class="demorow">
+            <span class="pill on">cafes</span>
+            <span class="pill">bars</span>
+            <span class="pill">shops</span>
+            <span class="countpill">34</span>
+          </div>
+          <p style="margin-top:12px">Pill: transparent→ink fill when active. Count pill rides markers where &gt;1 friend visited.</p>
+        </div>
+        <div class="card">
+          <p class="kicker">Rank card · filled</p>
+          <div class="rankcard" style="margin-top:6px">
+            <div class="m9">YOUR RANK</div>
+            <div class="num">#3<small> / 14</small></div>
+            <div style="font-size:.8rem;color:var(--ink-soft)">food · edit →</div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="kicker">Center FAB</p>
+          <div class="demorow"><div class="fab">＋</div><span style="font-size:.9rem;color:var(--ink-soft)">→ /pin/search · the single red action</span></div>
+          <p style="margin-top:12px">Tab bar: <span class="mono">✦ ◉ ☰ ○</span> find · map · feed · you, active slot gets a red dot.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sectno">06 · ACCESSIBILITY</div>
+      <h2>Reachable, not just readable</h2>
+      <ul class="clean" style="margin-top:8px">
+        <li><strong>Contrast:</strong> inkMute → 0.55α (~4.5:1); never use it for primary text.</li>
+        <li><strong>Labels:</strong> every icon-only control has role + label — tabs, FAB ("Add a new pin"), markers (place, category), OTP, modal backdrops.</li>
+        <li><strong>Live regions:</strong> upload toast is polite; spinners labeled.</li>
+        <li><strong>Font scaling:</strong> pictographic glyphs opt out; text scales; prefer minHeight over fixed height.</li>
+        <li><strong>Never color alone:</strong> category = glyph + color; status = red + "✓ visited".</li>
+      </ul>
+    </section>
+
+    <section style="border-bottom:0">
+      <div class="sectno">07 · USAGE</div>
+      <h2>Do &amp; don't</h2>
+      <div class="grid g2">
+        <div>
+          <div class="m9" style="color:var(--red)">Do</div>
+          <ul class="clean do" style="margin-top:8px">
+            <li>One red thread per screen, on the single most important thing</li>
+            <li>Square corners + hard shadow for content; rounded glass only for chrome</li>
+            <li>One italic red word per display title</li>
+            <li>Always show real place, person, neighborhood</li>
+          </ul>
+        </div>
+        <div>
+          <div class="m9">Don't</div>
+          <ul class="clean dont" style="margin-top:8px">
+            <li>Add a second accent, a gradient, or a soft content shadow</li>
+            <li>Introduce a fourth typeface</li>
+            <li>Use star ratings or numeric scores</li>
+            <li>Stack more than 4 cards above the fold</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>

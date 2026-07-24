@@ -1,0 +1,350 @@
+<style>
+  :root {
+    --bg: #fafaf8; --surface: #ffffff; --ink: #0a0a0a;
+    --ink-soft: rgba(10,10,10,0.60); --ink-mute: rgba(10,10,10,0.55);
+    --ink-line: rgba(10,10,10,0.18); --zone: #f5f3ee; --zone2: #efece5;
+    --accent: #d8423a; --good: #1f9e6f;
+    --display: 'Fraunces','Hoefler Text',Georgia,serif;
+    --body: 'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono: 'DM Mono','SF Mono',ui-monospace,'Menlo',monospace;
+    --maxw: 880px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1f; --surface: #26262d; --ink: #f1efea;
+      --ink-soft: rgba(241,239,234,0.65); --ink-mute: rgba(241,239,234,0.50);
+      --ink-line: rgba(241,239,234,0.20); --zone: #1f1f25; --zone2: #23232a;
+      --accent: #ff5a50; --good: #3ecf8e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1a1f; --surface: #26262d; --ink: #f1efea;
+    --ink-soft: rgba(241,239,234,0.65); --ink-mute: rgba(241,239,234,0.50);
+    --ink-line: rgba(241,239,234,0.20); --zone: #1f1f25; --zone2: #23232a;
+    --accent: #ff5a50; --good: #3ecf8e;
+  }
+  :root[data-theme="light"] {
+    --bg: #fafaf8; --surface: #ffffff; --ink: #0a0a0a;
+    --ink-soft: rgba(10,10,10,0.60); --ink-mute: rgba(10,10,10,0.55);
+    --ink-line: rgba(10,10,10,0.18); --zone: #f5f3ee; --zone2: #efece5;
+    --accent: #d8423a; --good: #1f9e6f;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 72px 24px 120px; }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 14px; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(2.6rem,6vw,4rem);
+    line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
+  h1 .it { font-style: italic; color: var(--accent); }
+  .lede { font-size: 1.2rem; color: var(--ink-soft); max-width: 40ch; text-wrap: balance; margin: 0; }
+
+  h2 { font-family: var(--display); font-weight: 400; font-size: clamp(1.7rem,3.4vw,2.3rem);
+    letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
+  h2 .it { font-style: italic; color: var(--accent); }
+  h3 { font-family: var(--display); font-weight: 500; font-size: 1.25rem; margin: 30px 0 8px; }
+  h4 { font-family: var(--body); font-weight: 700; font-size: 0.95rem; margin: 22px 0 6px; }
+  p { margin: 0 0 16px; } p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); }
+  strong { font-weight: 700; }
+  ul { margin: 0 0 16px; padding-left: 20px; } li { margin: 0 0 7px; }
+
+  .num { font-family: var(--mono); color: var(--accent); font-size: 0.85rem;
+    letter-spacing: 1px; }
+
+  section { border-top: 1px solid var(--ink-line); margin-top: 56px; padding-top: 40px; }
+  section.first { border-top: none; margin-top: 44px; padding-top: 0; }
+  .part-label { font-family: var(--mono); font-size: 11px; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 22px; }
+
+  /* sticker card — the brand signature */
+  .card { background: var(--surface); border: 1px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink); border-radius: 0; padding: 22px 22px 24px; }
+  .cards { display: grid; gap: 22px; margin: 22px 0; }
+  @media (min-width: 720px) { .cards.three { grid-template-columns: repeat(3,1fr); } }
+
+  .tier-name { font-family: var(--display); font-size: 1.5rem; margin: 0 0 2px; }
+  .tier-price { font-family: var(--mono); font-size: 1.6rem; color: var(--accent);
+    margin: 0 0 4px; font-variant-numeric: tabular-nums; }
+  .tier-price span { font-size: 0.8rem; color: var(--ink-mute); }
+  .tier-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-soft); }
+  .tier-list { list-style: none; padding: 14px 0 0; margin: 0; border-top: 1px solid var(--ink-line); margin-top: 14px; }
+  .tier-list li { position: relative; padding-left: 18px; font-size: 0.9rem; color: var(--ink-soft); }
+  .tier-list li::before { content: "—"; position: absolute; left: 0; color: var(--accent); }
+  .card.feature .tier-price { border-bottom: 3px solid var(--accent); display: inline-block; padding-bottom: 2px; }
+
+  /* dashboard mockup */
+  .mock { background: var(--surface); border: 1px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink); padding: 0; overflow: hidden; margin: 24px 0; max-width: 380px; }
+  .mock-head { background: var(--ink); color: var(--bg); font-family: var(--mono);
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 9px 16px;
+    display: flex; justify-content: space-between; }
+  .mock-body { padding: 20px 18px 22px; }
+  .mock-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 6px; }
+  .mock-big { font-family: var(--display); font-size: 3.2rem; line-height: 1; margin: 0;
+    font-variant-numeric: tabular-nums; }
+  .mock-delta { color: var(--good); font-family: var(--mono); font-size: 0.85rem; margin: 4px 0 0; }
+  .mock-row { border-top: 1px solid var(--ink-line); margin-top: 16px; padding-top: 12px; }
+  .mock-row .k { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-soft); }
+  .mock-row .v { font-family: var(--display); font-size: 1.1rem; }
+  .mock-row .v em { font-style: italic; color: var(--accent); }
+  .locked { opacity: 0.6; }
+  .locked .tier-name::after { content: " 🔒"; font-size: 0.8rem; }
+
+  .tablewrap { overflow-x: auto; margin: 18px 0; border: 1px solid var(--ink-line); }
+  table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--ink-line);
+    vertical-align: top; }
+  th { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink-soft); background: var(--zone); }
+  tr:last-child td { border-bottom: none; }
+  td.num-col { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  pre { background: var(--zone); border: 1px solid var(--ink-line); border-radius: 0;
+    padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 0.8rem; line-height: 1.5;
+    margin: 16px 0; }
+  code { font-family: var(--mono); font-size: 0.86em; }
+  p code, li code { background: var(--zone); padding: 1px 5px; border: 1px solid var(--ink-line); }
+
+  .callout { background: var(--zone); border-left: 3px solid var(--accent); padding: 14px 18px;
+    margin: 18px 0; font-size: 0.92rem; color: var(--ink-soft); }
+  .assume { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--accent); }
+
+  .foot { border-top: 1px solid var(--ink-line); margin-top: 64px; padding-top: 24px;
+    font-family: var(--display); font-style: italic; color: var(--ink-soft); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Filo · Business Plan · v1.0</p>
+  <h1>The thread, made <span class="it">profitable</span>.</h1>
+  <p class="lede">Students build the map for free. The businesses on it have never been able to see the word-of-mouth that feeds them. That gap is the business.</p>
+
+  <div class="callout"><span class="assume">Directional</span> — every financial figure below is a labeled assumption, not an audited projection. Part 1 is strategy &amp; model; Part 2 is the buildable Phase-2 spec.</div>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="first">
+    <p class="part-label">Part 1 — Strategy</p>
+
+    <h2><span class="num">01</span> &nbsp;The thread is <span class="it">two-sided</span></h2>
+    <p>Filo's consumer app turns a student's social life into a map — every pin is a place a real, named friend actually went. Students build that map for free because it's useful to them. The business opportunity is the exhaust of that behavior.</p>
+    <ul>
+      <li><strong>Demand (students)</strong> already do the work — pinning, ranking, sharing. This is the moat: a live, trusted local graph no ad network can fake.</li>
+      <li><strong>Supply (venues)</strong> is the money — businesses being pinned have never been able to see, measure, or act on the word-of-mouth driving most of their new customers.</li>
+    </ul>
+    <p><strong>The flywheel:</strong> more students → more pins → richer proof of who's discovering each venue → more venues claim &amp; pay for insight → venue-backed student offers → more reasons to open Filo → more students. Neither side pays to bootstrap the other — the data already exists.</p>
+
+    <h2><span class="num">02</span> &nbsp;The business problem</h2>
+    <p>For a Morningside barbershop, café, or bar, <strong>word-of-mouth is the #1 growth engine — and it's completely invisible.</strong> Yelp and Google give anonymous reviews and a star average. Instagram gives followers, not customers. Nobody can tell that barber: <em>"34 Columbia students pinned you this semester, and 9 found you through one student's board."</em></p>
+    <p>Filo already holds exactly that data. The business product isn't a new data-collection chore for the venue — it's a <strong>read layer over what students already generate.</strong> That's the whole wedge.</p>
+
+    <h2><span class="num">03</span> &nbsp;Positioning &amp; market</h2>
+    <p>Filo is for <strong>social-discovery venues</strong> — found through friends, visited on a recommendation, talked about unprompted. Not necessity businesses.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>In scope</th><th>Out of scope</th></tr></thead>
+      <tbody>
+        <tr><td>Food &amp; drink — restaurants, cafés, bakeries</td><td>Doctors, dentists, vets</td></tr>
+        <tr><td>Bars &amp; nightlife</td><td>Pharmacies, dry cleaners</td></tr>
+        <tr><td>Beauty &amp; grooming — salons, barbers, nails, lash/brow</td><td>Lawyers, accountants</td></tr>
+        <tr><td>Experiences — yoga, climbing, pottery, escape rooms</td><td>Utility businesses</td></tr>
+        <tr><td>Taste retail — vintage, bookshops, record stores</td><td>— nobody pins these</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Beachhead — Morningside Heights.</strong> <span class="assume">Assumption</span> ~150–250 qualifying venues sit within a mile of campus. Small enough to sell door-to-door, dense enough that word travels between owners. <strong>Expansion is campus-by-campus</strong> (NYU, Fordham, then other metros) — the consumer app's invite-only campus model <em>is</em> the business go-to-market segmentation.</p>
+
+    <h2><span class="num">04</span> &nbsp;Why Filo <span class="it">wins</span></h2>
+    <ul>
+      <li><strong>The graph is the moat.</strong> Anyone can build a dashboard; almost no one can build the trusted student discovery graph beneath it. Filo builds the hard thing first, monetizes the easy thing second.</li>
+      <li><strong>Zero marginal data cost.</strong> The insight a venue pays for is a byproduct of student behavior — no sensors, no data entry.</li>
+      <li><strong>Attribution nobody else has.</strong> Pins attach to named users, boards, and a follow graph, so Filo can answer <em>"where did this customer come from?"</em> at the person/board level — which Yelp and Google structurally cannot.</li>
+    </ul>
+
+    <h2><span class="num">05</span> &nbsp;Business model — freemium SaaS</h2>
+    <p>Land the venue free on undeniable proof; expand to paid as the insight gets addictive.</p>
+    <div class="cards three">
+      <div class="card">
+        <p class="tier-tag">Land</p>
+        <p class="tier-name">Free</p>
+        <p class="tier-price">$0</p>
+        <ul class="tier-list">
+          <li>This-week discovery count + weekly delta</li>
+          <li>Category rank near campus</li>
+          <li>Proof the data is real — creates the login habit</li>
+        </ul>
+      </div>
+      <div class="card feature">
+        <p class="tier-tag">Expand</p>
+        <p class="tier-name">Pro</p>
+        <p class="tier-price">$49<span> / mo</span></p>
+        <ul class="tier-list">
+          <li>Everything in Free</li>
+          <li>Superfans — who drives your word-of-mouth</li>
+          <li>Drifting regulars — win-back</li>
+          <li>The weekly AI action + trend history</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="tier-tag">Act</p>
+        <p class="tier-name">Premium</p>
+        <p class="tier-price">$149<span> / mo</span></p>
+        <ul class="tier-list">
+          <li>Everything in Pro</li>
+          <li>Promoted pins</li>
+          <li>Student offers &amp; deals</li>
+          <li>Multi-location rollups</li>
+        </ul>
+      </div>
+    </div>
+    <p>Free is a <em>hook</em>, not a demo — the discovery count is genuinely useful. Pro converts the owner who now asks <em>"who are these students and how do I keep them?"</em> Premium converts the owner who wants to <em>act</em>.</p>
+
+    <h2><span class="num">06</span> &nbsp;Unit economics <span class="assume" style="font-size:12px">directional</span></h2>
+    <p>Founder-led, walk-in sales makes acquisition mostly time, not spend.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Assumption</th><th>Value</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>CAC (early, founder-led)</td><td class="num-col">~$50–150 / venue</td><td>Mostly founder hours; ~$0 paid</td></tr>
+        <tr><td>Paying price</td><td class="num-col">$49 / $149</td><td>Blended ARPA ≈ $60–75/mo</td></tr>
+        <tr><td>Gross margin</td><td class="num-col">~85%</td><td>Supabase/Mapbox/hosting only COGS</td></tr>
+        <tr><td>SMB monthly churn</td><td class="num-col">~3–5%</td><td>⇒ avg paid lifetime ≈ 20–30 mo</td></tr>
+        <tr><td>LTV (Pro)</td><td class="num-col">≈ $1,000</td><td>LTV:CAC ≈ 7–20×</td></tr>
+        <tr><td>Fixed burn (pre-team)</td><td class="num-col">~$150–400/mo</td><td>Infra + tools</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Break-even is small.</strong> <span class="assume">Illustrative</span> at ~$60 ARPA and ~$400/mo burn, <strong>~7 paying venues</strong> covers infra; <strong>~35–40</strong> supports a founder salary. A 200-venue beachhead at 30% claimed → 30% paid ≈ <strong>~$1,000–1,300 MRR per campus</strong> — thin alone, but it's the <em>proof unit</em> that makes campus #2..N repeatable.</p>
+    <div class="callout"><strong>The 200-user / 500-pin consumer milestone <em>is</em> the sales asset.</strong> Below that density the pitch is a promise; above it, you print a real venue's real discovery data and lead with proof. The consumer KPI and the sales-readiness KPI are the same number.</div>
+
+    <h2><span class="num">07</span> &nbsp;Go-to-market</h2>
+    <p><strong>The cold open is the product.</strong> The founder walks into a Morningside venue with a one-page printout of <em>that venue's own Filo discovery data.</em> No other analytics tool can cold-open with the prospect's own customer data.</p>
+    <ul>
+      <li><strong>Claim-your-venue self-serve</strong> — the venue already exists as a <code>places</code> row; owner verifies and sees the Free dashboard instantly.</li>
+      <li><strong>First 10 venues hand-sold, in person</strong>, walking the blocks around campus — these become references.</li>
+      <li><strong>Peer proof travels a dense block</strong> — owners on one street talk; visible "claimed on Filo" + student offers create local FOMO.</li>
+      <li><strong>Expand to paid</strong> once the owner asks <em>who</em> and <em>how</em> — the Pro trigger.</li>
+    </ul>
+
+    <h2><span class="num">08</span> &nbsp;Metrics &amp; risks</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Business metric</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td>Venues claimed / campus</td><td>Supply density; funnel top</td></tr>
+        <tr><td>Free → paid conversion</td><td>Does the insight justify $49?</td></tr>
+        <tr><td>Logo retention / churn</td><td>Habit vs novelty</td></tr>
+        <tr><td>Promoted-pin / offer revenue</td><td>The two-sided loop working</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Risks &amp; mitigations</h4>
+    <ul>
+      <li><strong>Chicken-and-egg.</strong> Never sell the business side before consumer density exists — the 200/500 gate is a prerequisite, not a target.</li>
+      <li><strong>Data thinness.</strong> Lead sales with the densest venues; let the long tail claim free and grow into paid.</li>
+      <li><strong>Privacy/trust.</strong> The dashboard is aggregate + public-only <em>by construction</em>, enforced in the database (Part 2 §6) — a feature to market to students.</li>
+      <li><strong>Owner isn't analytics-native.</strong> Free is one number, not a chart wall; the weekly AI action removes interpretation.</li>
+    </ul>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section>
+    <p class="part-label">Part 2 — Phase-2 Dashboard Build Spec</p>
+    <p>The dashboard is a <strong>read layer over existing consumer data</strong>. The v1 wedge is <strong>Discovery Analytics</strong> only — superfans, drift, AI action, and offers are deliberately later.</p>
+
+    <h3>The wedge, on screen</h3>
+    <div class="mock">
+      <div class="mock-head"><span>Joe's Coffee · Filo</span><span>This Week</span></div>
+      <div class="mock-body">
+        <p class="mock-eyebrow">Students who discovered you</p>
+        <p class="mock-big">34</p>
+        <p class="mock-delta">↑ 12 vs last week</p>
+        <div class="mock-row">
+          <span class="k">Top source</span>
+          <div class="v">@maya's board — <em>"Morningside Coffee"</em> → 9 visits</div>
+        </div>
+        <div class="mock-row">
+          <span class="k">Category rank near campus</span>
+          <div class="v"><em>#2</em> cafe</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>1 · Venue claiming &amp; verification</h3>
+    <p>A business owner signs up (separate auth role), searches for their venue — which usually <strong>already exists as a <code>places</code> row</strong> (created when the first student pinned it) — and claims it. Verification, cheapest-first: email-domain match (auto), then phone/Google-Business, then manual founder approval while volume is low.</p>
+
+    <h3>2 · Data-model deltas</h3>
+    <p>The consumer schema is untouched — a thin business layer sits on top.</p>
+    <pre>create table businesses (
+  id            uuid primary key default gen_random_uuid(),
+  owner_auth_id uuid not null,               -- business-role auth user
+  place_id      uuid references places(id),  -- the claimed venue
+  name          text not null,
+  tier          text not null default 'free'
+                 check (tier in ('free','pro','premium')),
+  unique(place_id)                            -- one owner per venue
+);
+create table venue_claims (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid references businesses(id) on delete cascade,
+  place_id uuid references places(id),
+  method text,                               -- email_domain | phone | manual
+  status text default 'pending'
+         check (status in ('pending','verified','rejected'))
+);
+-- Premium (defined now, built later): offers + promoted_pins</pre>
+    <p><strong>Analytics access path:</strong> the dashboard never queries raw consumer tables. It calls <code>SECURITY DEFINER</code> RPCs that (a) verify the caller owns a verified claim on the <code>place_id</code>, and (b) return only aggregate/already-public data.</p>
+
+    <h3>3 · Discovery-analytics logic</h3>
+    <h4>Who discovered you this week — count + delta</h4>
+    <pre>this_week  = count(distinct pins.user_id)
+             where place_id = $venue and created_at >= now() - 7d
+delta      = this_week - prior_7d_week</pre>
+    <p>One number + an ↑/↓ delta. Aggregate only — <em>"34 students,"</em> never the roster.</p>
+    <h4>Where discovery came from — attribution</h4>
+    <p>Walk two <strong>public</strong> signals: which public boards contain the venue's pin (ranked by reach), and how many of this week's pinners follow an earlier public pinner of the same venue (the word-of-mouth chain). Private boards and private pins are never traversed.</p>
+    <h4>Category rank near campus</h4>
+    <pre>rank $venue among places where category = $venue.category
+     and place within the Columbia bbox
+     ordered by count(distinct pinner) desc   -- "#2 cafe near campus"</pre>
+
+    <h3>4 · Dashboard v1 screens</h3>
+    <div class="cards three">
+      <div class="card"><p class="tier-name" style="font-size:1.15rem">This Week</p><p style="font-size:0.88rem;color:var(--ink-soft);margin:8px 0 0">Discovery count + WoW delta, top source, category rank. One glance, no analytics literacy.</p></div>
+      <div class="card"><p class="tier-name" style="font-size:1.15rem">Venue profile</p><p style="font-size:0.88rem;color:var(--ink-soft);margin:8px 0 0">The venue's public presence on Filo + claim/verification status.</p></div>
+      <div class="card locked"><p class="tier-name" style="font-size:1.15rem">Superfans</p><p style="font-size:0.88rem;color:var(--ink-soft);margin:8px 0 0">Who drives your word-of-mouth. <strong>Unlock with Pro.</strong></p></div>
+    </div>
+
+    <h3>5 · Build steps</h3>
+    <ul>
+      <li><strong>Step 1 — Schema &amp; RLS.</strong> Add the business tables; a business row is readable/writable only by its <code>owner_auth_id</code>. <em>Test:</em> two businesses can't read each other.</li>
+      <li><strong>Step 2 — Claim &amp; verify.</strong> Search <code>places</code>, create a <code>venue_claims</code> row, auto-verify on email-domain match. <em>Test:</em> matching domain flips claim to verified.</li>
+      <li><strong>Step 3 — Discovery RPCs.</strong> Three <code>SECURITY DEFINER</code> RPCs (counts, sources, rank), each asserting a verified claim, returning aggregate/public only. <em>Test:</em> unverified caller → <code>forbidden</code>; private pins never appear.</li>
+      <li><strong>Step 4 — 'This Week' dashboard.</strong> Consume the RPCs in the Filo sticker/serif system; locked Pro cards below. <em>Test:</em> dense venue shows non-zero count; unclaimed venue can't load it.</li>
+      <li><strong>Step 5 — Billing.</strong> Stripe subscriptions → <code>businesses.tier</code>; gate Pro/Premium RPCs on tier. <em>Test:</em> downgrade re-locks Pro.</li>
+    </ul>
+
+    <h3>6 · Privacy &amp; trust</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Can see — aggregate / public</th><th>Can never see</th></tr></thead>
+      <tbody>
+        <tr><td>Count of students who pinned it this week</td><td>Any individual's identity in the count</td></tr>
+        <tr><td>Public boards that feature it</td><td>Private boards, private pins, private wishlists</td></tr>
+        <tr><td>Its category rank near campus</td><td>Any individual's follow graph</td></tr>
+        <tr><td>Public impressions on its own venue</td><td>A student's other pins or profile beyond public</td></tr>
+      </tbody>
+    </table></div>
+    <p>Enforced at the <strong>database layer</strong>: dashboards read only through <code>SECURITY DEFINER</code> RPCs that check a verified claim and emit counts/public rows only. <em>"Businesses see the crowd, never the person"</em> — a trust promise Filo markets to students.</p>
+
+    <h3>Phase-3 preview — the AI action agent</h3>
+    <p>Once Discovery Analytics, Superfans + Drift, and Offers exist, the data supports <strong>one AI-suggested action per week</strong> per venue — <em>"post your lavender latte, it's your most-pinned item among first-years"</em> or <em>"your Tuesdays are cold; run a student happy-hour."</em> It turns a dashboard a busy owner forgets to open into a weekly nudge that does the interpreting — the bridge from analytics tool to growth partner.</p>
+  </section>
+
+  <p class="foot">Filo — build the consumer side, get the pins, then show businesses the thread.</p>
+
+</div>
