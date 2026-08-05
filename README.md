@@ -140,21 +140,6 @@ The invite-only model is enforced **server-side**, not just in the UI:
 
 > ⚠️ A Mapbox `sk.` download token was previously committed to `app.json` and remains in git history — **rotate it** in the Mapbox account.
 
----
-
-## MVP Launch Scope
-
-Phase 1 is invite-only, Columbia/Barnard campus only. University email verification required at signup.
-
-**Success threshold before expanding:** 200 active users + 500 pins within 30 days.
-
-**Not in Phase 1:**
-- Business dashboard (Phase 2)
-- City-wide public launch
-- Full recommendation engine
-- DMs or messaging
-
-**The one question Phase 1 answers:** Will Columbia students pin places, share them with friends, and come back to see what their friends have pinned?
 
 ---
 
