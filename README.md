@@ -173,12 +173,6 @@ Things Filo will never do:
 
 ---
 
-## Business Model (Phase 2)
-
-Businesses will have a dashboard showing: who discovered them this week, where discovery came from, who their word-of-mouth superfans are, and which regulars are drifting. One AI-suggested action per week — no marketing knowledge required. Verified check-ins (location ping or receipt scan) keep signal quality high.
-
----
-
 ## Status
 
 **Current:** Consumer MVP, prototype complete, React Native mobile build in progress.
