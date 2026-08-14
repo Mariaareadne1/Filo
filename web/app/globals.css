@@ -10,6 +10,35 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ── Filo design system (ported from constants/theme.ts, Paper palette) ──
+     Used by the business dashboard under app/(business). The red thread is the
+     sole accent; everything else is ink-on-paper. */
+  --color-paper: #fafaf8;      /* app background */
+  --color-surface: #ffffff;    /* cards */
+  --color-ink: #0a0a0a;        /* primary text / sticker shadow */
+  --color-ink-soft: rgba(10, 10, 10, 0.6);
+  --color-ink-mute: rgba(10, 10, 10, 0.64); /* ≥4.5:1 on the darkest zone (WCAG AA) */
+  --color-ink-line: rgba(10, 10, 10, 0.18);
+  --color-thread: #c43a31;     /* THE red thread — CTAs, the one orb.
+                                  Nudged from #d8423a to clear 4.5:1 as text and
+                                  as white-on-fill button color (WCAG AA). */
+  --color-zone1: #f5f3ee;
+  --color-zone2: #efece5;
+
+  --font-display: var(--font-fraunces); /* Fraunces — titles, numbers */
+  --font-body: var(--font-inter);       /* Inter — UI/body */
+  --font-meta: var(--font-dm-mono);     /* DM Mono — tiny meta labels */
+}
+
+/* The sticker shadow: a hard 2px ink offset, zero blur. Filo's signature. */
+@utility sticker {
+  border: 1.5px solid var(--color-ink);
+  box-shadow: 2px 2px 0 0 var(--color-ink);
+}
+@utility sticker-sm {
+  border: 1.5px solid var(--color-ink);
+  box-shadow: 1.5px 1.5px 0 0 var(--color-ink);
 }
 
 @media (prefers-color-scheme: dark) {
