@@ -9,6 +9,7 @@ import { toUserMessage } from '../../lib/errors';
 import type { FeedItem } from '../../lib/api/social';
 import { Button } from '../../design/controls';
 import { Icon, PressableScale, Text } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -68,6 +69,7 @@ export function FeedScreen() {
           !feed.hasNextPage ? <Text variant="caption" tone="tertiary" style={s.end}>You're all caught up.</Text> : null
         ) : null}
       />
+      <StatusScrim />
     </View>
   );
 }

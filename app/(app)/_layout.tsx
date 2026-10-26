@@ -29,7 +29,6 @@ export default function AppLayout() {
           <Tabs.Screen name="index" options={{ href: null }} />
           <Tabs.Screen name="feed" options={{ href: null }} />
           <Tabs.Screen name="requests" options={{ href: null }} />
-          <Tabs.Screen name="directory" options={{ href: null }} />
           <Tabs.Screen name="twins" options={{ href: null }} />
           <Tabs.Screen name="rankings" options={{ href: null }} />
           <Tabs.Screen name="follow-list" options={{ href: null }} />

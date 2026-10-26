@@ -5,6 +5,7 @@ import { useFollowRequests, useRespondToRequest } from '../../lib/hooks';
 import { toUserMessage } from '../../lib/errors';
 import { Button } from '../../design/controls';
 import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -63,6 +64,7 @@ export function RequestsScreen() {
           );
         }}
       />
+      <StatusScrim />
     </View>
   );
 }

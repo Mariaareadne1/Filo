@@ -6,6 +6,7 @@ import { useSession } from '../../lib/session';
 import { parseIdParam } from '../../lib/params';
 import { toUserMessage } from '../../lib/errors';
 import { Icon, PressableScale, Text } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -49,6 +50,7 @@ export function FollowListScreen() {
           </PressableScale>
         )}
       />
+      <StatusScrim />
     </View>
   );
 }

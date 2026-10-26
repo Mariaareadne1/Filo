@@ -11,6 +11,7 @@ import { toUserMessage } from '../../lib/errors';
 import type { RankedPlace } from '../../lib/api/rankings';
 import { GlassChip } from '../../design/controls';
 import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SHADOW, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -155,6 +156,7 @@ export function RankingsScreen() {
           contentContainerStyle={[s.list, { paddingBottom: clearance }]}
         />
       )}
+      <StatusScrim />
     </View>
   );
 }

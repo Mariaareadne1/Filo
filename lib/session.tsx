@@ -13,9 +13,3 @@ export function useSession(): SessionValue {
   return useContext(SessionContext);
 }
 
-/** Signed-in user id; throws inside authenticated screens if missing. */
-export function useRequiredUserId(): string {
-  const { userId } = useSession();
-  if (!userId) throw new Error('useRequiredUserId used outside an authenticated route');
-  return userId;
-}

@@ -61,3 +61,10 @@ describe('parseQuery — grounded filters only', () => {
     for (const t of p.terms) expect(t).toMatch(/^[a-zé]+$/);
   });
 });
+
+import { normalizeEmail } from '../lib/validation';
+test('email normalization strips invisible characters from autofill/paste', () => {
+  expect(normalizeEmail(' You@Columbia.edu ')).toBe('you@columbia.edu');
+  expect(normalizeEmail('you​@columbia.edu')).toBe('you@columbia.edu');
+  expect(normalizeEmail('you@ columbia.edu')).toBe('you@columbia.edu');
+});

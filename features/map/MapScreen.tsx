@@ -15,7 +15,7 @@ import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
-import { MarkerLayers } from './MarkerLayers';
+import { MarkerLayers, SelectedMarker } from './MarkerLayers';
 import { buildPlaceMarkers, filterMarkers, toFeatureCollection, type MapScope } from './mapModel';
 import { useLocationAccess } from './useLocationAccess';
 import { PlaceSheet } from '../places/PlaceSheet';
@@ -56,7 +56,7 @@ export function MapScreen() {
   const visible = useMemo(() => filterMarkers(markers, scope, cats), [markers, scope, cats]);
   const shape = useMemo(() => toFeatureCollection(visible), [visible]);
 
-  const flyTo = useCallback((lng: number, lat: number, zoom = 15.5) => {
+  const flyTo = useCallback((lng: number, lat: number, zoom = 16.4) => {
     camera.current?.setCamera({
       centerCoordinate: [lng, lat],
       zoomLevel: zoom,
@@ -93,7 +93,7 @@ export function MapScreen() {
     haptic.select();
     setSelected(placeId);
     const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates;
-    flyTo(lng, lat, 15.8);
+    flyTo(lng, lat, 16.4);
   }, [flyTo]);
 
   const locate = useCallback(async () => {
@@ -118,7 +118,10 @@ export function MapScreen() {
 
   return (
     <View style={s.root}>
+      {/* Keyed by scheme: switching the base style reloads it and drops our
+          layers, so a remount avoids racing style-prop updates against it. */}
       <Mapbox.MapView
+        key={dark ? 'map-dark' : 'map-light'}
         style={StyleSheet.absoluteFill}
         styleURL={dark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Light}
         logoEnabled
@@ -134,6 +137,7 @@ export function MapScreen() {
         <Mapbox.Camera ref={camera} defaultSettings={{ centerCoordinate: MORNINGSIDE, zoomLevel: 13.6 }} />
         {location.access === 'granted' ? <Mapbox.LocationPuck puckBearingEnabled={false} pulsing={{ isEnabled: true, color: colors.thread }} /> : null}
         <MarkerLayers ref={source} shape={shape} selectedPlaceId={selected} onPress={onPress} />
+        <SelectedMarker shape={shape} selectedPlaceId={selected} />
       </Mapbox.MapView>
 
       {/* Top chrome */}

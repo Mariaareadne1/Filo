@@ -10,6 +10,8 @@ interface Props {
   onPress: (e: OnPressEvent) => void;
 }
 
+const EMPTY: MarkerCollection = { type: 'FeatureCollection', features: [] };
+
 /**
  * All markers are GPU-drawn Mapbox layers over ONE clustered GeoJSON source:
  * no React view per pin, so panning stays smooth with hundreds of places and
@@ -29,7 +31,7 @@ export const MarkerLayers = memo(
         shape={shape as GeoJSON.FeatureCollection}
         cluster
         clusterRadius={44}
-        clusterMaxZoomLevel={15}
+        clusterMaxZoomLevel={16}
         clusterProperties={{
           mine: ['+', ['case', ['==', ['get', 'kind'], 'friend'], 0, 1]],
         }}
@@ -58,13 +60,6 @@ export const MarkerLayers = memo(
             textFont: ['DIN Pro Medium', 'Arial Unicode MS Regular'],
             textAllowOverlap: true,
           }}
-        />
-
-        {/* Selection halo sits under the point. */}
-        <Mapbox.CircleLayer
-          id="filo-selected-halo"
-          filter={['all', ['!', ['has', 'point_count']], ['==', ['get', 'placeId'], selected]]}
-          style={{ circleRadius: 17, circleColor: colors.threadSoft, circleStrokeWidth: 1.5, circleStrokeColor: colors.thread }}
         />
 
         {/* Places: three kinds only (see mapModel.MarkerKind). */}
@@ -112,3 +107,29 @@ export const MarkerLayers = memo(
     );
   }),
 );
+
+/**
+ * The selected place drawn from its own UNclustered source above
+ * everything, so selection stays visible even when its neighbours (e.g.
+ * three Joe Coffees on one block) are still clustered.
+ */
+export const SelectedMarker = memo(function SelectedMarker({ shape, selectedPlaceId }: { shape: MarkerCollection; selectedPlaceId: string | null }) {
+  const { colors, dark } = useTheme();
+  const feature = selectedPlaceId ? shape.features.find((f) => f.properties.placeId === selectedPlaceId) : undefined;
+  const ring = dark ? '#0E0F11' : '#FFFFFF';
+  return (
+    <Mapbox.ShapeSource id="filo-selected" shape={(feature ? { type: 'FeatureCollection', features: [feature] } : EMPTY) as GeoJSON.FeatureCollection}>
+      <Mapbox.CircleLayer id="filo-selected-halo" style={{ circleRadius: 18, circleColor: colors.threadSoft, circleStrokeWidth: 1.5, circleStrokeColor: colors.thread }} />
+      <Mapbox.CircleLayer
+        id="filo-selected-point"
+        aboveLayerID="filo-selected-halo"
+        style={{
+          circleRadius: 9,
+          circleColor: ['match', ['get', 'kind'], 'mine_visited', colors.thread, 'mine_saved', ring, colors.pinFriend],
+          circleStrokeColor: ['match', ['get', 'kind'], 'mine_saved', colors.thread, ring],
+          circleStrokeWidth: ['match', ['get', 'kind'], 'mine_saved', 3, 2],
+        }}
+      />
+    </Mapbox.ShapeSource>
+  );
+});

@@ -9,6 +9,7 @@ import {
 import { Image } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
+import { queryClient, qk } from '../lib/queryClient';
 
 /**
  * Single-session photo upload queue. Lives at the (app) layout level so
@@ -136,16 +137,22 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         if (updErr) throw updErr;
 
         patch(pinId, { status: 'success' });
+        // The pin's photo changed: refresh every view that shows it.
+        queryClient.invalidateQueries({ queryKey: qk.pinsAll });
+        queryClient.invalidateQueries({ queryKey: ['place'] });
+        queryClient.invalidateQueries({ queryKey: qk.boardsAll });
+        queryClient.invalidateQueries({ queryKey: ['board'] });
 
         // Auto-clear the success state after 2s so the toast fades.
         setTimeout(() => {
           const cur = mapRef.current.get(pinId);
           if (cur?.status === 'success') patch(pinId, null);
         }, 2000);
-      } catch (e: any) {
+      } catch (e: unknown) {
+        if (__DEV__) console.warn('[filo] photo upload failed', e);
         patch(pinId, {
           status: 'failed',
-          error: e?.message ?? String(e),
+          error: e instanceof Error ? e.message : String(e),
         });
       }
     },

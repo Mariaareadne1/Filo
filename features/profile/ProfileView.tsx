@@ -14,6 +14,7 @@ import { toUserMessage } from '../../lib/errors';
 import type { PinRow } from '../../lib/api/pins';
 import { Button, GlassIconButton, GlassSegmented } from '../../design/controls';
 import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -72,6 +73,7 @@ export function ProfileView({ userId }: { userId: string }) {
     ]);
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={s.root}
       contentContainerStyle={{ paddingTop: insets.top + SPACE.md, paddingBottom: clearance + SPACE.lg }}
@@ -143,7 +145,7 @@ export function ProfileView({ userId }: { userId: string }) {
       ) : (
         <>
           {/* Rankings */}
-          <SectionHead title="Rankings" />
+          <SectionHead title="Rankings" action={isOwn ? 'Taste twins' : undefined} onAction={isOwn ? () => router.push('/(app)/twins') : undefined} />
           {ranks.data && ranks.data.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rankRow}>
               {ranks.data.map((r) => (
@@ -225,6 +227,8 @@ export function ProfileView({ userId }: { userId: string }) {
         </>
       ) : null}
     </ScrollView>
+    <StatusScrim />
+    </View>
   );
 }
 

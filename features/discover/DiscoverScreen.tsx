@@ -11,6 +11,7 @@ import { toUserMessage } from '../../lib/errors';
 import { Glass } from '../../design/Glass';
 import { GlassChip } from '../../design/controls';
 import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -70,6 +71,7 @@ export function DiscoverScreen() {
   };
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={s.root}
       contentContainerStyle={{ paddingTop: insets.top + SPACE.md, paddingBottom: clearance + SPACE.xl }}
@@ -156,6 +158,8 @@ export function DiscoverScreen() {
         </>
       ) : null}
     </ScrollView>
+    <StatusScrim />
+    </View>
   );
 }
 

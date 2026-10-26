@@ -7,6 +7,7 @@ import { toUserMessage } from '../../lib/errors';
 import type { BoardSummary } from '../../lib/api/boards';
 import { Button, GlassIconButton } from '../../design/controls';
 import { Icon, PressableScale, Text } from '../../design/primitives';
+import { StatusScrim } from '../../design/StatusScrim';
 import { makeStyles, useTheme } from '../../design/theme';
 import { GUTTER, RADIUS, SHADOW, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
@@ -64,6 +65,7 @@ export function BoardsScreen() {
           )
         }
       />
+      <StatusScrim />
     </View>
   );
 }
