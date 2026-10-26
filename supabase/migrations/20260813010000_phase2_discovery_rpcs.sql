@@ -34,6 +34,7 @@
 drop policy if exists venue_claims_own on venue_claims;
 
 -- Owners may READ their own claims (any status).
+drop policy if exists venue_claims_select_own on venue_claims;
 create policy venue_claims_select_own on venue_claims
   for select
   using (exists (
@@ -44,6 +45,7 @@ create policy venue_claims_select_own on venue_claims
 
 -- Owners may INSERT claims for their own business, but ONLY as 'pending'.
 -- They can never write a 'verified' row directly.
+drop policy if exists venue_claims_insert_pending on venue_claims;
 create policy venue_claims_insert_pending on venue_claims
   for insert
   with check (

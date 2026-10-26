@@ -1,5 +1,5 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -122,10 +122,16 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => setSession(session))
+      .catch((e: unknown) => {
+        // Unreadable/corrupt persisted session → treat as signed out rather
+        // than leaving the app stuck behind the splash.
+        console.warn('[filo] session restore failed', e);
+        setSession(null);
+      })
+      .finally(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -137,9 +143,13 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const onLayoutReady = useCallback(async () => {
+  // Hide the splash once fonts AND the persisted session have resolved. This
+  // must be an effect, not the root view's onLayout: onLayout fires once, on
+  // first layout, usually before the encrypted session read completes — the
+  // splash then never hid and the app sat on it forever.
+  useEffect(() => {
     if ((fontsLoaded || fontError) && !loading) {
-      await SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError, loading]);
 
@@ -148,7 +158,7 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutReady}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppCore session={session} loading={loading} />
       </SafeAreaProvider>
