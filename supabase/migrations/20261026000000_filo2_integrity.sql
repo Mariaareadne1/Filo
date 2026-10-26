@@ -272,7 +272,21 @@ END;
 $$;
 
 
+-- ─── 5a. Provider-agnostic venues ──────────────────────────────────
+-- Google Places is unavailable when its project has no billing; Mapbox
+-- Search Box (same token family as the map) is the primary provider in
+-- Filo 2.0. `google_place_id` keeps its name for compatibility with the
+-- business dashboard but now holds the provider's stable id; `source`
+-- says which. Tags/neighborhood are the provider's real attributes and feed
+-- grounded search filters (never invented text).
+ALTER TABLE places ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'google';
+ALTER TABLE places DROP CONSTRAINT IF EXISTS places_source_chk;
+ALTER TABLE places ADD CONSTRAINT places_source_chk CHECK (source IN ('google','mapbox'));
+ALTER TABLE places ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}';
+ALTER TABLE places ADD COLUMN IF NOT EXISTS neighborhood text;
+
 -- ─── 5. save_pin(): dedupe venue + upsert pin atomically ───────────
+DROP FUNCTION IF EXISTS save_pin(text,text,text,text,double precision,double precision,text,text,text);
 CREATE OR REPLACE FUNCTION save_pin(
   p_google_place_id text,
   p_name            text,
@@ -282,7 +296,10 @@ CREATE OR REPLACE FUNCTION save_pin(
   p_lng             double precision,
   p_photo_url       text,
   p_status          text,
-  p_impression      text
+  p_impression      text,
+  p_source          text DEFAULT 'google',
+  p_tags            text[] DEFAULT '{}',
+  p_neighborhood    text DEFAULT NULL
 )
 RETURNS TABLE (pin_id uuid, place_id uuid, created boolean)
 LANGUAGE plpgsql
@@ -305,6 +322,9 @@ BEGIN
   IF p_google_place_id IS NULL OR p_google_place_id !~ '^[A-Za-z0-9_-]+$' OR char_length(p_google_place_id) NOT BETWEEN 10 AND 300 THEN
     RAISE EXCEPTION 'invalid place id' USING ERRCODE = 'check_violation';
   END IF;
+  IF coalesce(p_source, '') NOT IN ('google','mapbox') THEN
+    RAISE EXCEPTION 'invalid source' USING ERRCODE = 'check_violation';
+  END IF;
   IF p_status NOT IN ('visited','want_to_go') THEN
     RAISE EXCEPTION 'invalid status' USING ERRCODE = 'check_violation';
   END IF;
@@ -317,9 +337,14 @@ BEGIN
 
   -- First writer creates the venue; later writers reuse it unchanged so
   -- one user can't rename/move a venue everyone else has pinned.
-  INSERT INTO places (google_place_id, name, address, category, lat, lng, photo_url)
+  INSERT INTO places (google_place_id, name, address, category, lat, lng, photo_url,
+                      source, tags, neighborhood)
   VALUES (p_google_place_id, btrim(p_name), btrim(coalesce(p_address, '')), p_category,
-          p_lat, p_lng, v_photo)
+          p_lat, p_lng, v_photo, p_source,
+          (SELECT coalesce(array_agg(DISTINCT lower(btrim(t))), '{}')
+             FROM unnest(coalesce(p_tags, '{}')) t
+            WHERE char_length(btrim(t)) BETWEEN 1 AND 40),
+          nullif(left(btrim(p_neighborhood), 80), ''))
   ON CONFLICT (google_place_id) DO NOTHING
   RETURNING id INTO v_place;
 
@@ -661,8 +686,8 @@ $$;
 
 
 -- ─── RPC grants (functions default to PUBLIC execute; be explicit) ─
-REVOKE ALL ON FUNCTION save_pin(text,text,text,text,double precision,double precision,text,text,text) FROM public, anon;
-GRANT EXECUTE ON FUNCTION save_pin(text,text,text,text,double precision,double precision,text,text,text) TO authenticated;
+REVOKE ALL ON FUNCTION save_pin(text,text,text,text,double precision,double precision,text,text,text,text,text[],text) FROM public, anon;
+GRANT EXECUTE ON FUNCTION save_pin(text,text,text,text,double precision,double precision,text,text,text,text,text[],text) TO authenticated;
 REVOKE ALL ON FUNCTION respond_follow_request(uuid, boolean) FROM public, anon;
 GRANT EXECUTE ON FUNCTION respond_follow_request(uuid, boolean) TO authenticated;
 REVOKE ALL ON FUNCTION remove_ranking(uuid, text) FROM public, anon;

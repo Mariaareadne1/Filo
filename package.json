@@ -10,7 +10,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest",
-    "test:db": "bash scripts/db-test.sh"
+    "test:db": "bash scripts/db-test.sh",
+    "start:local": "eval $(node scripts/local-stack/keys.mjs) && EXPO_PUBLIC_SUPABASE_URL_OVERRIDE=http://127.0.0.1:55321 EXPO_PUBLIC_SUPABASE_ANON_KEY_OVERRIDE=$ANON expo start --port 8081",
+    "stack:up": "eval $(node scripts/local-stack/keys.mjs) && bash scripts/local-stack/up.sh $ANON $SERVICE"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",

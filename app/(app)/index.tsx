@@ -13,5 +13,5 @@ import { Redirect } from 'expo-router';
  * a tab slot on its own.
  */
 export default function AppIndex() {
-  return <Redirect href="/(app)/discover" />;
+  return <Redirect href="/(app)/map" />;
 }

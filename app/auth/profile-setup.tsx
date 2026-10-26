@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
+import { toUserMessage } from '../../lib/errors';
+import { useOnboarding } from '../../contexts/onboarding';
 import { ACCENT, PALETTE, GLASS_STYLE_SM } from '../../constants/theme';
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
@@ -29,6 +31,7 @@ export default function ProfileSetupScreen() {
   const [displayNameError, setDisplayNameError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { markProfileCreated } = useOnboarding();
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -137,27 +140,24 @@ export default function ProfileSetupScreen() {
       username: uname,
       display_name: trimmedDisplay,
       avatar_url: avatarUrl,
-      campus: 'columbia',
-      onboarding_complete: false,
-      is_verified: true,
+      // campus / onboarding_complete use column defaults; is_verified is set
+      // server-side from the authenticated email (not client-writable).
     });
 
     setLoading(false);
 
     if (insertError) {
-      console.error('[profile-setup] insert error:', JSON.stringify(insertError));
+      if (__DEV__) console.warn('[profile-setup] insert error', insertError);
       if (insertError.message.includes('unique') && insertError.message.includes('username')) {
         setUsernameStatus('taken');
         setUsernameError('That username is already taken.');
       } else {
-        Alert.alert(
-          'Profile creation failed',
-          `code: ${insertError.code ?? '—'}\nmessage: ${insertError.message ?? '—'}\ndetails: ${insertError.details ?? '—'}\nhint: ${insertError.hint ?? '—'}`,
-        );
+        Alert.alert("Couldn't create your profile", toUserMessage(insertError));
       }
       return;
     }
 
+    markProfileCreated();
     router.replace('/onboarding/welcome');
   }
 

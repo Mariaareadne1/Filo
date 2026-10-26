@@ -69,3 +69,19 @@ export function categoryFromGoogleTypes(types: readonly string[]): Category {
           'furniture_store', 'store', 'shopping_mall')) return 'retail';
   return 'experience';
 }
+
+/** Mapbox Search Box `poi_category_ids` → Filo category (null if the POI is
+ *  outside Filo's scope, e.g. a pharmacy or bank). */
+export function categoryFromMapboxIds(ids: readonly string[]): Category | null {
+  const has = (...t: string[]) => ids.some((x) => t.includes(x));
+  if (has('cafe', 'coffee', 'coffee_shop', 'tea_house', 'bubble_tea')) return 'cafe';
+  if (has('bar', 'cocktail_bar', 'wine_bar', 'pub', 'brewery', 'nightlife', 'night_club', 'beer_bar', 'lounge')) return 'bar';
+  if (has('restaurant', 'food', 'bakery', 'fast_food', 'pizza_restaurant', 'dessert_shop', 'ice_cream')) return 'food';
+  if (has('nail_salon', 'hair_salon', 'barber', 'barber_shop', 'spa', 'beauty', 'cosmetics_store', 'massage')) return 'beauty';
+  if (has('clothing_store', 'bookstore', 'book_store', 'shoe_store', 'jewelry_store', 'record_store',
+          'gift_shop', 'furniture_store', 'thrift_store', 'antique_shop', 'shopping', 'boutique')) return 'retail';
+  if (has('museum', 'art_gallery', 'gym', 'climbing_gym', 'yoga_studio', 'park', 'theater', 'cinema',
+          'movie_theater', 'music_venue', 'bowling_alley', 'entertainment', 'arts_and_entertainment',
+          'fitness_center', 'tourist_attraction')) return 'experience';
+  return null;
+}

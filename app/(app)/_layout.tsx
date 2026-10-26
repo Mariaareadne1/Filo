@@ -1,240 +1,44 @@
-import { Tabs, useRouter } from 'expo-router';
-import { Text, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { UploadProvider } from '../../contexts/UploadContext';
 import { UploadProgressOverlay } from '../../components/UploadProgressOverlay';
-import {
-  PALETTE,
-  ACCENT,
-  FONTS,
-  RADII,
-  FLOAT_SHADOW,
-} from '../../constants/theme';
+import { Dock } from '../../design/Dock';
+import { useTheme } from '../../design/theme';
 
-interface TabSlotProps {
-  glyph: string;
-  label: string;
-  focused: boolean;
-}
-
-function TabSlot({ glyph, label, focused }: TabSlotProps) {
-  return (
-    <View style={styles.slot}>
-      <View style={styles.glyphWrap}>
-        <Text
-          allowFontScaling={false}
-          style={[
-            styles.glyph,
-            { color: focused ? PALETTE.ink : PALETTE.inkMute },
-          ]}
-        >
-          {glyph}
-        </Text>
-      </View>
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.label,
-          { color: focused ? PALETTE.ink : PALETTE.inkMute },
-          focused && styles.labelActive,
-        ]}
-      >
-        {label}
-      </Text>
-      {focused && <View style={styles.activeDot} />}
-    </View>
-  );
-}
-
-function CenterFab() {
-  const router = useRouter();
-  return (
-    <View pointerEvents="box-none" style={styles.fabWrap}>
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => router.push('/pin/search')}
-        style={styles.fab}
-        accessibilityRole="button"
-        accessibilityLabel="Add a new pin"
-      >
-        <Text style={styles.fabPlus} accessibilityElementsHidden importantForAccessibility="no">＋</Text>
-        <Text style={styles.fabLabel} accessibilityElementsHidden importantForAccessibility="no">pin</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
+/**
+ * Authenticated shell. Map is the home canvas; the floating glass Dock
+ * replaces the stock tab bar. Non-dock routes (board, user, rankings, …)
+ * live in the same navigator with `href: null` so the dock stays visible
+ * and back/forward history behaves like iOS tabs.
+ */
 export default function AppLayout() {
-  const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 12);
-
+  const { colors } = useTheme();
   return (
     <UploadProvider>
-    <View style={{ flex: 1, backgroundColor: PALETTE.bg }}>
-      <Tabs
-        initialRouteName="discover"
-        screenOptions={{
-          headerShown: false,
-          tabBarShowLabel: false,
-          tabBarStyle: [
-            styles.bar,
-            { bottom: bottomPad, paddingBottom: 8, paddingTop: 8 },
-          ],
-          tabBarItemStyle: { paddingVertical: 0 },
-          tabBarBackground: () => <View style={styles.barBg} />,
-        }}
-      >
-        <Tabs.Screen
-          name="discover"
-          options={{
-            tabBarAccessibilityLabel: 'Find',
-            tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="✦" label="find" focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="map"
-          options={{
-            tabBarAccessibilityLabel: 'Map',
-            tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="◉" label="map" focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="__pin_spacer"
-          options={{
-            tabBarButton: () => <View style={styles.spacerSlot} />,
-          }}
-        />
-        <Tabs.Screen
-          name="feed"
-          options={{
-            tabBarAccessibilityLabel: 'Feed',
-            tabBarIcon: ({ focused }) => (
-              <TabSlot glyph="☰" label="feed" focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            tabBarAccessibilityLabel: 'You',
-            tabBarIcon: ({ focused }) => (
-              <TabSlot glyph={'○'} label="you" focused={focused} />
-            ),
-          }}
-        />
-
-        <Tabs.Screen name="index" options={{ href: null }} />
-        <Tabs.Screen name="directory" options={{ href: null }} />
-        <Tabs.Screen name="twins" options={{ href: null }} />
-        <Tabs.Screen name="rankings" options={{ href: null }} />
-        <Tabs.Screen name="follow-list" options={{ href: null }} />
-        <Tabs.Screen name="wrapped" options={{ href: null }} />
-        <Tabs.Screen name="board/[id]" options={{ href: null }} />
-        <Tabs.Screen name="user/[id]" options={{ href: null }} />
-      </Tabs>
-
-      <View
-        style={[styles.fabAnchor, { bottom: bottomPad + 16 }]}
-        pointerEvents="box-none"
-      >
-        <CenterFab />
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <Tabs
+          initialRouteName="map"
+          backBehavior="history"
+          tabBar={(props) => <Dock {...props} />}
+          screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+        >
+          <Tabs.Screen name="map" />
+          <Tabs.Screen name="discover" />
+          <Tabs.Screen name="boards" />
+          <Tabs.Screen name="profile" />
+          <Tabs.Screen name="index" options={{ href: null }} />
+          <Tabs.Screen name="feed" options={{ href: null }} />
+          <Tabs.Screen name="requests" options={{ href: null }} />
+          <Tabs.Screen name="directory" options={{ href: null }} />
+          <Tabs.Screen name="twins" options={{ href: null }} />
+          <Tabs.Screen name="rankings" options={{ href: null }} />
+          <Tabs.Screen name="follow-list" options={{ href: null }} />
+          <Tabs.Screen name="wrapped" options={{ href: null }} />
+          <Tabs.Screen name="board/[id]" options={{ href: null }} />
+          <Tabs.Screen name="user/[id]" options={{ href: null }} />
+        </Tabs>
+        <UploadProgressOverlay />
       </View>
-
-      {/* Photo-upload progress bar + toasts. Lives above all content so
-          users can keep navigating while a background upload runs. */}
-      <UploadProgressOverlay />
-    </View>
     </UploadProvider>
   );
 }
-
-const BAR_HEIGHT = 64;
-
-const styles = StyleSheet.create({
-  bar: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    height: BAR_HEIGHT,
-    borderRadius: RADII.lg,
-    borderTopWidth: 0,
-    borderWidth: 1,
-    borderColor: PALETTE.inkLine,
-    backgroundColor: 'transparent',
-    elevation: 6,
-    ...FLOAT_SHADOW,
-  },
-  barBg: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: RADII.lg,
-    overflow: 'hidden',
-  },
-  slot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    paddingTop: 2,
-  },
-  glyphWrap: { alignItems: 'center', justifyContent: 'center', height: 20 },
-  glyph: {
-    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: undefined }),
-    fontSize: 16,
-    lineHeight: 20,
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  label: {
-    fontFamily: Platform.select({ ios: FONTS.mono, default: 'monospace' }),
-    fontSize: 9,
-    textTransform: 'lowercase',
-  },
-  spacerSlot: { flex: 1 },
-  labelActive: { fontWeight: '700' },
-  activeDot: {
-    position: 'absolute',
-    bottom: -4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: ACCENT.red,
-  },
-  fabAnchor: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  fabWrap: { alignItems: 'center' },
-  fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: ACCENT.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: ACCENT.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 10,
-    borderWidth: 2,
-    borderColor: PALETTE.surface,
-  },
-  fabPlus: {
-    fontSize: 22,
-    color: PALETTE.surface,
-    fontWeight: '300',
-    lineHeight: 24,
-    marginTop: -2,
-  },
-  fabLabel: {
-    fontFamily: Platform.select({ ios: FONTS.mono, default: 'monospace' }),
-    fontSize: 7,
-    letterSpacing: 1,
-    color: PALETTE.surface,
-    marginTop: -1,
-    textTransform: 'lowercase',
-    opacity: 0.95,
-  },
-});

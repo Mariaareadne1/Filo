@@ -1,15 +1,20 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { supabase } from '../lib/supabase';
-import { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { queryClient } from '../lib/queryClient';
+import { SessionContext } from '../lib/session';
 import { OnboardingContext } from '../contexts/onboarding';
+import { ThemeProvider, useTheme } from '../design/theme';
 
-// Keep the splash up until fonts are loaded so first paint is on-brand.
+// Keep the splash up until fonts + the persisted session have resolved.
 SplashScreen.preventAutoHideAsync().catch(() => { /* no-op on web/simulator */ });
 
 Notifications.setNotificationHandler({
@@ -21,86 +26,98 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function registerPushToken(userId: string) {
+/**
+ * Stores the Expo push token ONLY if the person already granted permission
+ * (asked contextually at the end of onboarding). Never prompts on sign-in.
+ */
+async function syncPushToken(userId: string) {
   try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') return;
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    await supabase
-      .from('users')
-      .update({ expo_push_token: tokenData.data })
-      .eq('id', userId);
-  } catch {
-    // Simulator or permissions denied — silent fail
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    const token = await Notifications.getExpoPushTokenAsync();
+    await supabase.from('users').update({ expo_push_token: token.data }).eq('id', userId);
+  } catch (e) {
+    if (__DEV__) console.warn('[filo] push token sync skipped', e);
   }
 }
+
+type ProfileState = 'unknown' | 'missing' | 'onboarding' | 'ready';
 
 function AppCore({ session, loading }: { session: Session | null; loading: boolean }) {
   const router = useRouter();
   const segments = useSegments();
-
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const { dark } = useTheme();
+  const [profile, setProfile] = useState<ProfileState>('unknown');
+  const userId = session?.user?.id ?? null;
 
   useEffect(() => {
-    if (!session?.user?.id) {
-      setOnboardingComplete(null);
+    if (!userId) {
+      setProfile('unknown');
+      queryClient.clear(); // never show the previous account's cached data
       return;
     }
+    let active = true;
     supabase
       .from('users')
       .select('onboarding_complete')
-      .eq('id', session.user.id)
+      .eq('id', userId)
       .maybeSingle()
       .then(({ data, error }) => {
+        if (!active) return;
         if (error) {
-          // Fail open so a flaky network doesn't strand signed-in users with no navigation.
-          console.warn('[filo] onboarding flag fetch failed', error.message);
-          setOnboardingComplete(false);
+          // Fail toward the app (not a dead end); screens show their own errors.
+          if (__DEV__) console.warn('[filo] profile lookup failed', error.message);
+          setProfile('ready');
           return;
         }
-        setOnboardingComplete(data?.onboarding_complete ?? false);
+        if (!data) setProfile('missing');
+        else setProfile(data.onboarding_complete ? 'ready' : 'onboarding');
       });
-  }, [session?.user?.id]);
+    syncPushToken(userId);
+    return () => { active = false; };
+  }, [userId]);
 
   useEffect(() => {
     if (loading) return;
-
-    const inAuth       = segments[0] === 'auth';
-    const inOnboarding = segments[0] === 'onboarding';
-    const inApp        = segments[0] === '(app)';
+    const top = segments[0] as string | undefined;
+    const inAuth = top === 'auth';
+    const inOnboarding = top === 'onboarding';
 
     if (!session) {
       if (!inAuth) router.replace('/auth/email');
       return;
     }
-
-    if (onboardingComplete === null) return;
-
-    if (inAuth) {
-      if (onboardingComplete) router.replace('/(app)/discover');
+    if (profile === 'unknown') return;
+    if (profile === 'missing') {
+      if (!(inAuth && (segments as string[])[1] === 'profile-setup')) router.replace('/auth/profile-setup');
       return;
     }
-
-    if (inOnboarding) return;
-
-    if (inApp && !onboardingComplete) {
-      router.replace('/onboarding/welcome');
+    if (profile === 'onboarding') {
+      if (!inOnboarding) router.replace('/onboarding/welcome');
+      return;
     }
-  }, [session, loading, onboardingComplete, segments]);
+    if (inAuth || inOnboarding || !top) router.replace('/(app)/map');
+  }, [session, loading, profile, segments, router]);
+
+  const onboardingValue = useMemo(
+    () => ({
+      onboardingComplete: profile === 'ready',
+      setOnboardingComplete: (v: boolean) => setProfile(v ? 'ready' : 'onboarding'),
+      markProfileCreated: () => setProfile('onboarding'),
+    }),
+    [profile],
+  );
 
   return (
-    <OnboardingContext.Provider
-      value={{
-        onboardingComplete: onboardingComplete ?? false,
-        setOnboardingComplete,
-      }}
-    >
-      <Stack screenOptions={{ headerShown: false }} />
+    <OnboardingContext.Provider value={onboardingValue}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="pin" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="board-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6, 1], sheetGrabberVisible: true }} />
+      </Stack>
     </OnboardingContext.Provider>
   );
 }
@@ -128,18 +145,14 @@ export default function RootLayout() {
       .catch((e: unknown) => {
         // Unreadable/corrupt persisted session → treat as signed out rather
         // than leaving the app stuck behind the splash.
-        console.warn('[filo] session restore failed', e);
+        if (__DEV__) console.warn('[filo] session restore failed', e);
         setSession(null);
       })
       .finally(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user?.id) {
-        registerPushToken(session.user.id);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -153,14 +166,23 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError, loading]);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  const sessionValue = useMemo(
+    () => ({ session, userId: session?.user?.id ?? null, email: session?.user?.email ?? null }),
+    [session],
+  );
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppCore session={session} loading={loading} />
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <SessionContext.Provider value={sessionValue}>
+              <AppCore session={session} loading={loading} />
+            </SessionContext.Provider>
+          </QueryClientProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
