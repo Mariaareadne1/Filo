@@ -8,6 +8,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
 import { useSession } from '../../lib/session';
 import { toUserMessage } from '../../lib/errors';
+import { readFileBytes } from '../../lib/fileBytes';
 import { useOnboarding } from '../../contexts/onboarding';
 import { Button } from '../../design/controls';
 import { Icon, PressableScale, Text } from '../../design/primitives';
@@ -48,8 +49,7 @@ export function ProfileSetupStep() {
   };
 
   const pickAvatar = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Photos are off', 'You can add a photo later from your profile.'); return; }
+    // System picker: no library permission needed.
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!r.canceled && r.assets[0]) setAvatar(r.assets[0].uri);
   };
@@ -57,9 +57,9 @@ export function ProfileSetupStep() {
   const uploadAvatar = async (uid: string): Promise<string | null> => {
     if (!avatar) return null;
     const small = await ImageManipulator.manipulateAsync(avatar, [{ resize: { width: 512 } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
-    const blob = await (await fetch(small.uri)).blob();
+    const bytes = await readFileBytes(small.uri);
     const path = `${uid}/avatar.jpg`;
-    const { error } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    const { error } = await supabase.storage.from('avatars').upload(path, bytes, { upsert: true, contentType: 'image/jpeg' });
     if (error) throw error;
     return `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
   };

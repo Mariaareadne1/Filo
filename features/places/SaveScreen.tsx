@@ -69,11 +69,7 @@ export function SaveScreen() {
   }
 
   const pickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Photos are off', 'Allow photo access in Settings to add a photo. You can always save without one.');
-      return;
-    }
+    // System picker: no library permission needed, only the chosen photo is shared.
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.85 });
     if (!res.canceled && res.assets[0]) setPhoto(res.assets[0].uri);
   };

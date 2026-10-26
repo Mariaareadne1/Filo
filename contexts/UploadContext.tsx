@@ -9,6 +9,7 @@ import {
 import { Image } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
+import { readFileBytes } from '../lib/fileBytes';
 import { queryClient, qk } from '../lib/queryClient';
 
 /**
@@ -108,8 +109,8 @@ export function UploadProvider({ children }: { children: ReactNode }) {
           { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
         );
 
-        // 2. URI → Blob. fetch().blob() works for file:// in expo SDK 50+.
-        const blob = await (await fetch(compressed.uri)).blob();
+        // 2. URI → bytes (a fetch() Blob uploads as 0 bytes on RN).
+        const bytes = await readFileBytes(compressed.uri);
 
         // 3. Upload. `upsert: true` lets retries overwrite the prior
         //    object at the same path; the storage UPDATE policy is what
@@ -117,21 +118,23 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         const path = `${userId}/${pinId}.jpg`;
         const { error: upErr } = await supabase.storage
           .from('pin-photos')
-          .upload(path, blob, {
+          .upload(path, bytes, {
             contentType: 'image/jpeg',
             upsert: true,
             cacheControl: '3600',
           });
         if (upErr) throw upErr;
 
-        // 4. Public URL.
+        // 4. Public URL, versioned so a replaced photo isn't served from
+        //    the image cache under the same path.
         const { data } = supabase.storage.from('pin-photos').getPublicUrl(path);
+        const photoUrl = `${data.publicUrl}?v=${Date.now()}`;
 
         // 5. Patch the pin row. RLS enforces ownership on UPDATE; the
         //    .eq('user_id') is defense in depth.
         const { error: updErr } = await supabase
           .from('pins')
-          .update({ photo_url: data.publicUrl })
+          .update({ photo_url: photoUrl })
           .eq('id', pinId)
           .eq('user_id', userId);
         if (updErr) throw updErr;

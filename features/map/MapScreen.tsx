@@ -68,13 +68,25 @@ export function MapScreen() {
   }, [screenH]);
 
   // Deep link / search result: /(app)/map?place=<uuid>
+  // The param is consumed once so the same link can reopen the sheet later,
+  // and the camera flies once the marker is known (pins may still be loading).
   const deepLinked = parseIdParam(params.place);
+  const pendingFly = useRef<string | null>(null);
+  const [focusKey, setFocusKey] = useState(0);
   useEffect(() => {
     if (!deepLinked) return;
     setSelected(deepLinked);
-    const m = markers.find((x) => x.placeId === deepLinked);
-    if (m) flyTo(m.lng, m.lat);
-  }, [deepLinked, markers, flyTo]);
+    setFocusKey((k) => k + 1);
+    pendingFly.current = deepLinked;
+    router.setParams({ place: undefined });
+  }, [deepLinked, router]);
+  useEffect(() => {
+    const id = pendingFly.current;
+    const m = id ? markers.find((x) => x.placeId === id) : undefined;
+    if (!m) return;
+    pendingFly.current = null;
+    flyTo(m.lng, m.lat);
+  }, [focusKey, markers, flyTo]);
 
   const onPress = useCallback(async (e: OnPressEvent) => {
     const f = e.features?.[0];
@@ -210,7 +222,7 @@ export function MapScreen() {
       {/* The sheet lives in a box that ends above the dock, so it floats as a
           card over the map and the dock never covers its content. */}
       <View pointerEvents="box-none" style={[s.sheetBox, { bottom: dockClearance - 6 }]}>
-        <PlaceSheet placeId={selected} onClose={() => setSelected(null)} />
+        <PlaceSheet placeId={selected} focusKey={focusKey} onClose={() => setSelected(null)} />
       </View>
     </View>
   );

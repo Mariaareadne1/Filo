@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, View } from 'react-native';
 import BottomSheet, { BottomSheetBackgroundProps, BottomSheetScrollView, useBottomSheetSpringConfigs, useBottomSheetTimingConfigs } from '@gorhom/bottom-sheet';
 import { Glass } from '../../design/Glass';
@@ -8,6 +9,8 @@ import { PlaceDetail } from './PlaceDetail';
 
 interface Props {
   placeId: string | null;
+  /** Bumped to re-open the sheet for the same place (e.g. a repeated deep link). */
+  focusKey?: number;
   onClose: () => void;
 }
 
@@ -20,10 +23,11 @@ function SheetBackground({ style }: BottomSheetBackgroundProps) {
  * Three detents: preview (name + relationship), detail (actions, your
  * note, friends' takes), full (everything). Closed when nothing selected.
  */
-export function PlaceSheet({ placeId, onClose }: Props) {
+export function PlaceSheet({ placeId, focusKey = 0, onClose }: Props) {
   const s = useStyles();
   const { colors, reduceMotion } = useTheme();
   const ref = useRef<BottomSheet>(null);
+  const insets = useSafeAreaInsets();
   // Detached glass card; its parent box ends above the dock (MapScreen).
   const snapPoints = useMemo(() => [168, '50%', '86%'], []);
   const spring = useBottomSheetSpringConfigs(MOTION.sheet);
@@ -32,7 +36,7 @@ export function PlaceSheet({ placeId, onClose }: Props) {
   useEffect(() => {
     if (placeId) ref.current?.snapToIndex(1);
     else ref.current?.close();
-  }, [placeId]);
+  }, [placeId, focusKey]);
 
   return (
     <BottomSheet
@@ -42,6 +46,7 @@ export function PlaceSheet({ placeId, onClose }: Props) {
       enablePanDownToClose
       onClose={onClose}
       detached
+      topInset={insets.top + 8}
       animationConfigs={reduceMotion ? fade : spring}
       backgroundComponent={SheetBackground}
       handleIndicatorStyle={{ backgroundColor: colors.inkTertiary, width: 40 }}

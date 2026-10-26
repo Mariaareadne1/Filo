@@ -83,11 +83,8 @@ export function PlaceDetail({ placeId, onRemoved }: Props) {
 
   const addPhoto = async () => {
     if (!mine || !userId) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Photos are off', 'Allow photo access in Settings to add your own photo.');
-      return;
-    }
+    // The system picker (PHPicker) needs no library permission: Filo only
+    // ever receives the one photo the person picks.
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.85 });
     if (!res.canceled && res.assets[0]) startUpload(mine.id, userId, res.assets[0].uri);
   };
