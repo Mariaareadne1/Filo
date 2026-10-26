@@ -1,0 +1,489 @@
+{
+  "generated_at": "2026-10-26T07:22:37.699Z",
+  "corpus_places": 79,
+  "queries": 24,
+  "summary": {
+    "keyword": {
+      "P@5": 0.2,
+      "R@10": 0.354,
+      "MRR": 0.361,
+      "nDCG@10": 0.316,
+      "p50_ms": 2,
+      "p95_ms": 12
+    },
+    "fts": {
+      "P@5": 0.35,
+      "R@10": 0.715,
+      "MRR": 0.708,
+      "nDCG@10": 0.705,
+      "p50_ms": 2.6,
+      "p95_ms": 4.4
+    },
+    "hybrid": {
+      "P@5": 0.575,
+      "R@10": 0.901,
+      "MRR": 1,
+      "nDCG@10": 0.93,
+      "p50_ms": 2.6,
+      "p95_ms": 4.1
+    }
+  },
+  "perQuery": [
+    {
+      "q": "coffee near campus",
+      "relevant": 7,
+      "keyword": {
+        "p5": 0.8,
+        "mrr": 0.5,
+        "returned": 5
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "cocktail bar upper west side",
+      "relevant": 4,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 0.5,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 0.6,
+        "mrr": 0.5,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 0.8,
+        "mrr": 1,
+        "returned": 5
+      }
+    },
+    {
+      "q": "pizza on the upper west side",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 0.33,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "sushi",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "climbing gym",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.6,
+        "mrr": 1,
+        "returned": 3
+      },
+      "fts": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "museums on the upper west side",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 0.5,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "bookstores",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "nail salon",
+      "relevant": 6,
+      "keyword": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "fts": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "vintage clothing on the lower east side",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.6,
+        "mrr": 1,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 0.5,
+        "returned": 2
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "wine bar",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 9
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "burgers",
+      "relevant": 2,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0.4,
+        "mrr": 1,
+        "returned": 2
+      },
+      "hybrid": {
+        "p5": 0.4,
+        "mrr": 1,
+        "returned": 2
+      }
+    },
+    {
+      "q": "dinner near campus",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    },
+    {
+      "q": "quiet cafes where I could work",
+      "relevant": 13,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 10
+      }
+    },
+    {
+      "q": "first date drinks in the lower east side",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 0.2,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.4,
+        "mrr": 1,
+        "returned": 2
+      }
+    },
+    {
+      "q": "bars my friends saved",
+      "relevant": 8,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 8
+      }
+    },
+    {
+      "q": "chinese food",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 1
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "mediterranean",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "bubble tea",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "sports bar",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0.13,
+        "returned": 9
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "breakfast",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "donuts",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "climbing in harlem",
+      "relevant": 2,
+      "keyword": {
+        "p5": 0.4,
+        "mrr": 1,
+        "returned": 2
+      },
+      "fts": {
+        "p5": 0.4,
+        "mrr": 1,
+        "returned": 2
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "shake shack",
+      "relevant": 1,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "fts": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      },
+      "hybrid": {
+        "p5": 0.2,
+        "mrr": 1,
+        "returned": 1
+      }
+    },
+    {
+      "q": "somewhere to get my nails done on the upper west side",
+      "relevant": 6,
+      "keyword": {
+        "p5": 0.2,
+        "mrr": 0.5,
+        "returned": 10
+      },
+      "fts": {
+        "p5": 0,
+        "mrr": 0,
+        "returned": 0
+      },
+      "hybrid": {
+        "p5": 1,
+        "mrr": 1,
+        "returned": 6
+      }
+    }
+  ]
+}
