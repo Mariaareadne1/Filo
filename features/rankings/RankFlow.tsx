@@ -114,7 +114,7 @@ export function RankFlow() {
           </Text>
           <Text variant="callout" tone="secondary" style={{ textAlign: 'center' }}>
             {pool.length === 0
-              ? `Your first ${meta.short.replace(/s$/, '')}. The list starts here.`
+              ? `Your first ranked ${meta.singular}. The list starts here.`
               : rank === 1
                 ? `Above ${pool[0].name} — your new favorite.`
                 : `Just below ${pool[rank - 2].name}.`}

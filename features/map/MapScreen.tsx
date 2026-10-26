@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Mapbox from '@rnmapbox/maps';
@@ -13,7 +13,7 @@ import { Glass } from '../../design/Glass';
 import { GlassChip, GlassIconButton, GlassSegmented } from '../../design/controls';
 import { Icon, PressableScale, Text, haptic } from '../../design/primitives';
 import { makeStyles, useTheme } from '../../design/theme';
-import { GUTTER, SPACE } from '../../design/tokens';
+import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
 import { useDockClearance } from '../../design/Dock';
 import { MarkerLayers } from './MarkerLayers';
 import { buildPlaceMarkers, filterMarkers, toFeatureCollection, type MapScope } from './mapModel';
@@ -40,6 +40,7 @@ export function MapScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const dockClearance = useDockClearance();
+  const { height: screenH } = useWindowDimensions();
   const { userId } = useSession();
   const params = useLocalSearchParams<{ place?: string }>();
 
@@ -61,10 +62,10 @@ export function MapScreen() {
       zoomLevel: zoom,
       animationDuration: 650,
       animationMode: 'flyTo',
-      // Keep the selected place above the sheet's medium detent.
-      padding: { paddingTop: 0, paddingLeft: 0, paddingRight: 0, paddingBottom: 280 },
+      // Keep the selected place visible above the sheet's medium detent.
+      padding: { paddingTop: 140, paddingLeft: 0, paddingRight: 0, paddingBottom: screenH * 0.5 },
     });
-  }, []);
+  }, [screenH]);
 
   // Deep link / search result: /(app)/map?place=<uuid>
   const deepLinked = parseIdParam(params.place);
@@ -202,7 +203,11 @@ export function MapScreen() {
         />
       </View>
 
-      <PlaceSheet placeId={selected} onClose={() => setSelected(null)} bottomInset={dockClearance} />
+      {/* The sheet lives in a box that ends above the dock, so it floats as a
+          card over the map and the dock never covers its content. */}
+      <View pointerEvents="box-none" style={[s.sheetBox, { bottom: dockClearance - 6 }]}>
+        <PlaceSheet placeId={selected} onClose={() => setSelected(null)} />
+      </View>
     </View>
   );
 }
@@ -226,5 +231,11 @@ const useStyles = makeStyles((c) =>
     chips: { paddingHorizontal: GUTTER, gap: SPACE.sm },
     status: { marginHorizontal: GUTTER, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, alignSelf: 'flex-start' },
     locate: { position: 'absolute', right: GUTTER },
+    // Clip: gorhom sizes the sheet to its tallest detent and translates it,
+    // so without clipping it would bleed below the box (under the dock).
+    sheetBox: {
+      position: 'absolute', top: 0, left: 8, right: 8, overflow: 'hidden',
+      borderBottomLeftRadius: RADIUS.xl, borderBottomRightRadius: RADIUS.xl,
+    },
   }),
 );

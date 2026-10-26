@@ -15,6 +15,8 @@ export interface CategoryMeta {
   short: string;
   /** Plural for headings ("your cafes."). */
   plural: string;
+  /** Singular noun for sentences ("your first cafe"). */
+  singular: string;
   /** Long label for detail screens. */
   label: string;
   /** SF Symbol name (iOS) used by the glass UI. */
@@ -24,12 +26,12 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<Category, CategoryMeta> = {
-  cafe:       { short: 'cafes',       plural: 'cafes',       label: 'Cafe & Coffee',     symbol: 'cup.and.saucer.fill', glyph: '◒' },
-  food:       { short: 'food',        plural: 'restaurants', label: 'Food & Drink',      symbol: 'fork.knife',          glyph: '◆' },
-  bar:        { short: 'bars',        plural: 'bars',        label: 'Bars & Nightlife',  symbol: 'wineglass.fill',      glyph: '○' },
-  beauty:     { short: 'beauty',      plural: 'beauty spots', label: 'Beauty & Grooming', symbol: 'scissors',           glyph: '◇' },
-  experience: { short: 'experiences', plural: 'experiences', label: 'Experiences',       symbol: 'sparkles',            glyph: '✦' },
-  retail:     { short: 'shops',       plural: 'shops',       label: 'Taste Retail',      symbol: 'bag.fill',            glyph: '◉' },
+  cafe:       { singular: 'cafe', short: 'cafes',       plural: 'cafes',       label: 'Cafe & Coffee',     symbol: 'cup.and.saucer.fill', glyph: '◒' },
+  food:       { singular: 'restaurant', short: 'food',        plural: 'restaurants', label: 'Food & Drink',      symbol: 'fork.knife',          glyph: '◆' },
+  bar:        { singular: 'bar', short: 'bars',        plural: 'bars',        label: 'Bars & Nightlife',  symbol: 'wineglass.fill',      glyph: '○' },
+  beauty:     { singular: 'beauty spot', short: 'beauty',      plural: 'beauty spots', label: 'Beauty & Grooming', symbol: 'scissors',           glyph: '◇' },
+  experience: { singular: 'experience', short: 'experiences', plural: 'experiences', label: 'Experiences',       symbol: 'sparkles',            glyph: '✦' },
+  retail:     { singular: 'shop', short: 'shops',       plural: 'shops',       label: 'Taste Retail',      symbol: 'bag.fill',            glyph: '◉' },
 };
 
 export function isCategory(value: unknown): value is Category {

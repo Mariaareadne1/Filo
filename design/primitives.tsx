@@ -1,5 +1,7 @@
 import { ReactNode, useCallback } from 'react';
 import {
+  AccessibilityActionEvent,
+  AccessibilityActionInfo,
   AccessibilityRole,
   AccessibilityState,
   Platform,
@@ -39,6 +41,9 @@ interface PressableScaleProps {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   accessibilityState?: AccessibilityState;
+  /** Non-gesture alternatives (VoiceOver rotor actions). */
+  accessibilityActions?: AccessibilityActionInfo[];
+  onAccessibilityAction?: (e: AccessibilityActionEvent) => void;
   testID?: string;
   /** Fire a light impact on press-in. */
   hapticOnPress?: boolean;
@@ -59,6 +64,8 @@ export function PressableScale({
   accessibilityLabel,
   accessibilityHint,
   accessibilityState,
+  accessibilityActions,
+  onAccessibilityAction,
   testID,
   hapticOnPress = false,
 }: PressableScaleProps) {
@@ -91,6 +98,8 @@ export function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
       style={[style, animatedStyle, disabled && { opacity: 0.45 }]}
     >
       {children}

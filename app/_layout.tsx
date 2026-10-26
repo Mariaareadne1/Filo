@@ -1,4 +1,5 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LogBox } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,6 +14,9 @@ import { queryClient } from '../lib/queryClient';
 import { SessionContext } from '../lib/session';
 import { OnboardingContext } from '../contexts/onboarding';
 import { ThemeProvider, useTheme } from '../design/theme';
+
+// Simulator-only: push tokens can't be issued without APNs entitlements.
+LogBox.ignoreLogs(['push token', 'aps-environment']);
 
 // Keep the splash up until fonts + the persisted session have resolved.
 SplashScreen.preventAutoHideAsync().catch(() => { /* no-op on web/simulator */ });

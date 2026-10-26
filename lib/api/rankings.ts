@@ -68,3 +68,28 @@ export async function rerankPlace(placeId: string, category: Category, position:
 export async function removeRanking(placeId: string, category: Category): Promise<void> {
   unwrap(await supabase.rpc('remove_ranking', { p_place_id: placeId, p_category: category }));
 }
+
+export interface RankingSummary {
+  category: Category;
+  count: number;
+  top: string[];
+}
+
+/** Per-category list length + top three names, for profile overviews. */
+export async function fetchRankingSummary(userId: string): Promise<RankingSummary[]> {
+  const rows = unwrap(
+    await supabase
+      .from('rankings')
+      .select('category, position, place:places!inner(name)')
+      .eq('user_id', userId)
+      .order('position', { ascending: true }),
+  ) as unknown as { category: Category; position: number; place: { name: string } | { name: string }[] }[];
+  const by = new Map<Category, RankingSummary>();
+  for (const r of rows) {
+    const cur = by.get(r.category) ?? { category: r.category, count: 0, top: [] };
+    cur.count += 1;
+    if (cur.top.length < 3) cur.top.push((Array.isArray(r.place) ? r.place[0] : r.place)?.name ?? '');
+    by.set(r.category, cur);
+  }
+  return Array.from(by.values());
+}

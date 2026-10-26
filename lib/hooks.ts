@@ -1,11 +1,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from './queryClient';
+import { supabase } from './supabase';
+import { unwrap } from './errors';
 import { useSession } from './session';
 import {
-  deletePin, fetchMapPins, fetchPinsAtPlace, fetchPlace, savePin, updatePin,
+  deletePin, fetchMapPins, fetchUserPins, fetchPinsAtPlace, fetchPlace, savePin, updatePin,
   type PinStatus, type SavePinInput,
 } from './api/pins';
-import { fetchRankings, fetchRanksForPlace, removeRanking, rerankPlace, type RankedPlace } from './api/rankings';
+import { fetchRankingSummary, fetchRankings, fetchRanksForPlace, removeRanking, rerankPlace, type RankedPlace } from './api/rankings';
 import {
   addPinToBoard, createBoard, deleteBoard, fetchBoard, fetchBoards, removeBoardItem, reorderBoard, updateBoard,
   type BoardDetail, type BoardVisibility,
@@ -314,5 +316,24 @@ export function useFeed() {
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => fetchFeedPage(userId!, pageParam),
     getNextPageParam: (last) => (last.length < FEED_PAGE ? undefined : last[last.length - 1].created_at),
+  });
+}
+
+export function useUserPins(userId: string | null) {
+  return useQuery({ queryKey: [...qk.pinsAll, 'user', userId], queryFn: () => fetchUserPins(userId!), enabled: !!userId });
+}
+
+export function useRankingSummary(userId: string | null) {
+  return useQuery({ queryKey: [...qk.rankingsAll, 'summary', userId], queryFn: () => fetchRankingSummary(userId!), enabled: !!userId });
+}
+
+export function useSetPrivacy() {
+  const qc = useQueryClient();
+  const { userId } = useSession();
+  return useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      unwrap(await supabase.from('users').update({ is_private: isPrivate }).eq('id', userId!).select('id').single());
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.profile(userId!) }),
   });
 }

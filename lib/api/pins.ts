@@ -183,3 +183,11 @@ export async function searchKnownPlaces(query: string): Promise<PlaceRow[]> {
     ...p, category: normalizeCategory(p.category) ?? 'experience', tags: p.tags ?? [],
   }));
 }
+
+/** A person's pins (RLS returns nothing for a private account you don't follow). */
+export async function fetchUserPins(userId: string): Promise<PinRow[]> {
+  const rows = unwrap(
+    await supabase.from('pins').select(PIN_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(500),
+  );
+  return ((rows ?? []) as unknown as RawPin[]).map(normalizePin);
+}

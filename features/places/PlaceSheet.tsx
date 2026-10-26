@@ -9,8 +9,6 @@ import { PlaceDetail } from './PlaceDetail';
 interface Props {
   placeId: string | null;
   onClose: () => void;
-  /** Space the floating dock covers at the bottom of the screen. */
-  bottomInset: number;
 }
 
 /** The sheet's own material: glass that continues the map chrome. */
@@ -22,12 +20,11 @@ function SheetBackground({ style }: BottomSheetBackgroundProps) {
  * Three detents: preview (name + relationship), detail (actions, your
  * note, friends' takes), full (everything). Closed when nothing selected.
  */
-export function PlaceSheet({ placeId, onClose, bottomInset }: Props) {
+export function PlaceSheet({ placeId, onClose }: Props) {
   const s = useStyles();
   const { colors, reduceMotion } = useTheme();
   const ref = useRef<BottomSheet>(null);
-  // The sheet floats ABOVE the dock as a detached glass card, so the dock
-  // never covers sheet content and the two read as one spatial system.
+  // Detached glass card; its parent box ends above the dock (MapScreen).
   const snapPoints = useMemo(() => [168, '50%', '86%'], []);
   const spring = useBottomSheetSpringConfigs(MOTION.sheet);
   const fade = useBottomSheetTimingConfigs({ duration: 180 });
@@ -45,8 +42,6 @@ export function PlaceSheet({ placeId, onClose, bottomInset }: Props) {
       enablePanDownToClose
       onClose={onClose}
       detached
-      bottomInset={bottomInset - 4}
-      style={s.detached}
       animationConfigs={reduceMotion ? fade : spring}
       backgroundComponent={SheetBackground}
       handleIndicatorStyle={{ backgroundColor: colors.inkTertiary, width: 40 }}
@@ -62,6 +57,5 @@ export function PlaceSheet({ placeId, onClose, bottomInset }: Props) {
 const useStyles = makeStyles(() =>
   StyleSheet.create({
     content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32 },
-    detached: { marginHorizontal: 8 },
   }),
 );
