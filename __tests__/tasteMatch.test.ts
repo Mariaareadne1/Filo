@@ -1,4 +1,4 @@
-import { spearmanPct, MIN_OVERLAP } from '../lib/tasteMatch';
+import { averageRanks, MIN_OVERLAP, SHRINK_K, spearmanPct, spearmanRho, tasteMatch } from '../lib/tasteMatch';
 
 describe('spearmanPct', () => {
   test('returns 0 for fewer than 2 overlapping places', () => {
@@ -72,8 +72,6 @@ describe('spearmanPct', () => {
     expect(MIN_OVERLAP).toBe(3);
   });
 });
-
-import { averageRanks, spearmanRho, tasteMatch, SHRINK_K } from '../lib/tasteMatch';
 
 describe('tie-correct Spearman + shrinkage', () => {
   test('average ranks share the mean position for ties', () => {

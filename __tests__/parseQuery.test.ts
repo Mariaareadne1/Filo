@@ -1,4 +1,5 @@
 import { parseQuery } from '../lib/discovery/parseQuery';
+import { normalizeEmail } from '../lib/validation';
 
 describe('parseQuery — grounded filters only', () => {
   test('“Quiet cafes where I could work in the afternoon” → cafe + coffee tags + honest notes', () => {
@@ -62,7 +63,6 @@ describe('parseQuery — grounded filters only', () => {
   });
 });
 
-import { normalizeEmail } from '../lib/validation';
 test('email normalization strips invisible characters from autofill/paste', () => {
   expect(normalizeEmail(' You@Columbia.edu ')).toBe('you@columbia.edu');
   expect(normalizeEmail('you​@columbia.edu')).toBe('you@columbia.edu');

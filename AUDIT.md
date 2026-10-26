@@ -80,3 +80,53 @@ Baseline screenshot: `docs/screenshots/before/01-auth-email.png`. It was only re
 | API | `POST /recommend`. No auth, no rate limit, no query length cap. CORS localhost only. p50 9.6 ms CPU. |
 | Integration | None. Nothing in the app calls it. |
 | Decision | Do **not** run it as separate infrastructure. Filo 2.0 implements grounded hybrid retrieval in Supabase over *real* `places` rows. Reused: the description-building idea and the MRR/P@K evaluation method. See `docs/RECOMMENDATIONS.md`. |
+
+---
+
+## Resolution on `feat/filo-2.0` (updated 2026-10-26)
+
+The findings above are kept as found. This table records where each one stands now. **Verified** = exercised in the iOS simulator against the local stack, or by an automated test (named). **Code** = implemented and type-checked but not exercised end to end.
+
+| Finding | Now | How | Evidence |
+|---|---|---|---|
+| A1 Splash deadlock | ✅ Fixed | Hide in an effect keyed on fonts + session; `getSession` failure handled | Verified (sim) |
+| A2 Off-SDK dependencies | ✅ Fixed | Pinned to SDK-54 versions; `expo install --check` clean | Verified (sim build) |
+| Email OTP sign-in | ✅ Working | Redirect on missing email, input normalization, resend cooldown | Verified (sim, Mailpit OTP) |
+| Campus gate | ✅ Fixed | Trigger binds to `auth.email()`; `email`/`campus`/`is_verified` not client-writable | `10_authorization` |
+| User privacy (email, push token) | ✅ Fixed | Column-level grants | `10_authorization` |
+| Private follow requests | ✅ Fixed | `guard_follow_update` + policy; `respond_follow_request` | `10_authorization` |
+| Accept / reject UI | ✅ Built | `features/social/RequestsScreen.tsx` | Code |
+| Rankings privacy | ✅ Fixed | Policy mirrors pins | `10_authorization`, `20_discovery` |
+| Saving a place | ✅ Fixed | `save_pin()` RPC; direct place inserts removed | `10_authorization`; Verified (sim) |
+| Category vocabulary | ✅ Fixed | `cafe/food/bar/beauty/experience/retail` everywhere; legacy rows merged | `30_legacy_upgrade` |
+| Ranking insertion | ✅ Fixed | Self excluded from comparisons; `rerank_place` requires a pin | `10_authorization`; Verified (sim) |
+| Drag-to-reorder rankings | ✅ Built | `RankingsScreen` draggable list | Code |
+| Remove ranked place | ✅ Built | `remove_ranking` RPC + UI | `10_authorization` |
+| Friends feed crash | ✅ Fixed | Qualified columns; keyset cursor; bounded page | `10_authorization` |
+| Map rendering | ✅ Rebuilt | Native `ShapeSource` clustering; selected marker drawn unclustered | Verified (sim) |
+| Map search field | ✅ Rebuilt | Real place search + Discover natural-language search | Verified (sim) |
+| Location permission | ✅ Fixed | Asked in context from the locate button; denied state handled | Code |
+| Place search cost | ✅ Fixed | Mapbox Search Box suggest → retrieve on select (session token); Google fallback autocomplete-only with stale-response guard | Verified (sim, Mapbox) |
+| Google key in DB | ✅ Fixed | Stripped by migration; CHECK blocks re-insert | `30_legacy_upgrade` |
+| Fake star rating | ✅ Removed | — | Code |
+| Photo upload | ✅ Fixed (was broken) | Uploads stored 0-byte objects (RN `fetch().blob()`); now bytes via expo-file-system, versioned URL, no library-permission prompt | Verified (sim: 420 KB object, served 200) |
+| Pin edit / delete | ✅ Built | Delete cleans rankings via trigger | `10_authorization`; Code (UI) |
+| Directions | ✅ Built | Apple Maps / Google Maps link | Code |
+| Boards create/add | ✅ Fixed | `new_share_token()` CSPRNG; `add_pin_to_board` RPC | `10_authorization` |
+| Boards rename/delete/reorder | ✅ Built | `reorder_board` RPC (atomic) | `10_authorization`; Code (UI) |
+| Shared board link | ✅ Fixed | `get_shared_board()` for anon; excludes private authors and never returns email | `10_authorization`; Verified (web page) |
+| Board covers | ✅ Built | Mosaic of real pin or venue photos (1, 2 or 3–4); typographic cover when there are none | Code |
+| Discovery lenses | ✅ Rebuilt | Six real lenses with result lists and thresholds | `20_discovery`; Verified (sim) |
+| Taste twins | ✅ Fixed | Average-rank ties; shrinkage `rho · n/(n+5)` | Jest `tasteMatch` |
+| Push on follow | ✅ Fixed | Requires the follow edge; request vs follow copy | `10_authorization` |
+| Deep links | ✅ Partly | `filo://map?place=`, board routes; repeat links reopen the sheet. **No universal links** (needs an associated domain) | Verified (sim) |
+| Analytics | ⏸ Left off | No consent flow | — |
+| Android | ⚠️ Untested | JS bundle exports; no SDK or emulator available | — |
+
+### Still open (owner action)
+
+- Production Supabase URL doesn't resolve; migrations not applied to production.
+- Mapbox `sk.` token in git history must be rotated.
+- Hosted OTP email template must include `{{ .Token }}`.
+- Google Places key: billing disabled; restrict it or remove it.
+- `pin-photos` / `avatars` are public buckets. Photos of private accounts are reachable by anyone holding the URL (accepted limitation; signed URLs are the fix).

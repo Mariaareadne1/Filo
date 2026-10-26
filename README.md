@@ -17,7 +17,7 @@ The product launches at Columbia University, invite-only, with email verificatio
 ## Core Features
 
 ### The City Map
-The central screen. A live map of New York City showing pins from you and your friends. Toggle between your own map and your friends' combined map. Tap any pin to see who saved it, what they thought, and how they ranked it. Filter by category, friend, or neighborhood.
+The central screen. A live map of New York City showing pins from you and your friends. Switch between Everyone, Mine and Friends, and filter by category. Pins cluster as you zoom out. Tap a place to see who saved it, what they thought and how they ranked it.
 
 ### Pins
 A pin is a place you've visited or want to go. Each pin has a category, a status (visited / want to go), an optional photo, and an optional short impression. No star ratings. No 0–10 scores. Just signal.
@@ -29,69 +29,65 @@ For places you've visited, you can rank them within a category — a living, dra
 Named collections of pins. "Morningside Essentials." "Late Night Eats." "Ideal Date Spots." Shareable via link (`filo.app/b/<token>`) — from a dating profile, in a text, in a social bio. The cover is a collage of the first four pin photos.
 
 ### Discover
-Six named discovery lenses:
-1. **Trending near you** — what's being pinned most this week
-2. **New to your network** — places pinned by friends you haven't saved yet
-3. **Friends disagree on** — places where your friends' rankings diverge most
-4. **Hidden gems** — high-ranked by friends, rarely pinned by others
-5. **Most pinned in [category]** — the consensus favorites
-6. **Saved by people like you** — taste-match recommendations
+Six lenses, each computed in Postgres from real pins and rankings, and each hidden when there isn't enough data to say anything:
+1. **New to your network** — places friends saved in the last 30 days that you haven't
+2. **Saved by people like you** — favorites of people whose rankings correlate with yours
+3. **Hidden gems** — a friend's top-third pick that few people have pinned
+4. **Friends disagree** — places your friends rank very differently
+5. **Trending near campus** — most distinct pinners nearby in the last 14 days
+6. **Most pinned** — the consensus favorites, by category
+
+Plus natural-language search ("quiet cafes to work in the afternoon", "vintage shops around the Lower East Side"). It's parsed into filters Filo actually stores (category, tags, neighborhood, radius, friends-only) and says plainly what it can't know, such as noise level, hours or prices. Every result carries a one-line reason built from real signals. See [`docs/RECOMMENDATIONS.md`](docs/RECOMMENDATIONS.md).
 
 ### Taste Twins
-You are someone's twin in a category if your ranked overlap is ≥3 places and your Spearman correlation on those overlapping ranks is ≥0.6. The Twins screen shows your top match per category — who you are most aligned with and where you diverge.
+Taste match compares how two people rank the places they've both ranked: a tie-aware Spearman correlation, shrunk toward zero when the overlap is small (`rho · n/(n+5)`). It needs at least 3 shared places. A match is **strong** at ρ ≥ 0.6 over ≥ 5 places, and **promising** at ρ ≥ 0.4. With less overlap it says it's too early rather than inventing a percentage.
 
 ### Feed
-A chronological activity feed of what your network is pinning and saving. No infinite scroll — it stops.
+A chronological activity feed of what your network is pinning and saving. It loads in pages until you're caught up, then it stops.
 
 ---
 
 ## Design System
 
-Filo uses a tight, opinionated design system built around three core ideas:
+Filo 2.0 is map-first. The map is the canvas, and the controls float above it in a glass material.
 
-**The thread.** Red (`#d8423a`) is the only accent color. It appears on the FAB, active rankings, save confirmations, and brand display text — and nowhere else. One accent, used with precision.
+**The thread.** Red (`#D8423A`, `#E5554C` in dark mode) is the only accent: the add button, selected states, rank positions, the italic accent word. One accent, used with precision.
 
-**Sticker shadow.** Every card has a hard offset shadow (2px Y, 0 blur, ink at 100%). No soft drop shadows, no elevation blur. Cards look like they're physically stuck to the surface.
+**Glass, honestly.** Floating chrome (dock, search capsule, chips, segmented control, icon buttons, place sheet, toasts) uses native iOS 26 Liquid Glass via `expo-glass-effect`. On older iOS and Android it falls back to a real blur, and with Reduce Transparency it becomes a solid surface. Content (lists, forms, rankings) is never on glass. See [`docs/GLASS.md`](docs/GLASS.md).
 
-**Italic accent word.** Display titles use Fraunces serif with one italicized word in red: "different *tastes*, same map." This is the brand voice signature — it appears on every major screen.
+**Italic accent word.** Display titles use Fraunces with one italic word in the thread color: "Make it *yours*." "Check your *inbox*."
 
 **Type stack:**
 - `Fraunces` — display titles, place names
 - `Inter` — UI, body, buttons
-- `DM Mono` — labels, counts, addresses, ranks
+- `DM Mono` — labels, counts, ranks
 
-**Palettes:** Paper (default), Concrete, Midnight, Sky. All four are supported; Paper ships.
+**Light and dark** follow the system; the map switches to Mapbox's dark style. **Reduce Motion** swaps springs for short fades. Minimum hit targets are 44 pt, every icon button has an accessibility label, and selected states never rely on color alone.
 
 ---
 
 ## Architecture
 
-The mobile app is **React Native + Expo** (Expo Router, file-based), iOS-first, on **Supabase** (Postgres + RLS + Storage + RPCs) with **Mapbox** for maps. State is fetched per-screen through feature hooks; the taste-graph math is pure and unit-tested.
+**Stack:** Expo SDK 54 · React Native 0.81 (New Architecture) · Expo Router 6 · TanStack Query 5 · Reanimated 4 · @gorhom/bottom-sheet 5 · `@rnmapbox/maps` 10 · expo-glass-effect · Supabase (Postgres + RLS + Storage + GoTrue) · Mapbox Search Box · zod · Jest.
 
-**Stack:** React Native · Expo (Router, SDK 54) · Supabase · Mapbox (`@rnmapbox/maps`) · expo-image · PostHog · Jest.
-
-**Layout:**
 | Path | Role |
 |---|---|
-| `app/` | Screens + routing (`auth/`, `onboarding/`, `(app)/`, `pin/`, `board-modal/`) |
-| `app/_layout.tsx` | Session/onboarding auth gate |
-| `hooks/` | `usePins`, `useBoards`, `useFollow`, `useCurrentUserId` |
-| `lib/` | `supabase`, `secureStore` (encrypted session), `places`, `params`, and the tested algorithm modules `tasteMatch` / `rankInsert` / `streak` |
-| `contexts/` | `UploadContext` (background photo queue), `onboarding` |
-| `constants/theme.ts` | The design system (palettes, type, sticker shadows) |
-| `supabase/migrations/` | Schema deltas — **apply in order** |
-| `schema.sql` | Original v1.0 baseline (superseded by migrations) |
+| `app/` | Routes only, as thin re-exports (`auth/`, `onboarding/`, `(app)/` tabs, `pin/`, `board-modal/`) |
+| `app/_layout.tsx` | Providers and the root gate (session → profile → onboarding → app) |
+| `features/` | Screens by domain: `map`, `places`, `search`, `rankings`, `boards`, `profile`, `social`, `discover`, `onboarding`, `auth` |
+| `design/` | Tokens, theme (light/dark, accessibility settings), `Glass`, controls, dock |
+| `lib/api/` | Supabase calls per domain; `lib/hooks.ts` wraps them in React Query |
+| `lib/search/` | Place search: Mapbox Search Box (primary), Google Places (fallback) |
+| `lib/discovery/` | Natural-language parser and result explanations (pure, unit-tested) |
+| `lib/` | Session, errors, categories, validation, taste-match math, year stats, secure session storage |
+| `supabase/migrations/` | Full schema from a fresh database, in filename order (idempotent) |
+| `supabase/tests/` | SQL tests: authorization, discovery, legacy-data upgrade |
+| `scripts/local-stack/` | Local Supabase-compatible stack for simulator testing |
+| `web/` | Next.js: the public shared-board page `/b/<token>` |
 
-**Core data model** (`schema.sql` + migrations):
-- `users` — profiles, handles, `is_private`, campus
-- `places` — deduped venues (Google Places–backed), category, geo
-- `pins` — the atomic unit; (user, place), status, photo, impression
-- `rankings` — ordered lists per (user, category); re-ranked atomically via the `rerank_place` RPC
-- `boards` / `board_pins` — named, shareable, drag-reorderable collections
-- `follows` — the social graph (active / pending for private accounts)
-- `auth_allowed_domains` — the campus-email allowlist
+**Data model:** `users` (profile, handle, `is_private`), `places` (deduped venues, category, tags, neighborhood, geo, generated search document), `pins` (user × place: status, impression, photo), `rankings` (ordered per user × category), `boards` / `board_pins`, `follows` (active / pending), `auth_allowed_domains`.
 
-**Server-side logic (RPCs):** `get_friends_feed` (bounded friend feed), `get_discover_counts` (all six discovery lenses in one round trip), `rerank_place` (atomic ranking insertion), `notify_new_follow` (push). All identity-bound to `auth.uid()`.
+**Server-side logic (RPCs):** `save_pin`, `rerank_place`, `remove_ranking`, `add_pin_to_board`, `reorder_board`, `get_shared_board` (anon), `get_friends_feed`, `respond_follow_request`, `search_places`, `discover_lens`. Each one is bound to `auth.uid()` with a pinned `search_path`.
 
 ---
 
@@ -99,47 +95,60 @@ The mobile app is **React Native + Expo** (Expo Router, file-based), iOS-first, 
 
 ```bash
 npm install
-cp .env.example .env.local     # then fill in the values (see below)
-npm start                      # Expo dev server
+cp .env.example .env.local     # fill in the values below
+npm run ios                    # native dev build (Xcode 26 for native glass)
 ```
 
-**Environment** — copy `.env.example` to `.env.local` and set:
-- `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` — public, RLS-protected
-- `EXPO_PUBLIC_MAPBOX_TOKEN` — Mapbox public (`pk.`) token
-- `EXPO_PUBLIC_GOOGLE_PLACES_KEY` — **must** be restricted to the app bundle id + Places API in Google Cloud
-- `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` — Mapbox `sk.` build secret (injected via `app.config.js`; an EAS secret in CI)
-- `SUPABASE_SERVICE_ROLE_KEY` — server/seed scripts only, never shipped
+**Environment** (`.env.local`, gitignored):
 
-`.env.local` is gitignored — never commit real values.
+| Variable | Where it's used | Secret? |
+|---|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | App | Public (RLS-protected) |
+| `EXPO_PUBLIC_MAPBOX_TOKEN` | App: map + place search (`pk.` token) | Public; scope it to the needed APIs |
+| `EXPO_PUBLIC_GOOGLE_PLACES_KEY` | App: optional search fallback | Public; **must** be restricted to the bundle id + Places API |
+| `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` | Native build only (`sk.`), injected by `app.config.js` | **Secret** (EAS secret in CI) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Seed scripts only | **Secret**, never shipped |
+| `EXPO_PUBLIC_SUPABASE_URL_OVERRIDE`, `…_ANON_KEY_OVERRIDE` | Set only by `npm run start:local` | Local dev JWTs |
 
-**Database** — apply the SQL migrations to your Supabase project in filename order:
+**Database:** apply `supabase/migrations/*.sql` in filename order (`supabase db push`). The hosted "Magic Link" and "Confirm signup" email templates must include `{{ .Token }}`, because the app signs in with a 6-digit code.
+
+**Local stack (no production access needed):**
 ```bash
-supabase db push          # or run supabase/migrations/*.sql in order
+npm run stack:up                   # Postgres, GoTrue, PostgREST, Storage, Mailpit + migrations + seed
+node scripts/local-stack/gateway.mjs
+npm run start:local                # Metro pointed at http://127.0.0.1:55321
 ```
+Sign in as `you@filo.test`; codes arrive in Mailpit at http://127.0.0.1:55025. `filo.test` is allow-listed only locally. See [`scripts/local-stack/README.md`](scripts/local-stack/README.md).
 
 **Scripts:**
 | Command | What |
 |---|---|
-| `npm start` | Expo dev server |
-| `npm run ios` / `android` | Native builds |
-| `npm run typecheck` | `tsc --noEmit` (RN app only) |
-| `npm run lint` | ESLint (react-hooks rules enforced) |
-| `npm test` | Jest — algorithm unit tests |
+| `npm run ios` / `android` | Native dev builds |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (react-hooks enforced) |
+| `npm test` | Jest: map model, query parser, taste match, explanations, year stats, rank insertion, streaks |
+| `npm run test:db` | Replays every migration on a fresh Postgres twice (idempotency), then runs `supabase/tests/*.sql` |
+| `node --experimental-strip-types scripts/eval/discovery-eval.mts` | Discovery eval vs keyword baseline (needs the local stack) |
+
+**Testing status:** iOS was verified end to end in the simulator (iPhone 17 Pro, iOS 26.5). Android is untested on a device: the JS bundle builds, but no emulator was available. There is no automated E2E suite yet. Maestro flows for sign-in → save → rank are the next step.
 
 ---
 
 ## Security
 
-The invite-only model is enforced **server-side**, not just in the UI:
+The invite-only model and privacy are enforced **server-side**:
 
-- **Campus gate** — signup is restricted to domains in the `auth_allowed_domains` table (seeded `columbia.edu` / `barnard.edu`) by a trigger on `users`. Add a domain with one `INSERT` to allow demo accounts.
-- **Row-Level Security** on every table. `is_private` actually hides pins; private-account follows land as `pending` (status is forced by a trigger, never trusted from the client); board pins can only reference your own or public pins.
-- **Identity-bound RPCs** — every `SECURITY DEFINER` function checks `auth.uid()` and pins its `search_path`.
-- **Encrypted session** — auth tokens are persisted with an AES key in the device Keychain/Keystore (`lib/secureStore.ts`), not plain `AsyncStorage`.
-- **Secrets** — no secrets in tracked source; the Mapbox `sk.` token is injected from the environment via `app.config.js`.
+- **Campus gate:** a trigger checks the *authenticated* email (`auth.email()`) against `auth_allowed_domains`. `email`, `campus` and `is_verified` aren't client-writable.
+- **Row-Level Security** on every table, plus column-level grants: other users can't read your email or push token. Private accounts' pins and rankings are hidden from non-followers. Only the followed person can accept a follow request.
+- **Writes go through validated RPCs** (`save_pin`, `rerank_place`, `reorder_board`, …), so the client can't rename shared venues or write rankings for places it never pinned.
+- **Shared boards** are served to anonymous visitors only through `get_shared_board()`, which returns public boards with no emails and nothing from private accounts.
+- **Encrypted session:** auth tokens are stored with an AES key in the Keychain/Keystore (`lib/secureStore.ts`).
+- **Secrets:** no provider secret ships in the app. Only public keys are in the bundle (checked on a non-bytecode export). Google keys are stripped from stored photo URLs, and a CHECK constraint blocks them.
+- **Tests:** `supabase/tests/10_authorization.sql` covers the above, including negative cases.
 
-> ⚠️ A Mapbox `sk.` download token was previously committed to `app.json` and remains in git history — **rotate it** in the Mapbox account.
+> ⚠️ A Mapbox `sk.` download token was previously committed to `app.json` and remains in git history. **Rotate it** in the Mapbox account.
 
+Known limitation: the `pin-photos` and `avatars` buckets are public-read, so a private account's photo is reachable by anyone who has its URL. Signed URLs would close this.
 
 ---
 
@@ -175,9 +184,10 @@ Things Filo will never do:
 
 ## Status
 
-**Current:** Consumer MVP, prototype complete, React Native mobile build in progress.
-**Next:** Columbia campus launch, invite-only, targeting 200 active users + 500 pins in 30 days.
+**Filo 2.0** is on branch `feat/filo-2.0`: revived, redesigned, verified on iOS against a local stack. See [`PROGRESS.md`](PROGRESS.md) for test results and open owner actions (production project unreachable, migrations to apply, token rotation), [`AUDIT.md`](AUDIT.md) for what was broken and how it was fixed, and [`CASE_STUDY.md`](CASE_STUDY.md) for the story.
+
+**Next:** Android device pass, Maestro E2E, universal links, Columbia campus launch.
 
 ---
 
-*Filo — the thread connects everything: your people, your places, your city. The more you use it, the harder it is to leave.*
+*Filo — the thread connects everything: your people, your places, your city.*

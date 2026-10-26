@@ -62,6 +62,7 @@ structured, grounded filters ──► search_places() RPC (SECURITY INVOKER →
 * Its reported MRR@5 = 1.0 is **leaked**: the validation queries are a subset of the training queries. Base MiniLM and even BM25 also score 1.0 on that split.
 * On 20 fresh paraphrases, the fine-tuned model scored MRR@5 0.82 vs base MiniLM 0.79 vs BM25 0.66. That is within noise on synthetic text.
 * The API has no auth, no rate limit and no input cap, and nothing in the app called it.
+* **Leak fixed** on `filo-recommendation-engine` branch `fix/eval-leakage` (`09e9ed8`). Queries are split before pairs are built, and the splits are asserted disjoint. On the 13 held-out queries, base and fine-tuned models both score MRR@5 = 1.0: the metric saturates on synthetic text, so it can't show a benefit from fine-tuning. That repo's README now documents this and the synthetic provenance.
 
 **Decision:** don't run it as separate infrastructure. Reused from it: the description-building idea (name + tags + neighborhood → document) and the MRR/P@K evaluation method.
 
