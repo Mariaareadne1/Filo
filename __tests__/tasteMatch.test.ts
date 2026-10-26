@@ -1,4 +1,4 @@
-import { spearmanPct, MIN_OVERLAP } from '../lib/tasteMatch';
+import { averageRanks, MIN_OVERLAP, SHRINK_K, spearmanPct, spearmanRho, tasteMatch } from '../lib/tasteMatch';
 
 describe('spearmanPct', () => {
   test('returns 0 for fewer than 2 overlapping places', () => {
@@ -70,5 +70,47 @@ describe('spearmanPct', () => {
 
   test('MIN_OVERLAP threshold is 3', () => {
     expect(MIN_OVERLAP).toBe(3);
+  });
+});
+
+describe('tie-correct Spearman + shrinkage', () => {
+  test('average ranks share the mean position for ties', () => {
+    expect(averageRanks([10, 20, 20, 30])).toEqual([1, 2.5, 2.5, 4]);
+  });
+
+  test('perfect agreement and perfect disagreement', () => {
+    expect(spearmanRho([[1, 1], [2, 2], [3, 3], [4, 4]])).toBeCloseTo(1);
+    expect(spearmanRho([[1, 4], [2, 3], [3, 2], [4, 1]])).toBeCloseTo(-1);
+  });
+
+  test('ties no longer produce impossible ranks (old indexOf bug)', () => {
+    // Two of their positions tie; rho must stay within [-1, 1] and be finite.
+    const rho = spearmanRho([[1, 2], [2, 2], [3, 5]]);
+    expect(Number.isFinite(rho)).toBe(true);
+    expect(rho).toBeLessThanOrEqual(1);
+  });
+
+  test('no variation on one side carries no information', () => {
+    expect(spearmanRho([[1, 3], [2, 3], [3, 3]])).toBe(0);
+  });
+
+  test('three shared places never reads as a strong match', () => {
+    const m = tasteMatch(new Map([['a', 1], ['b', 2], ['c', 3]]), new Map([['a', 1], ['b', 2], ['c', 3]]));
+    expect(m.rho).toBeCloseTo(1);
+    expect(m.confidence).toBeCloseTo(3 / (3 + SHRINK_K));
+    expect(m.similarity).toBeLessThan(0.5);
+    expect(m.label).toBe('promising');
+  });
+
+  test('strong requires evidence (≥5 shared) and agreement', () => {
+    const mine = new Map(['a', 'b', 'c', 'd', 'e', 'f'].map((p, i) => [p, i + 1] as const));
+    const theirs = new Map(['a', 'b', 'c', 'e', 'd', 'f'].map((p, i) => [p, i + 1] as const));
+    expect(tasteMatch(mine, theirs).label).toBe('strong');
+  });
+
+  test('below minimum overlap → too early, zero similarity', () => {
+    const m = tasteMatch(new Map([['a', 1], ['b', 2]]), new Map([['a', 2], ['b', 1]]));
+    expect(m.label).toBe('too_early');
+    expect(m.similarity).toBe(0);
   });
 });

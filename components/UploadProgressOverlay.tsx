@@ -1,173 +1,49 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Easing,
-} from 'react-native';
-import { useEffect, useRef } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUploads } from '../contexts/UploadContext';
-import {
-  PALETTE,
-  ACCENT,
-  FONTS,
-  STICKER_SHADOW,
-} from '../constants/theme';
+import { Glass } from '../design/Glass';
+import { Icon, PressableScale, Text } from '../design/primitives';
+import { useTheme } from '../design/theme';
+import { SPACE } from '../design/tokens';
 
 /**
- * Floating overlay that mounts at the (app) layout root and surfaces
- * upload progress regardless of which tab/screen the user is on.
- *
- * Layout: a thin red bar pinned just below the safe-area top inset
- * while any upload is in flight, plus a stack of small sticker toasts
- * underneath it (UPLOADING / SAVED / FAILED). The failed toast is
- * tappable and triggers retryUpload(pinId). The container uses
- * pointerEvents="box-none" so taps fall through to the screen below
- * everywhere except the failed-toast hit areas.
- *
- * Note on progress: supabase-js storage .upload() doesn't expose byte
- * progress events, so the bar is decorative (indeterminate translateX
- * loop). Real percentage would require a raw fetch+XHR replacement —
- * out of scope.
+ * Background photo-upload status as a glass toast under the status bar.
+ * Uploads keep running while the person navigates; a failed upload stays
+ * visible with a retry until it succeeds.
  */
 export function UploadProgressOverlay() {
   const insets = useSafeAreaInsets();
+  const { colors, reduceMotion } = useTheme();
   const { uploads, retryUpload } = useUploads();
-
-  const active = Array.from(uploads.values());
-  const anyUploading = active.some((u) => u.status === 'uploading');
-
-  const translate = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!anyUploading) {
-      translate.stopAnimation();
-      translate.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.timing(translate, {
-        toValue: 1,
-        duration: 1200,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anyUploading, translate]);
-
-  if (active.length === 0) return null;
+  const items = Array.from(uploads.values());
+  if (items.length === 0) return null;
 
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top }]}>
-      {anyUploading && (
-        <View style={styles.bar} pointerEvents="none">
-          <Animated.View
-            style={[
-              styles.barFill,
-              {
-                transform: [
-                  {
-                    translateX: translate.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-200, 400],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        </View>
-      )}
-
-      <View
-        style={styles.toasts}
-        pointerEvents="box-none"
-        accessibilityLiveRegion="polite"
-      >
-        {active.map((u) => {
-          if (u.status === 'uploading') {
-            return (
-              <View key={u.pinId} style={styles.toast} pointerEvents="none">
-                <Text style={styles.toastText}>UPLOADING PHOTO…</Text>
-              </View>
-            );
-          }
-          if (u.status === 'success') {
-            return (
-              <View key={u.pinId} style={styles.toast} pointerEvents="none">
-                <Text style={styles.toastText}>PHOTO SAVED</Text>
-              </View>
-            );
-          }
-          return (
-            <TouchableOpacity
-              key={u.pinId}
-              style={[styles.toast, styles.toastFailed]}
-              onPress={() => retryUpload(u.pinId)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Photo upload failed. Tap to retry."
-            >
-              <Text style={styles.toastText}>PHOTO FAILED · </Text>
-              <Text style={styles.retryChipText}>retry ↻</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+    <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + SPACE.xs }]} accessibilityLiveRegion="polite">
+      {items.map((u) => (
+        <Animated.View key={u.pinId} entering={reduceMotion ? undefined : FadeInUp} exiting={reduceMotion ? undefined : FadeOutUp}>
+          <PressableScale
+            disabled={u.status !== 'failed'}
+            onPress={() => retryUpload(u.pinId)}
+            accessibilityLabel={u.status === 'failed' ? 'Photo upload failed. Tap to retry.' : u.status === 'success' ? 'Photo saved' : 'Uploading photo'}
+          >
+            <Glass radius={22} style={styles.toast}>
+              {u.status === 'uploading' ? <ActivityIndicator size="small" color={colors.ink} /> : null}
+              {u.status === 'success' ? <Icon name="checkmark.circle.fill" fallback="✓" size={16} color={colors.success} /> : null}
+              {u.status === 'failed' ? <Icon name="arrow.clockwise" fallback="↻" size={16} color={colors.danger} /> : null}
+              <Text variant="label" tone={u.status === 'failed' ? 'danger' : 'primary'}>
+                {u.status === 'uploading' ? 'Uploading photo…' : u.status === 'success' ? 'Photo saved' : 'Upload failed — tap to retry'}
+              </Text>
+            </Glass>
+          </PressableScale>
+        </Animated.View>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    elevation: 1000,
-  },
-  bar: {
-    height: 3,
-    backgroundColor: 'rgba(216, 66, 58, 0.15)',
-    overflow: 'hidden',
-  },
-  barFill: {
-    width: 160,
-    height: 3,
-    backgroundColor: ACCENT.red,
-  },
-  toasts: {
-    alignItems: 'center',
-    paddingTop: 8,
-    gap: 6,
-  },
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: PALETTE.surface,
-    borderWidth: 1,
-    borderColor: PALETTE.ink,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    ...STICKER_SHADOW,
-  },
-  toastFailed: {
-    borderColor: ACCENT.red,
-  },
-  toastText: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: PALETTE.ink,
-  },
-  retryChipText: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: ACCENT.red,
-    fontWeight: '700',
-  },
+  wrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: SPACE.xs },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.lg, minHeight: 40 },
 });
