@@ -4,6 +4,7 @@ import { Metadata } from 'next';
 import { BoardViewTracker } from '@/components/BoardViewTracker';
 
 const CATEGORY_COLORS: Record<string, string> = {
+  cafe:       '#9C6B3F',
   food:       '#E85D04',
   bar:        '#7209B7',
   beauty:     '#F72585',
@@ -12,6 +13,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
+  cafe:       'Cafe & Coffee',
   food:       'Food & Drink',
   bar:        'Bar & Nightlife',
   beauty:     'Beauty & Grooming',
@@ -20,7 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
+  cafe: '☕', food: '🍽️', bar: '🍸', beauty: '✂️', experience: '🎯', retail: '🛍️',
 };
 
 interface PageProps {
@@ -28,53 +30,39 @@ interface PageProps {
   searchParams: Promise<{ from?: string }>;
 }
 
+interface SharedPin {
+  place_name: string;
+  category: string;
+  address: string;
+  status: 'visited' | 'want_to_go';
+  impression: string | null;
+}
+
+interface SharedBoard {
+  id: string;
+  name: string;
+  description: string | null;
+  owner: { username: string; display_name: string; avatar_url: string | null } | null;
+  pins: SharedPin[];
+}
+
+/**
+ * Anonymous visitors can't read boards/pins tables (RLS is authenticated-
+ * only), so shared links resolve through the narrow get_shared_board()
+ * SECURITY DEFINER RPC: public boards only, public authors only, no emails.
+ */
 async function getBoardData(token: string) {
-  // Fetch board + owner
-  const { data: board } = await supabase
-    .from('boards')
-    .select('id, name, description, visibility, user_id, users!inner(username, display_name, avatar_url)')
-    .eq('share_token', token)
-    .eq('visibility', 'public')
-    .single();
-
-  if (!board) return null;
-
-  const user = Array.isArray(board.users) ? board.users[0] : board.users;
-
-  // Fetch pins in board order
-  const { data: boardPins } = await supabase
-    .from('board_pins')
-    .select(`
-      position,
-      pins!inner(
-        id, status, impression,
-        places!inner(name, category, address)
-      )
-    `)
-    .eq('board_id', board.id)
-    .order('position', { ascending: true });
-
-  const pins = (boardPins ?? []).map((row: any) => {
-    const pin = Array.isArray(row.pins) ? row.pins[0] : row.pins;
-    const place = Array.isArray(pin?.places) ? pin.places[0] : pin?.places;
-    return {
-      id: pin?.id ?? '',
-      place_name: place?.name ?? '',
-      category: place?.category ?? 'experience',
-      address: place?.address ?? '',
-      impression: pin?.impression ?? null,
-      status: pin?.status ?? 'visited',
-    };
-  });
-
+  const { data, error } = await supabase.rpc('get_shared_board', { p_token: token });
+  if (error || !data) return null;
+  const board = data as SharedBoard;
   return {
     id: board.id,
     name: board.name,
     description: board.description,
-    username: user?.username ?? '',
-    display_name: user?.display_name ?? '',
-    avatar_url: user?.avatar_url ?? null,
-    pins,
+    username: board.owner?.username ?? '',
+    display_name: board.owner?.display_name ?? '',
+    avatar_url: board.owner?.avatar_url ?? null,
+    pins: board.pins.map((p, i) => ({ ...p, id: `${i}` })),
   };
 }
 
@@ -209,12 +197,9 @@ export default async function BoardPage({ params, searchParams }: PageProps) {
           <p className="text-red-100 text-sm mb-5">
             Filo shows you everywhere your friends have been — on a map.
           </p>
-          <a
-            href="https://apps.apple.com/app/filo"
-            className="inline-block bg-white text-red-500 font-bold text-sm px-8 py-3 rounded-xl hover:bg-red-50 transition-colors"
-          >
-            Download Filo — Free
-          </a>
+          <p className="inline-block bg-white text-red-500 font-bold text-sm px-8 py-3 rounded-xl">
+            Invite-only for Columbia &amp; Barnard
+          </p>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
