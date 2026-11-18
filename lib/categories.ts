@@ -26,12 +26,12 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<Category, CategoryMeta> = {
-  cafe:       { singular: 'cafe', short: 'cafes',       plural: 'cafes',       label: 'Cafe & Coffee',     symbol: 'cup.and.saucer.fill', glyph: '◒' },
-  food:       { singular: 'restaurant', short: 'food',        plural: 'restaurants', label: 'Food & Drink',      symbol: 'fork.knife',          glyph: '◆' },
-  bar:        { singular: 'bar', short: 'bars',        plural: 'bars',        label: 'Bars & Nightlife',  symbol: 'wineglass.fill',      glyph: '○' },
-  beauty:     { singular: 'beauty spot', short: 'beauty',      plural: 'beauty spots', label: 'Beauty & Grooming', symbol: 'scissors',           glyph: '◇' },
-  experience: { singular: 'experience', short: 'experiences', plural: 'experiences', label: 'Experiences',       symbol: 'sparkles',            glyph: '✦' },
-  retail:     { singular: 'shop', short: 'shops',       plural: 'shops',       label: 'Taste Retail',      symbol: 'bag.fill',            glyph: '◉' },
+  cafe:       { singular: 'cafe', short: 'Cafes',       plural: 'cafes',       label: 'Cafe & Coffee',     symbol: 'cup.and.saucer.fill', glyph: '◒' },
+  food:       { singular: 'restaurant', short: 'Food',        plural: 'restaurants', label: 'Food & Drink',      symbol: 'fork.knife',          glyph: '◆' },
+  bar:        { singular: 'bar', short: 'Bars',        plural: 'bars',        label: 'Bars & Nightlife',  symbol: 'wineglass.fill',      glyph: '○' },
+  beauty:     { singular: 'beauty spot', short: 'Beauty',      plural: 'beauty spots', label: 'Beauty & Grooming', symbol: 'scissors',           glyph: '◇' },
+  experience: { singular: 'experience', short: 'Experiences', plural: 'experiences', label: 'Experiences',       symbol: 'ticket.fill',         glyph: '◈' },
+  retail:     { singular: 'shop', short: 'Shops',       plural: 'shops',       label: 'Taste Retail',      symbol: 'bag.fill',            glyph: '◉' },
 };
 
 export function isCategory(value: unknown): value is Category {

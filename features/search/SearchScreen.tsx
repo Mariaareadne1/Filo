@@ -113,7 +113,7 @@ export function SearchScreen() {
             autoFocus
             value={query}
             onChangeText={(t) => { setQuery(t); setResolveError(null); }}
-            placeholder="Places, vibes, friends"
+            placeholder="Places and friends"
             placeholderTextColor={colors.inkTertiary}
             returnKeyType="search"
             autoCorrect={false}
@@ -125,7 +125,7 @@ export function SearchScreen() {
           {loading ? <ActivityIndicator size="small" color={colors.inkSecondary} /> : null}
         </Glass>
         <PressableScale onPress={() => router.back()} accessibilityLabel="Cancel search" hitSlop={8} testID="search-cancel">
-          <Text variant="bodyStrong" tone="thread">Cancel</Text>
+          <Text variant="bodyStrong">Cancel</Text>
         </PressableScale>
       </View>
 
@@ -142,10 +142,10 @@ export function SearchScreen() {
         keyExtractor={(row, i) => (row.kind === 'known' ? row.place.id : row.kind === 'person' ? row.person.id : row.kind === 'new' ? row.s.providerId : `r${i}`)}
         renderSectionHeader={({ section }) => (
           <View style={s.sectionHead}>
-            <Text variant="caption" tone="secondary" style={s.sectionTitle}>{section.title.toUpperCase()}</Text>
+            <Text variant="label" tone="secondary">{section.title}</Text>
             {section.key === 'recent' ? (
               <PressableScale onPress={async () => { await clearRecentSearches(); setRecent([]); }} accessibilityLabel="Clear recent searches">
-                <Text variant="caption" tone="thread">Clear</Text>
+                <Text variant="caption" tone="secondary">Clear</Text>
               </PressableScale>
             ) : null}
           </View>
@@ -159,7 +159,7 @@ export function SearchScreen() {
             </View>
           ) : q.length < 2 && recent.length === 0 ? (
             <View style={s.empty}>
-              <Text variant="callout" tone="secondary">Search for a cafe, a bar, a friend — or a neighborhood.</Text>
+              <Text variant="callout" tone="secondary">Find a cafe, a bar, a friend or a neighborhood</Text>
             </View>
           ) : null
         }
@@ -199,14 +199,14 @@ function ResultRow({ row, onPress, busy }: { row: Row; onPress: () => void; busy
   return (
     <PressableScale style={s.row} onPress={onPress} disabled={busy} accessibilityLabel={`${name}, ${sub}`}
       accessibilityHint={row.kind === 'new' ? 'Opens a screen to save this place' : 'Shows this place on the map'}>
-      <View style={[s.badge, row.kind === 'known' && { backgroundColor: colors.threadSoft }]}>
-        <Icon name={meta?.symbol ?? 'mappin'} fallback={meta?.glyph ?? '•'} size={15} color={row.kind === 'known' ? colors.thread : colors.ink} />
+      <View style={s.badge}>
+        <Icon name={meta?.symbol ?? 'mappin'} fallback={meta?.glyph ?? '•'} size={15} color={colors.ink} />
       </View>
       <View style={s.rowMain}>
         <Text variant="bodyStrong" numberOfLines={1}>{name}</Text>
         <Text variant="caption" tone="secondary" numberOfLines={1}>{sub}</Text>
       </View>
-      {busy ? <ActivityIndicator color={colors.thread} /> : <Icon name={row.kind === 'new' ? 'plus.circle' : 'chevron.right'} fallback="›" size={16} color={colors.inkTertiary} />}
+      {busy ? <ActivityIndicator color={colors.inkSecondary} /> : <Icon name={row.kind === 'new' ? 'plus.circle' : 'chevron.right'} fallback="›" size={16} color={colors.inkTertiary} />}
     </PressableScale>
   );
 }
@@ -220,7 +220,6 @@ const useStyles = makeStyles((c) =>
     error: { paddingHorizontal: GUTTER, paddingTop: SPACE.sm },
     list: { paddingHorizontal: GUTTER, paddingBottom: 60 },
     sectionHead: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: SPACE.xl, paddingBottom: SPACE.sm },
-    sectionTitle: { letterSpacing: 0.8 },
     row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, minHeight: 56, paddingVertical: SPACE.sm },
     rowMain: { flex: 1, gap: 1 },
     badge: { width: 36, height: 36, borderRadius: RADIUS.sm, backgroundColor: c.surfaceSunk, alignItems: 'center', justifyContent: 'center' },

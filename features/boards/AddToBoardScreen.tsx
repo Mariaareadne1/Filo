@@ -36,7 +36,7 @@ export function AddToBoardScreen() {
   return (
     <View style={[s.root, { paddingTop: insets.top + SPACE.lg }]}>
       <View style={s.head}>
-        <Text variant="caption" tone="secondary" style={{ letterSpacing: 0.8 }}>ADD TO BOARD</Text>
+        <Text variant="label" tone="secondary">Add to board</Text>
         <Text variant="title" numberOfLines={2} accessibilityRole="header">{params.placeName ?? 'This place'}</Text>
       </View>
       <FlatList
@@ -44,7 +44,7 @@ export function AddToBoardScreen() {
         keyExtractor={(b) => b.id}
         contentContainerStyle={[s.list, { paddingBottom: insets.bottom + 120 }]}
         ListEmptyComponent={boards.isLoading ? <ActivityIndicator /> : (
-          <Text variant="callout" tone="secondary">No boards yet — create the first one below.</Text>
+          <Text variant="callout" tone="secondary">No boards yet. Create the first one below.</Text>
         )}
         renderItem={({ item }) => (
           <PressableScale style={s.row} onPress={() => pick(item.id, item.name)} disabled={add.isPending}
@@ -55,8 +55,8 @@ export function AddToBoardScreen() {
               <Text variant="caption" tone="secondary">{item.pinCount} places</Text>
             </View>
             {add.isPending && add.variables?.boardId === item.id
-              ? <ActivityIndicator color={colors.thread} />
-              : <Icon name="plus.circle" fallback="+" size={20} color={colors.thread} />}
+              ? <ActivityIndicator color={colors.inkSecondary} />
+              : <Icon name="plus.circle" fallback="+" size={20} color={colors.ink} />}
           </PressableScale>
         )}
       />

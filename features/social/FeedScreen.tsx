@@ -48,7 +48,7 @@ export function FeedScreen() {
         data={items}
         keyExtractor={(i) => i.pin_id}
         contentContainerStyle={[s.list, { paddingBottom: clearance }]}
-        refreshControl={<RefreshControl refreshing={feed.isRefetching && !feed.isFetchingNextPage} onRefresh={() => feed.refetch()} tintColor={colors.thread} />}
+        refreshControl={<RefreshControl refreshing={feed.isRefetching && !feed.isFetchingNextPage} onRefresh={() => feed.refetch()} tintColor={colors.inkSecondary} />}
         ListHeaderComponent={<Text variant="title" style={s.title} accessibilityRole="header">Friend activity</Text>}
         onEndReachedThreshold={0.4}
         onEndReached={() => { if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage(); }}

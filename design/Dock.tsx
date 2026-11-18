@@ -19,7 +19,7 @@ export interface DockItem {
 
 export const DOCK_ITEMS: DockItem[] = [
   { route: 'map', label: 'Map', symbol: 'map', symbolActive: 'map.fill', fallback: '◉' },
-  { route: 'discover', label: 'Discover', symbol: 'sparkle.magnifyingglass', symbolActive: 'sparkle.magnifyingglass', fallback: '✦' },
+  { route: 'discover', label: 'Discover', symbol: 'magnifyingglass', symbolActive: 'magnifyingglass', fallback: '⌕' },
   { route: 'boards', label: 'Boards', symbol: 'square.stack', symbolActive: 'square.stack.fill', fallback: '▤' },
   { route: 'profile', label: 'You', symbol: 'person.crop.circle', symbolActive: 'person.crop.circle.fill', fallback: '○' },
 ];
@@ -73,7 +73,7 @@ export function Dock({ state, navigation }: BottomTabBarProps) {
       <GlassGroup spacing={10} style={s.row}>
         <Glass radius={DOCK.height / 2} interactive style={s.dock}>
           <View style={s.items} onLayout={onLayout} accessibilityRole="tablist">
-            <Animated.View pointerEvents="none" style={[s.pill, { backgroundColor: colors.threadSoft }, pill]} />
+            <Animated.View pointerEvents="none" style={[s.pill, { backgroundColor: colors.hairline }, pill]} />
             {DOCK_ITEMS.map((item, i) => {
               const focused = i === activeIndex;
               const route = state.routes.find((r) => r.name === item.route);
@@ -99,9 +99,9 @@ export function Dock({ state, navigation }: BottomTabBarProps) {
                     name={focused ? item.symbolActive : item.symbol}
                     fallback={item.fallback}
                     size={21}
-                    color={focused ? colors.thread : colors.ink}
+                    color={focused ? colors.ink : colors.inkSecondary}
                   />
-                  <Text variant="caption" tone={focused ? 'thread' : 'secondary'} style={s.label} numberOfLines={1}>
+                  <Text variant="caption" tone={focused ? 'primary' : 'secondary'} style={s.label} numberOfLines={1}>
                     {item.label}
                   </Text>
                 </PressableScale>

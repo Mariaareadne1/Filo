@@ -14,7 +14,7 @@ const MAX_NAME = 60;
 const VIS: { value: BoardVisibility; label: string; hint: string; symbol: string }[] = [
   { value: 'private', label: 'Only me', hint: 'A private list.', symbol: 'lock.fill' },
   { value: 'friends', label: 'Followers', hint: 'People you’ve approved can open it.', symbol: 'person.2.fill' },
-  { value: 'public', label: 'Anyone with the link', hint: 'Share it anywhere — no account needed to view.', symbol: 'link' },
+  { value: 'public', label: 'Anyone with the link', hint: 'No account needed to view', symbol: 'link' },
 ];
 
 /**
@@ -89,15 +89,15 @@ export function BoardEditor() {
           multiline
           accessibilityLabel="Board description"
         />
-        <Text variant="caption" tone="secondary" style={s.label}>WHO CAN SEE IT</Text>
+        <Text variant="label" tone="secondary" style={s.label}>Who can see it</Text>
         <View style={s.options}>
           {VIS.map((v) => {
             const on = v.value === vis;
             return (
-              <PressableScale key={v.value} style={[s.option, on && { borderColor: colors.thread, backgroundColor: colors.threadSoft }]}
+              <PressableScale key={v.value} style={[s.option, on && { borderColor: colors.ink, backgroundColor: colors.surfaceSunk }]}
                 onPress={() => { haptic.select(); setVis(v.value); }}
                 accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={`${v.label}. ${v.hint}`}>
-                <Icon name={v.symbol} fallback="·" size={16} color={on ? colors.thread : colors.ink} />
+                <Icon name={v.symbol} fallback="·" size={16} color={colors.ink} />
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong">{v.label}</Text>
                   <Text variant="caption" tone="secondary">{v.hint}</Text>
@@ -120,7 +120,7 @@ const useStyles = makeStyles((c) =>
     content: { padding: GUTTER, paddingTop: SPACE.xl, gap: SPACE.md },
     name: { fontFamily: 'Fraunces-SemiBold', fontSize: 26, color: c.ink, paddingVertical: SPACE.sm, borderBottomWidth: 1, borderBottomColor: c.hairline },
     note: { fontSize: 16, color: c.ink, minHeight: 48 },
-    label: { letterSpacing: 0.8, marginTop: SPACE.md },
+    label: { marginTop: SPACE.md },
     options: { gap: SPACE.sm },
     option: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.surface },
     footer: { padding: GUTTER, paddingBottom: SPACE.xxl },

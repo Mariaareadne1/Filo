@@ -25,10 +25,10 @@ export function BoardCover({ covers, categories, name, height }: Props) {
   if (urls.length === 0) {
     return (
       <View style={[s.typo, { height, backgroundColor: colors.threadSoft }]} accessibilityElementsHidden>
-        <Text variant="hero" tone="thread" style={s.initial}>{name.trim().slice(0, 1).toUpperCase() || '·'}</Text>
+        <Text variant="hero" style={s.initial}>{name.trim().slice(0, 1).toUpperCase() || '·'}</Text>
         <View style={s.glyphs}>
           {categories.slice(0, 4).map((c) => (
-            <Icon key={c} name={CATEGORY_META[c].symbol} fallback={CATEGORY_META[c].glyph} size={14} color={colors.thread} />
+            <Icon key={c} name={CATEGORY_META[c].symbol} fallback={CATEGORY_META[c].glyph} size={14} color={colors.inkSecondary} />
           ))}
         </View>
       </View>

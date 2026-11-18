@@ -29,7 +29,7 @@ export function BoardsScreen() {
     <View style={s.header}>
       <View style={{ flex: 1 }}>
         <Text variant="title" accessibilityRole="header">Boards</Text>
-        <Text variant="callout" tone="secondary">Your city guides — for a friend, a date, a slow Sunday.</Text>
+        <Text variant="callout" tone="secondary">City guides for a friend, a date or a slow Sunday</Text>
       </View>
       <GlassIconButton symbol="plus" fallback="+" label="New board" onPress={() => router.push('/board-modal/create')} testID="boards-new" />
     </View>
@@ -44,7 +44,7 @@ export function BoardsScreen() {
         columnWrapperStyle={s.colGap}
         contentContainerStyle={[s.list, { paddingBottom: clearance + SPACE.lg }]}
         ListHeaderComponent={header}
-        refreshControl={<RefreshControl refreshing={boards.isRefetching} onRefresh={() => boards.refetch()} tintColor={colors.thread} />}
+        refreshControl={<RefreshControl refreshing={boards.isRefetching} onRefresh={() => boards.refetch()} tintColor={colors.inkSecondary} />}
         renderItem={({ item }) => <BoardCard board={item} onPress={() => router.push(`/(app)/board/${item.id}`)} />}
         ListEmptyComponent={
           boards.isLoading ? <ActivityIndicator style={{ marginTop: SPACE.xxl }} /> :
@@ -58,7 +58,7 @@ export function BoardsScreen() {
               <Icon name="square.stack" fallback="▤" size={34} color={colors.inkTertiary} />
               <Text variant="heading">No boards yet</Text>
               <Text variant="callout" tone="secondary" style={{ textAlign: 'center' }}>
-                Group places into a guide — “Late night eats”, “Study cafes” — and share it with one link.
+                Group places into a guide like “Late night eats” and share it with one link.
               </Text>
               <Button label="Create a board" onPress={() => router.push('/board-modal/create')} />
             </View>

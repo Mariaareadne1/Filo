@@ -52,7 +52,7 @@ export function BoardScreen() {
       return;
     }
     const url = boardShareUrl(board.share_token);
-    await Share.share({ message: `${board.name} — a Filo board\n${url}`, url });
+    await Share.share({ message: `${board.name}, a Filo board\n${url}`, url });
   }, [board, update, detail]);
 
   const confirmDelete = () => {
@@ -107,7 +107,7 @@ export function BoardScreen() {
   }, [isOwner, itemMenu, router, s, colors]);
 
   if (!id) return <View style={[s.root, s.center]}><Text variant="heading">Board not found.</Text></View>;
-  if (detail.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={colors.thread} /></View>;
+  if (detail.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={colors.inkSecondary} /></View>;
   if (!detail.data || !board) {
     return (
       <View style={[s.root, s.center]}>
@@ -133,8 +133,8 @@ export function BoardScreen() {
         </View>
       </View>
       <View style={s.titleBlock}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>
-          A FILO BOARD · {items.length} {items.length === 1 ? 'PLACE' : 'PLACES'}
+        <Text variant="caption" tone="secondary">
+          A Filo board · {items.length} {items.length === 1 ? 'place' : 'places'}
         </Text>
         <Text variant="hero" accessibilityRole="header">{board.name}</Text>
         {board.description ? <Text variant="body" tone="secondary">{board.description}</Text> : null}
@@ -183,7 +183,6 @@ const useStyles = makeStyles((c) =>
     heroBar: { position: 'absolute', left: GUTTER, right: GUTTER, flexDirection: 'row', justifyContent: 'space-between' },
     heroActions: { flexDirection: 'row', gap: SPACE.sm },
     titleBlock: { paddingHorizontal: GUTTER, paddingTop: SPACE.xl, gap: SPACE.sm },
-    kicker: { letterSpacing: 1 },
     byline: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACE.lg },
     item: {
       flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md, marginHorizontal: GUTTER, paddingVertical: SPACE.lg,

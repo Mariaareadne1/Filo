@@ -113,7 +113,7 @@ export function parseQuery(raw: string): ParsedQuery {
 
   // Attributes Filo cannot verify → honest notes (and sensible real-data proxies).
   if (take(/\b(quiet|calm|chill|cozy|peaceful)\b/)) {
-    notes.push("Filo doesn't know noise levels — friends' notes are the best signal.");
+    notes.push("Noise levels aren't tracked, so check friends' notes.");
   }
   if (take(/\b(work|study|studying|laptop|wifi|wi-fi|read|reading)\b/)) {
     if (!category) category = 'cafe';
@@ -123,13 +123,13 @@ export function parseQuery(raw: string): ParsedQuery {
   if (take(/\b(first date|date night|date spot|date|romantic)\b/)) {
     if (!category) category = 'bar';
     ['cocktail', 'wine'].forEach((t) => terms.add(t));
-    notes.push('“Date-worthy” is subjective — leaning on cocktail and wine bars.');
+    notes.push('“Date-worthy” is subjective, so this leans on cocktail and wine bars.');
   }
   if (take(/\b(cheap|affordable|budget|inexpensive|under \$?\d+|\$+)\b/)) {
     notes.push("Prices aren't available yet, so results aren't filtered by cost.");
   }
   if (take(/\b(open late|late night|late-night|tonight|right now|open now|in the (afternoon|morning|evening)|afternoon|morning|evening)\b/)) {
-    notes.push("Opening hours aren't available yet — check before you go.");
+    notes.push("Opening hours aren't tracked yet.");
   }
   if (take(/\b(fun|cool|cute|vibey|trendy|hidden|underrated|best)\b/)) {
     // Subjective words: rely on friends' rankings rather than claiming it.

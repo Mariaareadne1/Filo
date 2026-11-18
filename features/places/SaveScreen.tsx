@@ -102,8 +102,8 @@ export function SaveScreen() {
           <Text variant="bodyStrong">Search</Text>
         </PressableScale>
 
-        <Text variant="caption" tone="secondary" style={s.kicker}>
-          {[CATEGORY_META[category].label.toUpperCase(), candidate.neighborhood].filter(Boolean).join(' · ')}
+        <Text variant="caption" tone="secondary">
+          {[CATEGORY_META[category].label, candidate.neighborhood].filter(Boolean).join(' · ')}
         </Text>
         <Text variant="title" accessibilityRole="header">{candidate.name}</Text>
         <Text variant="callout" tone="secondary">{candidate.address}</Text>
@@ -111,18 +111,18 @@ export function SaveScreen() {
           <Text variant="caption" tone="tertiary" style={{ marginTop: SPACE.xs }}>{candidate.tags.join(' · ')}</Text>
         ) : null}
 
-        <Text variant="caption" tone="secondary" style={s.label}>HAVE YOU BEEN?</Text>
+        <Text variant="label" tone="secondary" style={s.label}>Have you been?</Text>
         <View style={s.statusRow}>
           {(['want_to_go', 'visited'] as const).map((v) => {
             const on = status === v;
             return (
-              <PressableScale key={v} style={[s.status, on && { backgroundColor: colors.thread, borderColor: colors.thread }]}
+              <PressableScale key={v} style={[s.status, on && (v === 'visited' ? { backgroundColor: colors.thread, borderColor: colors.thread } : { borderColor: colors.thread })]}
                 onPress={() => { haptic.select(); setStatus(v); }}
                 accessibilityRole="radio" accessibilityState={{ checked: on }}
                 accessibilityLabel={v === 'visited' ? "I've been" : 'I want to go'} testID={`save-${v}`}>
                 <Icon name={v === 'visited' ? 'checkmark.circle.fill' : 'bookmark.fill'} fallback={v === 'visited' ? '✓' : '◇'}
-                  size={20} color={on ? colors.onThread : colors.ink} />
-                <Text variant="bodyStrong" style={{ color: on ? colors.onThread : colors.ink }}>
+                  size={20} color={on ? (v === 'visited' ? colors.onThread : colors.thread) : colors.ink} />
+                <Text variant="bodyStrong" style={{ color: on ? (v === 'visited' ? colors.onThread : colors.thread) : colors.ink }}>
                   {v === 'visited' ? "I've been" : 'Want to go'}
                 </Text>
               </PressableScale>
@@ -130,7 +130,7 @@ export function SaveScreen() {
           })}
         </View>
 
-        <Text variant="caption" tone="secondary" style={s.label}>CATEGORY</Text>
+        <Text variant="label" tone="secondary" style={s.label}>Category</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
           {CATEGORIES.map((c) => (
             <GlassChip key={c} label={CATEGORY_META[c].short} symbol={CATEGORY_META[c].symbol} fallback={CATEGORY_META[c].glyph}
@@ -138,12 +138,12 @@ export function SaveScreen() {
           ))}
         </ScrollView>
 
-        <Text variant="caption" tone="secondary" style={s.label}>YOUR TAKE · OPTIONAL</Text>
+        <Text variant="label" tone="secondary" style={s.label}>Your take (optional)</Text>
         <View style={s.noteBox}>
           <TextInput
             value={note}
             onChangeText={(t) => setNote(t.slice(0, MAX_NOTE))}
-            placeholder="What should a friend know? (“get the cardamom bun”)"
+            placeholder="What should a friend know?"
             placeholderTextColor={colors.inkTertiary}
             multiline
             style={s.note}
@@ -153,7 +153,7 @@ export function SaveScreen() {
           <Text variant="caption" tone="tertiary" style={s.count}>{MAX_NOTE - note.length}</Text>
         </View>
 
-        <Text variant="caption" tone="secondary" style={s.label}>PHOTO · OPTIONAL</Text>
+        <Text variant="label" tone="secondary" style={s.label}>Photo (optional)</Text>
         {photo ? (
           <PressableScale onPress={pickPhoto} accessibilityLabel="Change photo">
             <Image source={{ uri: photo }} style={s.photo} contentFit="cover" />
@@ -183,8 +183,7 @@ const useStyles = makeStyles((c) =>
     center: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: GUTTER },
     content: { paddingHorizontal: GUTTER, gap: SPACE.xs },
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACE.lg, alignSelf: 'flex-start', minHeight: 44 },
-    kicker: { letterSpacing: 0.8 },
-    label: { letterSpacing: 0.8, marginTop: SPACE.xl, marginBottom: SPACE.sm },
+    label: { marginTop: SPACE.xl, marginBottom: SPACE.sm },
     statusRow: { flexDirection: 'row', gap: SPACE.sm },
     status: {
       flex: 1, minHeight: 64, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.hairline,

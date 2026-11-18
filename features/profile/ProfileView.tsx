@@ -50,7 +50,7 @@ export function ProfileView({ userId }: { userId: string }) {
   // RLS hides a private account's pins from non-followers; reflect that honestly.
   const locked = !isOwn && !!p?.is_private && state !== 'active';
 
-  if (profile.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={colors.thread} /></View>;
+  if (profile.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={colors.inkSecondary} /></View>;
   if (!p) {
     return (
       <View style={[s.root, s.center]}>
@@ -77,7 +77,7 @@ export function ProfileView({ userId }: { userId: string }) {
     <ScrollView
       style={s.root}
       contentContainerStyle={{ paddingTop: insets.top + SPACE.md, paddingBottom: clearance + SPACE.lg }}
-      refreshControl={<RefreshControl refreshing={profile.isRefetching} onRefresh={refresh} tintColor={colors.thread} />}
+      refreshControl={<RefreshControl refreshing={profile.isRefetching} onRefresh={refresh} tintColor={colors.inkSecondary} />}
     >
       <View style={s.topBar}>
         {!isOwn ? (
@@ -87,7 +87,7 @@ export function ProfileView({ userId }: { userId: string }) {
           </PressableScale>
         ) : <View />}
         <GlassIconButton symbol="square.and.arrow.up" fallback="↑" label="Share profile"
-          onPress={() => Share.share({ message: `@${p.username} on Filo — the map their friends would draw.` })} />
+          onPress={() => Share.share({ message: `@${p.username} on Filo, the map their friends would draw` })} />
       </View>
 
       {/* Header */}
@@ -95,7 +95,7 @@ export function ProfileView({ userId }: { userId: string }) {
         {p.avatar_url ? (
           <Image source={{ uri: p.avatar_url }} style={s.avatar} contentFit="cover" accessibilityIgnoresInvertColors />
         ) : (
-          <View style={[s.avatar, s.avatarFallback]}><Text variant="title" tone="thread">{p.display_name.slice(0, 1).toUpperCase()}</Text></View>
+          <View style={[s.avatar, s.avatarFallback]}><Text variant="title">{p.display_name.slice(0, 1).toUpperCase()}</Text></View>
         )}
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="title" numberOfLines={2} accessibilityRole="header">{p.display_name}</Text>
@@ -107,8 +107,8 @@ export function ProfileView({ userId }: { userId: string }) {
       </View>
 
       <View style={s.stats}>
-        <Stat value={p.pins} label="places" />
-        <Stat value={p.followers} label="followers" onPress={locked ? undefined : () => router.push({ pathname: '/(app)/follow-list', params: { userId, mode: 'followers' } })} />
+        <Stat value={p.pins} label={p.pins === 1 ? 'place' : 'places'} />
+        <Stat value={p.followers} label={p.followers === 1 ? 'follower' : 'followers'} onPress={locked ? undefined : () => router.push({ pathname: '/(app)/follow-list', params: { userId, mode: 'followers' } })} />
         <Stat value={p.following} label="following" onPress={locked ? undefined : () => router.push({ pathname: '/(app)/follow-list', params: { userId, mode: 'following' } })} />
         {isOwn && streak > 0 ? <Stat value={streak} label="week streak" /> : null}
       </View>
@@ -128,7 +128,7 @@ export function ProfileView({ userId }: { userId: string }) {
 
       {pendingCount > 0 ? (
         <PressableScale style={s.banner} onPress={() => router.push('/(app)/requests')} accessibilityLabel={`${pendingCount} follow requests`}>
-          <Icon name="person.badge.plus" fallback="+" size={18} color={colors.thread} />
+          <Icon name="person.badge.plus" fallback="+" size={18} color={colors.ink} />
           <Text variant="bodyStrong" style={{ flex: 1 }}>{pendingCount} follow {pendingCount === 1 ? 'request' : 'requests'}</Text>
           <Icon name="chevron.right" fallback="›" size={14} color={colors.inkTertiary} />
         </PressableScale>
@@ -153,8 +153,8 @@ export function ProfileView({ userId }: { userId: string }) {
                   onPress={() => router.push({ pathname: '/(app)/rankings', params: { userId, category: r.category } })}
                   accessibilityLabel={`${CATEGORY_META[r.category].plural}, ${r.count} ranked. Top: ${r.top[0] ?? ''}`}>
                   <View style={s.rankHead}>
-                    <Icon name={CATEGORY_META[r.category].symbol} fallback={CATEGORY_META[r.category].glyph} size={14} color={colors.thread} />
-                    <Text variant="label" tone="secondary">{CATEGORY_META[r.category].plural} · {r.count}</Text>
+                    <Icon name={CATEGORY_META[r.category].symbol} fallback={CATEGORY_META[r.category].glyph} size={14} color={colors.inkSecondary} />
+                    <Text variant="label" tone="secondary">{CATEGORY_META[r.category].short} · {r.count}</Text>
                   </View>
                   {r.top.map((name, i) => (
                     <Text key={`${name}${i}`} variant="callout" numberOfLines={1}>
@@ -252,9 +252,9 @@ function SectionHead({ title, action, onAction }: { title: string; action?: stri
   const s = useStyles();
   return (
     <View style={s.sectionHead}>
-      <Text variant="caption" tone="secondary" style={s.sectionTitle} accessibilityRole="header">{title.toUpperCase()}</Text>
+      <Text variant="label" tone="secondary" accessibilityRole="header">{title}</Text>
       {action && onAction ? (
-        <PressableScale onPress={onAction} accessibilityLabel={action}><Text variant="label" tone="thread">{action}</Text></PressableScale>
+        <PressableScale onPress={onAction} accessibilityLabel={action}><Text variant="label">{action}</Text></PressableScale>
       ) : null}
     </View>
   );
@@ -288,18 +288,17 @@ const useStyles = makeStyles((c) =>
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 },
     header: { flexDirection: 'row', alignItems: 'center', gap: SPACE.lg, paddingHorizontal: GUTTER, marginTop: SPACE.md },
     avatar: { width: 72, height: 72, borderRadius: 36 },
-    avatarFallback: { backgroundColor: c.threadSoft, alignItems: 'center', justifyContent: 'center' },
+    avatarFallback: { backgroundColor: c.surfaceSunk, alignItems: 'center', justifyContent: 'center' },
     handleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     stats: { flexDirection: 'row', paddingHorizontal: GUTTER, marginTop: SPACE.lg, gap: SPACE.xl },
     stat: { alignItems: 'flex-start', minHeight: 44, justifyContent: 'center' },
     section: { paddingHorizontal: GUTTER, marginTop: SPACE.lg },
     banner: {
       marginHorizontal: GUTTER, marginTop: SPACE.lg, flexDirection: 'row', alignItems: 'center', gap: SPACE.md,
-      padding: SPACE.lg, borderRadius: RADIUS.md, backgroundColor: c.threadSoft,
+      padding: SPACE.lg, borderRadius: RADIUS.md, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline,
     },
     locked: { alignItems: 'center', gap: SPACE.sm, marginTop: SPACE.xxxl, paddingHorizontal: SPACE.xxl },
     sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: GUTTER, marginTop: SPACE.xxl, marginBottom: SPACE.sm },
-    sectionTitle: { letterSpacing: 0.8 },
     rankRow: { paddingHorizontal: GUTTER, gap: SPACE.md },
     rankCard: { width: 210, padding: SPACE.lg, gap: 4, borderRadius: RADIUS.lg, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline },
     rankHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
@@ -310,7 +309,7 @@ const useStyles = makeStyles((c) =>
     placeIcon: { width: 34, height: 34, borderRadius: RADIUS.sm, backgroundColor: c.surfaceSunk, alignItems: 'center', justifyContent: 'center' },
     settings: { marginHorizontal: GUTTER, borderRadius: RADIUS.lg, backgroundColor: c.surface, overflow: 'hidden' },
     settingRow: {
-      flexDirection: 'row', alignItems: 'center', gap: SPACE.md, minHeight: 56, paddingHorizontal: SPACE.lg,
+      flexDirection: 'row', alignItems: 'center', gap: SPACE.md, minHeight: 56, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md,
       borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.hairline,
     },
   }),

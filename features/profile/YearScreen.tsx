@@ -32,11 +32,11 @@ export function YearScreen() {
   const favorite = (ranks.data ?? []).sort((a, b) => b.count - a.count)[0];
 
   const blocks: { kicker: string; value: string; sub?: string }[] = stats.total === 0 ? [] : [
-    { kicker: 'PLACES SAVED', value: String(stats.total), sub: `${stats.visited} been, ${stats.total - stats.visited} still on the list` },
-    ...(stats.topCategory ? [{ kicker: 'MOSTLY', value: CATEGORY_META[stats.topCategory].plural }] : []),
-    ...(stats.topNeighborhood ? [{ kicker: 'YOUR NEIGHBORHOOD', value: stats.topNeighborhood, sub: `${stats.distinctNeighborhoods} ${stats.distinctNeighborhoods === 1 ? 'neighborhood' : 'neighborhoods'} explored` }] : []),
-    ...(stats.topMonth !== null ? [{ kicker: 'BUSIEST MONTH', value: MONTHS[stats.topMonth] }] : []),
-    ...(favorite?.top[0] ? [{ kicker: `YOUR #1 ${CATEGORY_META[favorite.category].singular.toUpperCase()}`, value: favorite.top[0] }] : []),
+    { kicker: 'Places saved', value: String(stats.total), sub: `${stats.visited} been, ${stats.total - stats.visited} still on the list` },
+    ...(stats.topCategory ? [{ kicker: 'Mostly', value: CATEGORY_META[stats.topCategory].plural }] : []),
+    ...(stats.topNeighborhood ? [{ kicker: 'Your neighborhood', value: stats.topNeighborhood, sub: `${stats.distinctNeighborhoods} ${stats.distinctNeighborhoods === 1 ? 'neighborhood' : 'neighborhoods'} explored` }] : []),
+    ...(stats.topMonth !== null ? [{ kicker: 'Busiest month', value: MONTHS[stats.topMonth] }] : []),
+    ...(favorite?.top[0] ? [{ kicker: `Your #1 ${CATEGORY_META[favorite.category].singular}`, value: favorite.top[0] }] : []),
   ];
 
   return (
@@ -47,15 +47,15 @@ export function YearScreen() {
         <Text variant="bodyStrong">You</Text>
       </PressableScale>
       <View style={s.head}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>{year} IN FILO</Text>
+        <Text variant="caption" tone="secondary" >{year} in Filo</Text>
         <Text variant="hero" accessibilityRole="header">Your year, <Text variant="hero" italic tone="thread">mapped</Text>.</Text>
       </View>
       {pins.isLoading ? <ActivityIndicator style={{ marginTop: SPACE.xxl }} /> : blocks.length === 0 ? (
         <Text variant="callout" tone="secondary" style={s.pad}>Save a few places this year and your recap appears here.</Text>
       ) : blocks.map((b) => (
         <View key={b.kicker} style={s.block} accessible accessibilityLabel={`${b.kicker}: ${b.value}${b.sub ? `. ${b.sub}` : ''}`}>
-          <Text variant="caption" tone="secondary" style={s.kicker}>{b.kicker}</Text>
-          <Text variant="title" italic>{b.value}</Text>
+          <Text variant="caption" tone="secondary">{b.kicker}</Text>
+          <Text variant="title">{b.value}</Text>
           {b.sub ? <Text variant="callout" tone="secondary">{b.sub}</Text> : null}
         </View>
       ))}
@@ -71,7 +71,6 @@ const useStyles = makeStyles((c) =>
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: GUTTER, minHeight: 44, alignSelf: 'flex-start' },
     head: { paddingHorizontal: GUTTER, gap: SPACE.sm, marginBottom: SPACE.xl, marginTop: SPACE.lg },
     pad: { paddingHorizontal: GUTTER },
-    kicker: { letterSpacing: 1.2 },
     block: { marginHorizontal: GUTTER, marginBottom: SPACE.md, padding: SPACE.xl, gap: SPACE.xs, borderRadius: RADIUS.lg, backgroundColor: c.surface },
   }),
 );

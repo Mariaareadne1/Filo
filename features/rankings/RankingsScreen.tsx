@@ -47,7 +47,7 @@ export function RankingsScreen() {
   }, [rerank]);
 
   const confirmRemove = useCallback((item: RankedPlace) => {
-    Alert.alert(`Remove ${item.name} from your ${meta.plural}?`, 'It stays on your map — only the ranking is removed.', [
+    Alert.alert(`Remove ${item.name} from your ${meta.plural}?`, 'It stays on your map. Only the ranking is removed.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => remove.mutate(item.placeId, { onError: (e) => Alert.alert("Couldn't remove", toUserMessage(e)) }) },
     ]);
@@ -115,7 +115,7 @@ export function RankingsScreen() {
         <Text variant="bodyStrong">Back</Text>
       </PressableScale>
       <View style={s.head}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>RANKINGS · BEST FIRST</Text>
+        <Text variant="caption" tone="secondary" >Rankings, best first</Text>
         <Text variant="title" accessibilityRole="header">
           {who} <Text variant="title" italic tone="thread">{meta.plural}</Text>.
         </Text>
@@ -128,7 +128,7 @@ export function RankingsScreen() {
       </ScrollView>
 
       {list.isLoading ? (
-        <ActivityIndicator style={{ marginTop: SPACE.xxl }} color={colors.thread} />
+        <ActivityIndicator style={{ marginTop: SPACE.xxl }} color={colors.inkSecondary} />
       ) : list.isError ? (
         <Text variant="callout" tone="secondary" style={s.empty}>{toUserMessage(list.error, "Couldn't load rankings.")}</Text>
       ) : items.length === 0 ? (
@@ -136,7 +136,7 @@ export function RankingsScreen() {
           <Text variant="heading">{isOwn ? `No ${meta.plural} ranked yet` : `No ${meta.plural} ranked`}</Text>
           {isOwn ? (
             <Text variant="callout" tone="secondary" style={{ textAlign: 'center' }}>
-              Open a place you've been on the map and tap Rank — a few quick “this or that?” answers place it.
+              Open a place you've been and tap Rank. A few quick comparisons place it.
             </Text>
           ) : null}
         </View>
@@ -166,7 +166,6 @@ const useStyles = makeStyles((c) =>
     root: { flex: 1, backgroundColor: c.bg },
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: GUTTER, minHeight: 44, alignSelf: 'flex-start' },
     head: { paddingHorizontal: GUTTER, gap: 4 },
-    kicker: { letterSpacing: 0.8 },
     chipScroller: { flexGrow: 0, marginTop: SPACE.md },
     chips: { paddingHorizontal: GUTTER, gap: SPACE.sm, paddingVertical: 4 },
     list: { paddingHorizontal: GUTTER, paddingTop: SPACE.md, gap: SPACE.sm },

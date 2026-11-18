@@ -24,13 +24,13 @@ const EXAMPLES = [
   'Dinner near campus my friends saved',
 ];
 
-const LENSES: { id: LensId; title: string; italic: string; empty: string }[] = [
-  { id: 'new_to_network', title: 'New to your', italic: 'network', empty: 'When friends save places you haven’t, they show up here.' },
-  { id: 'like_you', title: 'Saved by people', italic: 'like you', empty: '' },
-  { id: 'hidden_gems', title: 'Hidden', italic: 'gems', empty: 'Places friends rank highly that few people know yet.' },
-  { id: 'disagree', title: 'Friends', italic: 'disagree', empty: 'Shows up when two friends rank the same place very differently.' },
-  { id: 'trending', title: 'Trending near', italic: 'campus', empty: 'Needs at least two people pinning the same place this fortnight.' },
-  { id: 'most_pinned', title: 'Most', italic: 'pinned', empty: 'Shows up once two or more people pin the same place.' },
+const LENSES: { id: LensId; title: string; empty: string }[] = [
+  { id: 'new_to_network', title: 'New to your network', empty: 'When friends save places you haven’t, they show up here.' },
+  { id: 'like_you', title: 'Saved by people like you', empty: '' },
+  { id: 'hidden_gems', title: 'Hidden gems', empty: 'Places friends rank highly that few people know yet.' },
+  { id: 'disagree', title: 'Friends disagree', empty: 'Shows up when two friends rank the same place very differently.' },
+  { id: 'trending', title: 'Trending near campus', empty: 'Needs at least two people pinning the same place this fortnight.' },
+  { id: 'most_pinned', title: 'Most pinned', empty: 'Shows up once two or more people pin the same place.' },
 ];
 
 function useDebounced(value: string, ms: number) {
@@ -82,15 +82,15 @@ export function DiscoverScreen() {
         <Text variant="title" accessibilityRole="header">
           Discover <Text variant="title" italic tone="thread">through people</Text>.
         </Text>
-        <Text variant="callout" tone="secondary">Ask in your own words. Results are real places, with the reasons behind them.</Text>
+        <Text variant="callout" tone="secondary">Ask in your own words. Every result says why.</Text>
       </View>
 
       <Glass style={s.searchBox} radius={RADIUS.lg}>
-        <Icon name="sparkle.magnifyingglass" fallback="⌕" size={18} color={colors.inkSecondary} />
+        <Icon name="magnifyingglass" fallback="⌕" size={18} color={colors.inkSecondary} />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Describe a place, a vibe, a neighborhood"
+          placeholder="Describe a place"
           placeholderTextColor={colors.inkTertiary}
           style={s.input}
           returnKeyType="search"
@@ -114,12 +114,12 @@ export function DiscoverScreen() {
           <FilterSummary parsed={parsed} />
           {parsed.notes.length > 0 ? (
             <View style={s.notes} accessible accessibilityLabel={parsed.notes.join(' ')}>
-              <Icon name="info.circle" fallback="i" size={14} color={colors.inkSecondary} />
+              <Icon name="info.circle" fallback="i" size={14} color={colors.inkTertiary} />
               <Text variant="caption" tone="secondary" style={{ flex: 1 }}>{parsed.notes.join(' ')}</Text>
             </View>
           ) : null}
           {search.data?.relaxed ? (
-            <Text variant="caption" tone="secondary">No places are tagged with those exact words — showing {parsed.category ? CATEGORY_META[parsed.category].plural : 'places'}{parsed.near ? ` near ${parsed.near.label}` : ''} instead.</Text>
+            <Text variant="caption" tone="secondary">No exact matches. Showing {parsed.category ? CATEGORY_META[parsed.category].plural : 'places'}{parsed.near ? ` near ${parsed.near.label}` : ''} instead.</Text>
           ) : null}
           {search.isError ? (
             <Text variant="callout" tone="danger">{toUserMessage(search.error, 'Search is unavailable right now.')}</Text>
@@ -136,16 +136,16 @@ export function DiscoverScreen() {
       {!parsed ? (
         <>
           <PressableScale style={s.activity} onPress={() => router.push('/(app)/feed')} accessibilityLabel="Friend activity">
-            <Icon name="person.2.wave.2" fallback="◎" size={18} color={colors.thread} />
+            <Icon name="person.2.wave.2" fallback="◎" size={18} color={colors.inkSecondary} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Friend activity</Text>
-              <Text variant="caption" tone="secondary">What your people saved lately — it ends when you're caught up.</Text>
+              <Text variant="caption" tone="secondary">What your people saved lately</Text>
             </View>
             <Icon name="chevron.right" fallback="›" size={14} color={colors.inkTertiary} />
           </PressableScale>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} style={{ flexGrow: 0 }}>
-            <GlassChip label="all" selected={cat === null} onPress={() => setCat(null)} />
+            <GlassChip label="All" selected={cat === null} onPress={() => setCat(null)} />
             {CATEGORIES.map((c) => (
               <GlassChip key={c} label={CATEGORY_META[c].short} symbol={CATEGORY_META[c].symbol} fallback={CATEGORY_META[c].glyph}
                 selected={cat === c} onPress={() => setCat(cat === c ? null : c)} />
@@ -186,7 +186,7 @@ function ResultRow({ r, onPress }: { r: DiscoveryResult; onPress: () => void }) 
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
         <Text variant="caption" tone="secondary" numberOfLines={1}>{[meta.short, r.neighborhood].filter(Boolean).join(' · ')}</Text>
-        {r.reasons.length > 0 ? <Text variant="caption" tone="thread" numberOfLines={2}>{r.reasons.join(' · ')}</Text> : null}
+        {r.reasons.length > 0 ? <Text variant="caption" numberOfLines={2}>{r.reasons.join(' · ')}</Text> : null}
       </View>
     </PressableScale>
   );
@@ -202,7 +202,7 @@ function LensSection({ lens, category, me, onOpen }: {
     staleTime: 60_000,
     queryFn: async () => {
       if (lens.id === 'like_you') {
-        if (!category) return { results: [], empty: 'Pick a category — taste is compared within one list.' };
+        if (!category) return { results: [], empty: 'Pick a category to compare taste within one list.' };
         const r = await fetchLikeYou(me!, category);
         const empty = r.reason === 'need_rankings'
           ? `Rank ${3 - r.myRanked} more ${CATEGORY_META[category].plural} to find people with your taste.`
@@ -215,7 +215,7 @@ function LensSection({ lens, category, me, onOpen }: {
   return (
     <View style={s.lens}>
       <Text variant="heading" style={s.lensTitle} accessibilityRole="header">
-        {lens.title} <Text variant="heading" italic tone="thread" style={s.lensItalic}>{lens.italic}</Text>
+        {lens.title}
       </Text>
       {data.isLoading ? <ActivityIndicator style={{ alignSelf: 'flex-start', marginLeft: GUTTER }} /> :
        data.isError ? <Text variant="caption" tone="secondary" style={s.lensEmpty}>{toUserMessage(data.error)}</Text> :
@@ -224,10 +224,10 @@ function LensSection({ lens, category, me, onOpen }: {
           {data.data!.results.slice(0, 8).map((r) => (
             <PressableScale key={r.placeId} style={s.card} onPress={() => onOpen(r)} pressedScale={0.97}
               accessibilityLabel={`${r.name}. ${r.reasons.join('. ')}`}>
-              <Text variant="caption" tone="secondary">{CATEGORY_META[r.category].short.toUpperCase()}{r.neighborhood ? ` · ${r.neighborhood}` : ''}</Text>
+              <Text variant="caption" tone="secondary">{CATEGORY_META[r.category].short}{r.neighborhood ? ` · ${r.neighborhood}` : ''}</Text>
               <Text variant="heading" style={s.cardName} numberOfLines={2}>{r.name}</Text>
-              <View style={{ flex: 1 }} />
-              {r.reasons.map((x) => <Text key={x} variant="caption" tone="thread" numberOfLines={2}>{x}</Text>)}
+              <View style={s.cardGap} />
+              {r.reasons.map((x) => <Text key={x} variant="caption" numberOfLines={2}>{x}</Text>)}
             </PressableScale>
           ))}
         </ScrollView>
@@ -243,10 +243,10 @@ const useStyles = makeStyles((c) =>
     searchBox: { marginHorizontal: GUTTER, marginTop: SPACE.lg, minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.lg },
     input: { flex: 1, fontSize: 16, color: c.ink, minHeight: 50 },
     examples: { paddingHorizontal: GUTTER, gap: SPACE.sm, paddingVertical: SPACE.md },
-    example: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.capsule, borderWidth: 1, borderColor: c.hairline },
+    example: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.hairline },
     results: { paddingHorizontal: GUTTER, paddingTop: SPACE.md, gap: SPACE.xs },
     summary: { marginBottom: SPACE.xs },
-    notes: { flexDirection: 'row', gap: SPACE.sm, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: c.surfaceSunk, marginBottom: SPACE.sm },
+    notes: { flexDirection: 'row', gap: SPACE.sm, marginBottom: SPACE.sm },
     row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.hairline },
     rowIcon: { width: 38, height: 38, borderRadius: RADIUS.sm, backgroundColor: c.surfaceSunk, alignItems: 'center', justifyContent: 'center' },
     activity: {
@@ -256,10 +256,10 @@ const useStyles = makeStyles((c) =>
     chips: { paddingHorizontal: GUTTER, gap: SPACE.sm, paddingVertical: SPACE.lg },
     lens: { marginBottom: SPACE.xl, gap: SPACE.sm },
     lensTitle: { fontFamily: 'Fraunces-SemiBold', fontSize: 21, lineHeight: 25, paddingHorizontal: GUTTER },
-    lensItalic: { fontFamily: 'Fraunces-Italic', fontSize: 21, lineHeight: 25 },
     lensEmpty: { paddingHorizontal: GUTTER },
     cards: { paddingHorizontal: GUTTER, gap: SPACE.md },
-    card: { width: 220, minHeight: 150, padding: SPACE.lg, gap: 4, borderRadius: RADIUS.lg, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline },
+    card: { width: 240, padding: SPACE.lg, gap: SPACE.xs, borderRadius: RADIUS.md, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline },
+    cardGap: { flexGrow: 1, minHeight: SPACE.md },
     cardName: { fontFamily: 'Fraunces-SemiBold', fontSize: 19, lineHeight: 23 },
   }),
 );

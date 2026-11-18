@@ -48,7 +48,7 @@ async function fetchTwins(me: string): Promise<{ twins: Twin[]; myCounts: Record
   return { twins, myCounts };
 }
 
-const LABEL = { strong: 'Strong match', promising: 'Promising — needs more shared places', different: 'Opposite taste', too_early: '' } as const;
+const LABEL = { strong: 'Strong match', promising: 'Promising, needs more shared places', different: 'Opposite taste', too_early: '' } as const;
 
 export function TwinsScreen() {
   const s = useStyles();
@@ -78,7 +78,7 @@ export function TwinsScreen() {
           const mine = q.data?.myCounts[c] ?? 0;
           return (
             <View key={c} style={s.card}>
-              <Text variant="caption" tone="secondary" style={s.kicker}>{CATEGORY_META[c].plural.toUpperCase()}</Text>
+              <Text variant="caption" tone="secondary">{CATEGORY_META[c].short}</Text>
               {twin ? (
                 <PressableScale onPress={() => router.push(`/(app)/user/${twin.userId}`)} accessibilityLabel={`@${twin.username}, ${LABEL[twin.match.label]}, ${twin.match.overlap} shared places`}>
                   <Text variant="heading">@{twin.username}</Text>
@@ -107,7 +107,6 @@ const useStyles = makeStyles((c) =>
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: GUTTER, minHeight: 44, alignSelf: 'flex-start' },
     head: { paddingHorizontal: GUTTER, gap: SPACE.sm, marginBottom: SPACE.lg },
     pad: { paddingHorizontal: GUTTER },
-    kicker: { letterSpacing: 1 },
     card: { marginHorizontal: GUTTER, marginBottom: SPACE.sm, padding: SPACE.lg, gap: 4, borderRadius: RADIUS.lg, backgroundColor: c.surface },
   }),
 );

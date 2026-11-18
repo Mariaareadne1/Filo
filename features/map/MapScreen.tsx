@@ -166,7 +166,7 @@ export function MapScreen() {
             <Glass interactive style={s.search}>
               <Icon name="magnifyingglass" fallback="⌕" size={17} color={colors.inkSecondary} />
               <Text variant="body" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
-                Search places, vibes, friends
+                Search places and friends
               </Text>
             </Glass>
           </PressableScale>

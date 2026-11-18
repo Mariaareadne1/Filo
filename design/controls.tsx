@@ -15,7 +15,7 @@ interface ChipProps {
   testID?: string;
 }
 
-/** Filter chip floating over the map. Selected = thread-tinted glass. */
+/** Filter chip floating over the map. Selected = ink-tinted glass. */
 export function GlassChip({ label, selected, onPress, symbol, fallback, testID }: ChipProps) {
   const s = useStyles();
   const { colors } = useTheme();
@@ -27,9 +27,9 @@ export function GlassChip({ label, selected, onPress, symbol, fallback, testID }
       accessibilityState={{ selected: !!selected }}
       testID={testID}
     >
-      <Glass variant="clear" interactive tint={selected ? colors.thread : undefined} style={s.chip}>
-        {symbol ? <Icon name={symbol} fallback={fallback ?? ''} size={13} color={selected ? colors.onThread : colors.ink} /> : null}
-        <Text variant="label" tone={selected ? 'onThread' : 'primary'}>{label}</Text>
+      <Glass variant="clear" interactive tint={selected ? colors.ink : undefined} style={s.chip}>
+        {symbol ? <Icon name={symbol} fallback={fallback ?? ''} size={13} color={selected ? colors.bg : colors.ink} /> : null}
+        <Text variant="label" style={{ color: selected ? colors.bg : colors.ink }}>{label}</Text>
       </Glass>
     </PressableScale>
   );
@@ -122,7 +122,7 @@ export function Button({ label, onPress, kind = 'primary', symbol, fallback, bus
       accessibilityHint={accessibilityHint}
       accessibilityState={{ busy: !!busy }}
       testID={testID}
-      style={[s.button, { backgroundColor: bg }, style]}
+      style={[s.button, { backgroundColor: bg }, (kind === 'quiet' || kind === 'danger') && s.buttonBare, style]}
     >
       {busy ? (
         <ActivityIndicator color={fg} />
@@ -153,5 +153,6 @@ const useStyles = makeStyles((c) =>
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
       borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline,
     },
+    buttonBare: { borderWidth: 0 },
   }),
 );

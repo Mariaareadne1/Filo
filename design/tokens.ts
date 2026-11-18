@@ -5,8 +5,8 @@ import { Platform, TextStyle } from 'react-native';
  *
  * The map is the canvas; chrome floats above it as glass. Surfaces are clean
  * off-white (not beige) or near-black, type is charcoal, and the red thread
- * is reserved for meaning: selection, your relationship to a place, primary
- * actions, small highlights. Never a background wash.
+ * is reserved for your own marks: your relationship to a place, your rank, and
+ * the one primary action on a screen. Filters and navigation stay in ink.
  */
 
 export const THREAD = '#D8423A';
@@ -45,8 +45,8 @@ export const LIGHT: ColorScheme = {
   surface: '#FFFFFF',
   surfaceSunk: '#EFEFEC',
   ink: '#17181A',
-  inkSecondary: 'rgba(23,24,26,0.64)',
-  inkTertiary: 'rgba(23,24,26,0.44)',
+  inkSecondary: 'rgba(23,24,26,0.72)',
+  inkTertiary: 'rgba(23,24,26,0.60)',
   hairline: 'rgba(23,24,26,0.10)',
   thread: THREAD,
   threadSoft: 'rgba(216,66,58,0.12)',
@@ -65,8 +65,8 @@ export const DARK: ColorScheme = {
   surface: '#1A1B1E',
   surfaceSunk: '#232428',
   ink: '#F3F3F1',
-  inkSecondary: 'rgba(243,243,241,0.68)',
-  inkTertiary: 'rgba(243,243,241,0.46)',
+  inkSecondary: 'rgba(243,243,241,0.74)',
+  inkTertiary: 'rgba(243,243,241,0.60)',
   hairline: 'rgba(243,243,241,0.12)',
   thread: '#E5554C',
   threadSoft: 'rgba(229,85,76,0.20)',
@@ -124,14 +124,15 @@ export const RADIUS = { sm: 10, md: 16, lg: 22, xl: 30, capsule: 999 } as const;
 export const HIT = 44;
 
 // ─── Motion ───────────────────────────────────────────────────────────
-// Springs are Reanimated `withSpring` configs. Durations are for the
-// reduced-motion path, which swaps springs for short opacity fades.
+// Springs are Reanimated `withSpring` configs, critically damped so simple UI
+// settles without overshoot. Durations are for the reduced-motion path, which
+// swaps springs for short opacity fades.
 export const MOTION = {
-  press: { damping: 18, stiffness: 420, mass: 0.6 },
-  snappy: { damping: 22, stiffness: 300, mass: 0.8 },
-  sheet: { damping: 26, stiffness: 240, mass: 0.9 },
+  press: { damping: 32, stiffness: 420, mass: 0.6 },
+  snappy: { damping: 32, stiffness: 300, mass: 0.8 },
+  sheet: { damping: 30, stiffness: 240, mass: 0.9 },
   gentle: { damping: 30, stiffness: 160, mass: 1 },
-  pressScale: 0.96,
+  pressScale: 0.97,
   fadeMs: 160,
 } as const;
 

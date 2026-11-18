@@ -33,7 +33,7 @@ export function UploadProgressOverlay() {
               {u.status === 'success' ? <Icon name="checkmark.circle.fill" fallback="✓" size={16} color={colors.success} /> : null}
               {u.status === 'failed' ? <Icon name="arrow.clockwise" fallback="↻" size={16} color={colors.danger} /> : null}
               <Text variant="label" tone={u.status === 'failed' ? 'danger' : 'primary'}>
-                {u.status === 'uploading' ? 'Uploading photo…' : u.status === 'success' ? 'Photo saved' : 'Upload failed — tap to retry'}
+                {u.status === 'uploading' ? 'Uploading photo…' : u.status === 'success' ? 'Photo saved' : 'Upload failed. Tap to retry'}
               </Text>
             </Glass>
           </PressableScale>

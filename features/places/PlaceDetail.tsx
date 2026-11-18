@@ -52,7 +52,7 @@ export function PlaceDetail({ placeId, onRemoved }: Props) {
   }, [pins, place]);
 
   if (detail.isLoading) {
-    return <View style={s.center}><ActivityIndicator color={colors.thread} /></View>;
+    return <View style={s.center}><ActivityIndicator color={colors.inkSecondary} /></View>;
   }
   if (detail.isError || !place) {
     return (
@@ -110,8 +110,8 @@ export function PlaceDetail({ placeId, onRemoved }: Props) {
       {/* Preview detent: who/what/where + your relationship */}
       <View style={s.kickerRow}>
         <Icon name={meta.symbol} fallback={meta.glyph} size={13} color={colors.inkSecondary} />
-        <Text variant="caption" tone="secondary" style={s.kicker}>
-          {meta.label.toUpperCase()}{place.neighborhood ? ` · ${place.neighborhood}` : ''}
+        <Text variant="caption" tone="secondary">
+          {meta.label}{place.neighborhood ? ` · ${place.neighborhood}` : ''}
         </Text>
       </View>
       <Text variant="placeName" accessibilityRole="header">{place.name}</Text>
@@ -272,7 +272,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   const s = useStyles();
   return (
     <View style={s.section}>
-      <Text variant="caption" tone="secondary" style={s.sectionTitle} accessibilityRole="header">{title.toUpperCase()}</Text>
+      <Text variant="label" tone="secondary" accessibilityRole="header">{title}</Text>
       {children}
     </View>
   );
@@ -296,7 +296,6 @@ const useStyles = makeStyles((c) =>
     center: { paddingVertical: SPACE.xxl, alignItems: 'center' },
     flex: { flex: 1 },
     kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    kicker: { letterSpacing: 0.8 },
     relation: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, marginTop: SPACE.xs },
     pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.capsule },
     pillDot: { width: 7, height: 7, borderRadius: 4 },
@@ -307,7 +306,6 @@ const useStyles = makeStyles((c) =>
     photos: { gap: SPACE.sm, paddingVertical: SPACE.sm },
     photo: { width: 148, height: 108, borderRadius: RADIUS.md, backgroundColor: c.surfaceSunk },
     section: { marginTop: SPACE.lg, gap: SPACE.sm },
-    sectionTitle: { letterSpacing: 0.8 },
     noteCard: { backgroundColor: c.surface, borderRadius: RADIUS.md, padding: SPACE.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline },
     noteEdit: { backgroundColor: c.surface, borderRadius: RADIUS.md, padding: SPACE.md, gap: SPACE.sm },
     noteInput: { minHeight: 72, fontSize: 16, color: c.ink, textAlignVertical: 'top' },

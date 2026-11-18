@@ -65,9 +65,9 @@ export function FirstPlacesStep() {
   return (
     <View style={[s.root, { paddingTop: insets.top + SPACE.xl }]}>
       <View style={s.head}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>STEP 2 OF 3</Text>
+        <Text variant="caption" tone="secondary" >Step 2 of 3</Text>
         <Text variant="title" accessibilityRole="header">Start with places you <Text variant="title" italic tone="thread">know</Text>.</Text>
-        <Text variant="callout" tone="secondary">Real spots near campus. Mark a few — you can search for anything later.</Text>
+        <Text variant="callout" tone="secondary">Real spots near campus. Mark a few to start your map.</Text>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} style={{ flexGrow: 0 }}>
@@ -109,8 +109,8 @@ function SuggestionRow({ place, status, onMark }: { place: PlaceCandidate; statu
     return (
       <PressableScale onPress={() => onMark(value)} accessibilityRole="button" accessibilityState={{ selected: on }}
         accessibilityLabel={`${label}: ${place.name}`}
-        style={[s.opt, on && { backgroundColor: colors.thread, borderColor: colors.thread }]}>
-        <Text variant="label" style={{ color: on ? colors.onThread : colors.ink }}>{label}</Text>
+        style={[s.opt, on && (value === 'visited' ? { backgroundColor: colors.thread, borderColor: colors.thread } : { borderColor: colors.thread })]}>
+        <Text variant="label" style={{ color: on ? (value === 'visited' ? colors.onThread : colors.thread) : colors.ink }}>{label}</Text>
       </PressableScale>
     );
   };
@@ -132,11 +132,10 @@ const useStyles = makeStyles((c) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     head: { paddingHorizontal: GUTTER, gap: SPACE.sm, marginBottom: SPACE.md },
-    kicker: { letterSpacing: 1 },
     chips: { paddingHorizontal: GUTTER, gap: SPACE.sm },
     list: { paddingHorizontal: GUTTER, paddingTop: SPACE.md },
     row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 60, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.hairline },
-    opt: { minHeight: 36, minWidth: 58, paddingHorizontal: SPACE.md, borderRadius: RADIUS.capsule, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' },
+    opt: { minHeight: 36, minWidth: 58, paddingHorizontal: SPACE.md, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' },
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: GUTTER, paddingTop: SPACE.md, backgroundColor: c.bg },
   }),
 );

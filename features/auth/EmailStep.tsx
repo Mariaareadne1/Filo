@@ -55,7 +55,7 @@ export function EmailStep() {
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[s.inner, { paddingTop: insets.top + SPACE.xxxl, paddingBottom: insets.bottom + SPACE.lg }]}>
         <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="secondary" style={s.kicker}>COLUMBIA · BARNARD</Text>
+          <Text variant="caption" tone="secondary" >Columbia · Barnard</Text>
           <Text variant="hero" style={s.wordmark} accessibilityRole="header" accessibilityLabel="Filo">
             filo<Text variant="hero" tone="thread" style={s.wordmark}>.</Text>
           </Text>
@@ -98,7 +98,6 @@ const useStyles = makeStyles((c) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     inner: { flex: 1, paddingHorizontal: GUTTER + 4 },
-    kicker: { letterSpacing: 1.2 },
     wordmark: { fontSize: 72, lineHeight: 80, letterSpacing: -2 },
     tagline: { marginTop: SPACE.sm, maxWidth: 320 },
     form: { gap: SPACE.md },

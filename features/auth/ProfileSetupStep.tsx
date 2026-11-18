@@ -109,7 +109,7 @@ export function ProfileSetupStep() {
           {avatar ? <Image source={{ uri: avatar }} style={s.avatar} contentFit="cover" /> : (
             <View style={[s.avatar, s.avatarEmpty]}><Icon name="camera" fallback="◎" size={22} color={colors.inkSecondary} /></View>
           )}
-          <Text variant="label" tone="thread">{avatar ? 'Change photo' : 'Add photo'}</Text>
+          <Text variant="label">{avatar ? 'Change photo' : 'Add photo'}</Text>
         </PressableScale>
 
         <Text variant="label" tone="secondary">Name</Text>

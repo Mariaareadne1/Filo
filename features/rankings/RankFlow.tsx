@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,14 +8,14 @@ import { useRankings } from '../../lib/hooks';
 import { useSession } from '../../lib/session';
 import { CATEGORY_META, normalizeCategory } from '../../lib/categories';
 import { nextCompareState, type CompareAnswer } from '../../lib/rankInsert';
-import { rerankPlace } from '../../lib/api/rankings';
+import { rerankPlace, type RankedPlace } from '../../lib/api/rankings';
 import { toUserMessage } from '../../lib/errors';
 import { parseIdParam } from '../../lib/params';
 import { qk } from '../../lib/queryClient';
 import { Button } from '../../design/controls';
 import { PressableScale, Text, haptic } from '../../design/primitives';
 import { makeStyles, useTheme } from '../../design/theme';
-import { GUTTER, RADIUS, SPACE } from '../../design/tokens';
+import { FONT, GUTTER, RADIUS, SPACE } from '../../design/tokens';
 
 /**
  * Rank a place inside one of your lists by answering "which did you like
@@ -91,11 +91,11 @@ export function RankFlow() {
   return (
     <View style={[s.root, { paddingTop: insets.top + SPACE.lg, paddingBottom: insets.bottom + SPACE.lg }]}>
       <View style={s.header}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>
-          {params.fresh ? 'SAVED · ' : ''}RANK IN YOUR {meta.plural.toUpperCase()}
+        <Text variant="label" tone="secondary">
+          {params.fresh ? 'Saved · ' : ''}Your {meta.plural}
         </Text>
         <Text variant="title" accessibilityRole="header">
-          Where does <Text variant="title" italic tone="thread">{name}</Text> land?
+          Where does {name} <Text variant="title" italic tone="thread">land</Text>?
         </Text>
       </View>
 
@@ -107,19 +107,7 @@ export function RankFlow() {
           <Button kind="secondary" label="Try again" onPress={() => list.refetch()} style={{ marginTop: SPACE.md }} />
         </View>
       ) : done ? (
-        <Animated.View entering={entering} style={s.result}>
-          <Text variant="count" tone="secondary">YOUR {meta.plural.toUpperCase()}</Text>
-          <Text variant="hero" tone="thread" accessibilityLabel={`Number ${rank} of ${pool.length + 1}`}>
-            #{rank}<Text variant="title" tone="tertiary"> / {pool.length + 1}</Text>
-          </Text>
-          <Text variant="callout" tone="secondary" style={{ textAlign: 'center' }}>
-            {pool.length === 0
-              ? `Your first ranked ${meta.singular}. The list starts here.`
-              : rank === 1
-                ? `Above ${pool[0].name} — your new favorite.`
-                : `Just below ${pool[rank - 2].name}.`}
-          </Text>
-        </Animated.View>
+        <RankReveal rank={rank} name={name} pool={pool} singular={meta.singular} plural={meta.plural} animate={!reduceMotion} />
       ) : rival ? (
         <Animated.View key={rival.placeId} entering={entering} exiting={exiting} style={s.compare}>
           <Text variant="heading" style={{ textAlign: 'center' }}>Which did you like more?</Text>
@@ -130,7 +118,7 @@ export function RankFlow() {
             <Button kind="quiet" label="Too close to call" onPress={() => answer('tie')} />
           </View>
           <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>
-            About {steps} {steps === 1 ? 'question' : 'questions'} in total
+            {steps === 1 ? 'One question' : `About ${steps} questions`}
           </Text>
         </Animated.View>
       ) : null}
@@ -147,6 +135,47 @@ export function RankFlow() {
           <Button kind="quiet" label="Skip for now" onPress={finish} />
         )}
       </View>
+    </View>
+  );
+}
+
+const REVEAL_RISE = 8;
+const reveal = (delay: number) => FadeInDown.duration(320).delay(delay).easing(Easing.out(Easing.cubic))
+  .withInitialValues({ opacity: 0, transform: [{ translateY: REVEAL_RISE }] });
+
+/** The payoff of ranking: your number, set large, and where it landed in your list. */
+function RankReveal({ rank, name, pool, singular, plural, animate }: {
+  rank: number; name: string; pool: RankedPlace[]; singular: string; plural: string; animate: boolean;
+}) {
+  const s = useStyles();
+  const total = pool.length + 1;
+  const above = rank > 1 ? pool[rank - 2] : null;
+  const below = rank <= pool.length ? pool[rank - 1] : null;
+  const caption = total === 1
+    ? `Your first ranked ${singular}`
+    : rank === 1 ? `Your new favorite of ${total} ${plural}` : `of ${total} ${plural}`;
+  return (
+    <View style={s.result}>
+      <Animated.View entering={animate ? reveal(0) : undefined} accessible accessibilityLabel={`Number ${rank}. ${caption}`}>
+        <Text tone="thread" style={s.numeral} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1}>{rank}</Text>
+        <Text variant="callout" tone="secondary">{caption}</Text>
+      </Animated.View>
+      <Animated.View entering={animate ? reveal(100) : undefined} style={s.ledger}>
+        {above ? <LedgerRow position={rank - 1} name={above.name} /> : null}
+        <LedgerRow position={rank} name={name} mine />
+        {below ? <LedgerRow position={rank + 1} name={below.name} /> : null}
+      </Animated.View>
+    </View>
+  );
+}
+
+function LedgerRow({ position, name, mine }: { position: number; name: string; mine?: boolean }) {
+  const s = useStyles();
+  return (
+    <View style={s.ledgerRow}>
+      {mine ? <View style={s.ledgerMark} /> : null}
+      <Text variant="count" tone={mine ? 'thread' : 'tertiary'} style={s.ledgerPosition}>{position}</Text>
+      <Text variant={mine ? 'bodyStrong' : 'callout'} tone={mine ? 'primary' : 'secondary'} numberOfLines={1} style={{ flex: 1 }}>{name}</Text>
     </View>
   );
 }
@@ -168,14 +197,18 @@ const useStyles = makeStyles((c) =>
     root: { flex: 1, backgroundColor: c.bg, paddingHorizontal: GUTTER },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     header: { gap: SPACE.sm },
-    kicker: { letterSpacing: 0.8 },
     compare: { flex: 1, justifyContent: 'center', gap: SPACE.md },
     choice: {
       minHeight: 120, borderRadius: RADIUS.lg, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center',
       padding: SPACE.lg, gap: SPACE.xs, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline,
     },
     minor: { alignItems: 'center' },
-    result: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.lg },
+    result: { flex: 1, justifyContent: 'center', gap: SPACE.xl },
+    numeral: { fontFamily: FONT.display, fontSize: 136, lineHeight: 144, letterSpacing: -4, fontVariant: ['tabular-nums'] },
+    ledger: { borderRadius: RADIUS.md, backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline, overflow: 'hidden' },
+    ledgerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, minHeight: 52, paddingHorizontal: SPACE.lg },
+    ledgerMark: { position: 'absolute', left: 0, top: SPACE.md, bottom: SPACE.md, width: 2, backgroundColor: c.thread },
+    ledgerPosition: { width: 24, fontVariant: ['tabular-nums'] },
     footer: { gap: SPACE.xs },
   }),
 );

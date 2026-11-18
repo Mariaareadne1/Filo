@@ -43,7 +43,7 @@ export function OtpStep() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/auth/email'));
 
   const verify = async (token: string) => {
-    if (!email) { setError('Missing email — go back and try again.'); return; }
+    if (!email) { setError('Missing email. Go back and try again.'); return; }
     setBusy(true);
     setError('');
     const { error: e } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
@@ -110,7 +110,7 @@ export function OtpStep() {
           />
         </Pressable>
 
-        {busy ? <ActivityIndicator color={colors.thread} /> : null}
+        {busy ? <ActivityIndicator color={colors.inkSecondary} /> : null}
         {error ? <Text variant="callout" tone="danger" accessibilityLiveRegion="polite">{error}</Text> : null}
 
         <PressableScale onPress={resend} disabled={cooldown > 0} style={s.resend} accessibilityLabel={cooldown > 0 ? `Resend available in ${cooldown} seconds` : 'Resend code'}>

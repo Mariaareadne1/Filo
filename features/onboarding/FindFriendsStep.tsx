@@ -94,7 +94,7 @@ export function FindFriendsStep() {
   return (
     <View style={[s.root, { paddingTop: insets.top + SPACE.xl }]}>
       <View style={s.head}>
-        <Text variant="caption" tone="secondary" style={s.kicker}>STEP 3 OF 3</Text>
+        <Text variant="caption" tone="secondary" >Step 3 of 3</Text>
         <Text variant="title" accessibilityRole="header">Follow your <Text variant="title" italic tone="thread">people</Text>.</Text>
         <Text variant="callout" tone="secondary">Their places show up on your map. Private accounts approve requests first.</Text>
         <TextInput value={query} onChangeText={setQuery} placeholder="Search by name or @username"
@@ -111,7 +111,7 @@ export function FindFriendsStep() {
             <Text variant="callout" tone="secondary" style={{ marginTop: SPACE.lg }}>
               {query.trim().length >= 2
                 ? 'No one by that name yet.'
-                : "You're early — no one else has places here yet. Invite a friend, and their map will appear on yours."}
+                : "You're early. Invite a friend and their map will appear on yours."}
             </Text>
           )
         }
@@ -126,8 +126,8 @@ export function FindFriendsStep() {
               </View>
               <PressableScale onPress={() => toggle(item)}
                 accessibilityLabel={state ? `Unfollow @${item.username}` : `Follow @${item.username}`}
-                style={[s.follow, !state && { backgroundColor: colors.thread, borderColor: colors.thread }]}>
-                <Text variant="label" style={{ color: state ? colors.ink : colors.onThread }}>
+                style={[s.follow, !state && { backgroundColor: colors.ink, borderColor: colors.ink }]}>
+                <Text variant="label" style={{ color: state ? colors.ink : colors.bg }}>
                   {state === 'pending' ? 'Requested' : state ? 'Following' : 'Follow'}
                 </Text>
               </PressableScale>
@@ -136,7 +136,7 @@ export function FindFriendsStep() {
         }}
       />
       <View style={[s.footer, { paddingBottom: insets.bottom + SPACE.md }]}>
-        <Button label={count > 0 ? 'Open my map' : 'Skip — open my map'} onPress={finish} busy={finishing} testID="onboarding-finish" />
+        <Button label={count > 0 ? 'Open my map' : 'Open my map'} onPress={finish} busy={finishing} testID="onboarding-finish" />
       </View>
     </View>
   );
@@ -146,12 +146,11 @@ const useStyles = makeStyles((c) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     head: { paddingHorizontal: GUTTER, gap: SPACE.sm },
-    kicker: { letterSpacing: 1 },
     input: { marginTop: SPACE.md, height: 46, borderRadius: RADIUS.md, backgroundColor: c.surfaceSunk, paddingHorizontal: SPACE.lg, fontSize: 16, color: c.ink },
     list: { paddingHorizontal: GUTTER, paddingTop: SPACE.md },
     row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, minHeight: 64 },
     avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surfaceSunk, alignItems: 'center', justifyContent: 'center' },
-    follow: { minHeight: 36, paddingHorizontal: SPACE.lg, borderRadius: RADIUS.capsule, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' },
+    follow: { minHeight: 36, paddingHorizontal: SPACE.lg, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' },
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: GUTTER, paddingTop: SPACE.md, backgroundColor: c.bg },
   }),
 );
